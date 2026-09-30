@@ -132,7 +132,7 @@ A lobby holds max 4 players, so unique picks always work.
 | Super | Mega Sword | Jumps, slams sword into the ground | Shockwave. **Inner ring** (tiles next to the impact): big damage. **Outer ring**: smaller damage + **Dizzy** |
 
 ### Mike (4/4): ranged thrower
-- **Look**: short brown hair, **black hoodie, black pants**. Carries a slingshot. Height and skin tone **TBD**.
+- **Look**: short brown hair, **black hoodie, black pants**. Carries a slingshot. Light skin, medium height (between Sebba and William).
 - **Stats**: HP 85, move 3. Lowest HP, so rushing him down is the counter.
 - **Style**: uses a mix of school stuff (slingshot, water gun, books). The only
   ranged character, so he gives the roster its long-range threat.
@@ -313,7 +313,6 @@ animate the events.
 
 ## 7. Still to decide (next sessions)
 
-- **Characters**: Mike's height and skin tone.
 - **Maps**: tune the draft layouts in playtests. More maps later (cafeteria?).
 - **Numbers**: first pass is done (section 2b). Tune in playtests.
 - **Status effects**: bleed/burn/stun/heal, or none?
