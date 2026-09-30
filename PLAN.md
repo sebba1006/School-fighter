@@ -152,6 +152,60 @@ A lobby holds max 4 players, so unique picks always work.
 
 ---
 
+## 2c. Maps
+
+3 maps at launch. The host picks one in the lobby. Every map follows the same rule:
+**lockers along the sides, desks (or other cover) in the middle**.
+
+- Spawns: **opposite ends**. 1v1 and 2v2 use the left edge vs. the right edge.
+  FFA uses 3 corners.
+- Everything is breakable, but lockers are very tough.
+
+| Obstacle | HP | Notes |
+|---|---|---|
+| Desk | 20 | Main cover in the middle |
+| Teacher's desk | 40 | Classroom only |
+| Bench | 30 | Gym only |
+| Ball cart | 15 | Gym only |
+| Locker | 60 | Very tough side walls |
+
+Legend: `L` locker, `D` desk, `T` teacher's desk, `B` bench, `C` ball cart,
+`A`/`B#` team spawns, `.` floor. These are first drafts to be tuned in playtests.
+
+### Classroom (10×7)
+```
+L L L L L L L L L L
+A . . . . . . . . B
+A . D . D . D . . B
+. . . . . T . . . .
+. . D . D . D . . .
+. . . . . . . . . .
+L L L L L L L L L L
+```
+
+### Hallway (14×5): long and narrow, great for Mike's line attacks
+```
+L L L L L L L L L L L L L L
+A . . . . D . . D . . . . B
+A . . D . . . . . . D . . B
+. . . . . D . . D . . . . .
+L L L L L L L L L L L L L L
+```
+
+### Gym (10×8): open floor, brawler-friendly
+```
+L L L L L L L L L L
+A . . . . . . . . B
+A . . . . . . . . B
+. . . B . . B . . .
+. . . . . C . . . .
+. . . B . . B . . .
+. . . . . . . . . .
+L L L L L L L L L L
+```
+
+---
+
 ## 3. Lobby and online
 
 ### Lobby flow
@@ -248,8 +302,8 @@ animate the events.
 
 ## 7. Still to decide (next sessions)
 
-- **Characters**: Mike's super and full look.
-- **Maps**: which ones (classroom, cafeteria, gym…?), sizes, obstacle layouts.
+- **Characters**: Mike's full look (height, skin, clothes, glasses?).
+- **Maps**: tune the draft layouts in playtests. More maps later (cafeteria?).
 - **Numbers**: HP, damage, slam damage, obstacle HP, meter rates.
 - **Status effects**: bleed/burn/stun/heal, or none?
 - **Timing minigame** (press at the right moment for bonus damage): not
