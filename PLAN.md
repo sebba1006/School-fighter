@@ -142,7 +142,7 @@ A lobby holds max 4 players, so unique picks always work.
 | 2 | Slingshot | Straight line, up to 5 tiles | Hits the first enemy. **Stopped by obstacles** |
 | 3 | Water Gun | Line of 3 tiles | Low damage + **Dizzy**. Stopped by obstacles |
 | 4 | Book Lob | Target tile 2–4 tiles away, plus-shape (5 tiles) | **Arcs over obstacles**. Medium damage |
-| Super | **TBD** (long-range, Mike's own idea) | | |
+| Super | Flying Tackle | Closest enemy in a straight line, **up to 3 tiles** | Leaps onto the enemy, tackles them to the ground and punches them: big fixed damage + **Dizzy**. Mike then **jumps back to where he started**. **Cost**: Mike loses **10 HP** (**15 HP** if he leaped over an obstacle) and becomes **Dizzy** himself. The self-damage can't KO him (minimum 1 HP) |
 
 ### Shared status effects
 | Effect | Meaning |
