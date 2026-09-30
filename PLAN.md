@@ -32,8 +32,8 @@ short code and fight on pixel-art school maps.
 | Controls – mobile | Virtual joystick (move/aim) + 5 on-screen buttons + confirm |
 | Platforms | **Android first**, **website** too, iOS later (maybe PC) |
 | Engine | **Godot 4** (GDScript). One project exports Android, Web, iOS, PC |
-| Art | **Real pixel art**. Claude makes it from **your reference images**; you can redraw any piece |
-| Characters | **TBD** (next design session) |
+| Art | **Real pixel art, all made by Claude**. References can be anything: photos, sketches, screenshots or just a description |
+| Characters | **4 at launch**, based on the owner and friends. **Unique picks** (no duplicates in a lobby). See section 2b |
 
 ---
 
@@ -81,6 +81,31 @@ obstacle/player), cone, cross around self, lob (ignores cover).
 - Host picks 1–5 rounds. The player/team with the most round wins takes
   the match. If an even round count ends tied, play one sudden-death round.
 - HP, meter, positions and obstacles reset each round.
+
+---
+
+## 2b. Characters
+
+4 characters at launch, each based on a real person (nicknames only).
+A lobby holds max 4 players, so unique picks always work.
+
+### Sebba (1/4): balanced brawler
+- **Look**: light skin, short brown hair, glasses, gray t-shirt, black pants,
+  black shoes. Short (about 140–160 cm), so he is drawn a bit shorter than the rest.
+- **Stats**: HP 100, move 3.
+- **Style**: up-close melee, plus a charge to close the gap.
+
+| Slot | Attack | Shape | Effect |
+|---|---|---|---|
+| 1 | Punch | 1 tile in front | Solid damage |
+| 2 | Kick | 1 tile in front | Low damage, big knockback |
+| 3 | Sweep | All 8 tiles around self | Lower damage, hits everyone adjacent |
+| 4 | Charge | Dash in a line, up to 4 tiles | Stops at first enemy, knockback; damage grows with distance run |
+| Super | Mega Barrage | 1 adjacent enemy | Rapid flurry of punches, big fixed damage |
+
+### Character 2/4: TBD (friend)
+### Character 3/4: TBD (friend)
+### Character 4/4: TBD (friend)
 
 ---
 
@@ -157,8 +182,8 @@ animate the events.
   super (8f+), hurt (2f), KO (4f), victory (4f).
 - Per map: floor tileset, walls, obstacles (desk, locker, table…) with
   intact/damaged/broken states.
-- Workflow: **you send reference images**, Claude makes the sprites, and you
-  redraw anything you want to change.
+- Workflow: you send references (photos, sketches, screenshots, or just a
+  description) and Claude makes all the sprites. No pixel-art skills needed.
 
 ---
 
@@ -180,8 +205,7 @@ animate the events.
 
 ## 7. Still to decide (next sessions)
 
-- **Characters**: how many, who they are (school theme?), stats (HP, move
-  range), 4 attacks + super each.
+- **Characters**: the 3 friend characters (look, stats, 4 attacks + super).
 - **Maps**: which ones (classroom, cafeteria, gym…?), sizes, obstacle layouts.
 - **Numbers**: HP, damage, slam damage, obstacle HP, meter rates.
 - **Status effects**: bleed/burn/stun/heal, or none?
