@@ -11,6 +11,10 @@ func _init() -> void:
 		if not file.begins_with("test_") or not file.ends_with(".gd") or file == "test_case.gd":
 			continue
 		var script: GDScript = load("res://tests/" + file)
+		if script == null or not script.can_instantiate():
+			failed += 1
+			print("FAIL %s  could not load (parse error?)" % file)
+			continue
 		for m in script.get_script_method_list():
 			var name: String = m.name
 			if not name.begins_with("test_"):

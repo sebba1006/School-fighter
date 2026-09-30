@@ -95,6 +95,8 @@ func start_round() -> Array:
 	_place_fighters()
 	order = _build_order()
 	turn_index = 0
+	while not current().alive() and turn_index < order.size() - 1:
+		turn_index += 1
 	var events: Array = [{"type": "round_start", "round": round_number, "sudden_death": is_sudden_death(), "order": order.duplicate()}]
 	events.append_array(_begin_turn())
 	return events
@@ -456,7 +458,13 @@ func _check_round_end(events: Array) -> void:
 ## The match is decided once the leader can't be caught in the rounds left.
 ## A tie after the last round means sudden-death rounds until someone leads.
 func _decided_winner() -> int:
-	var ranked := teams.duplicate()
+	# Teams where everyone forfeited are out of the match.
+	var ranked: Array[int] = []
+	for f in fighters:
+		if not f.forfeited and not ranked.has(f.team):
+			ranked.append(f.team)
+	if ranked.size() == 1:
+		return ranked[0]
 	ranked.sort_custom(func(a, b): return round_wins[a] > round_wins[b])
 	var remaining := maxi(0, rounds_total - round_number)
 	if round_wins[ranked[0]] > round_wins[ranked[1]] + remaining:
@@ -523,6 +531,47 @@ func _build_order() -> Array[int]:
 			if i < by_team[t].size():
 				out.append(by_team[t][i])
 	return out
+
+
+# ---------------------------------------------------------------- online helpers
+
+## Takes a player out of the match (used when they disconnect for too long).
+## They are knocked out now and in every later round.
+func forfeit(fighter_id: int) -> Array:
+	var f := fighters[fighter_id]
+	if f.forfeited or phase == Phase.MATCH_OVER:
+		return []
+	f.forfeited = true
+	var events: Array = [{"type": "forfeit", "fighter": fighter_id}]
+	if phase != Phase.TURN:
+		var mw := _decided_winner()
+		if mw != -1:
+			phase = Phase.MATCH_OVER
+			match_winner = mw
+			events.append({"type": "match_end", "winner_team": mw, "wins": round_wins.duplicate()})
+		return events
+	var was_current := current().id == fighter_id
+	if f.alive():
+		f.hp = 0
+		events.append({"type": "ko", "fighter": fighter_id})
+	_check_round_end(events)
+	if phase == Phase.TURN and was_current:
+		events.append_array(_end_turn())
+	return events
+
+
+## A fingerprint of everything that matters in the battle. The server sends it
+## with every move so clients can tell if their copy got out of sync.
+func state_hash() -> int:
+	var parts := [phase, round_number, turn_index, move_budget, path.size(), _rng.state]
+	for f in fighters:
+		parts.append_array([f.hp, f.pos.x, f.pos.y, f.meter, f.shield.get("kind", ""), f.shield.get("amount", 0),
+			f.dizzy_next, f.rage_turns, f.sugar_active, f.no_attack_next, f.no_attack_now, f.forfeited])
+	var tiles := obstacles.keys()
+	tiles.sort()
+	for t in tiles:
+		parts.append_array([t.x, t.y, obstacles[t].hp])
+	return hash(str(parts))
 
 
 # ---------------------------------------------------------------- previews (read-only, for the UI)
