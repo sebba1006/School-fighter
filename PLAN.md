@@ -103,9 +103,40 @@ A lobby holds max 4 players, so unique picks always work.
 | 4 | Charge | Dash in a line, up to 4 tiles | Stops at first enemy, knockback; damage grows with distance run |
 | Super | Mega Barrage | 1 adjacent enemy | Rapid flurry of punches, big fixed damage |
 
-### Character 2/4: TBD (friend)
-### Character 3/4: TBD (friend)
-### Character 4/4: TBD (friend)
+### William (2/4): wrestler bruiser
+- **Look**: blond hair, glasses, light skin. Tallest of the three
+  (about 150–168 cm). Clothes **TBD**.
+- **Stats**: HP 115, move 3.
+- **Passive – Last Stand**: below 35% HP (40 HP or less), all his attacks do **+3 damage**.
+
+| Slot | Attack | Shape | Effect |
+|---|---|---|---|
+| 1 | Shoulder Tackle | Rush up to 2 tiles in a line | Hits first enemy, knockback 1 |
+| 2 | Punch | 1 tile in front | Solid damage |
+| 3 | Rage | Self | For **1–2 of his turns (random)**: **+8 damage** on attacks and a **15 HP shield**. Both end together; the shield never heals real HP. Uses his action |
+| 4 | Head Slam | 1 tile in front | Damage + **Dizzy** |
+| Super | Body Smash | 1 adjacent enemy | Pro-wrestling body slam, big fixed damage. Rocks fly up around him (visual only) |
+
+### Snorre (3/4): sugar-fuelled swordsman
+- **Look**: brown hair, light skin, shortest of the three (about 140–155 cm).
+  Carries a sword. Clothes **TBD**.
+- **Stats**: HP 95, move 3.
+
+| Slot | Attack | Shape | Effect |
+|---|---|---|---|
+| 1 | Stab | 1 tile in front | Solid damage |
+| 2 | Block | Self | Shield that blocks **1 attack** completely. Gone at the start of his next turn if unused. Uses his action |
+| 3 | Dual Spin | All 8 tiles around self | Lower damage, hits everyone adjacent |
+| 4 | Sugar Rush | Self | **Free action** (he can still attack this turn). This turn his attacks do **1.3× damage**. On his **next turn he cannot attack** (he can still move) |
+| Super | Mega Sword | Jumps, slams sword into the ground | Shockwave. **Inner ring** (tiles next to the impact): big damage. **Outer ring**: smaller damage + **Dizzy** |
+
+### Character 4/4: TBD (another friend, later)
+
+### Shared status effects
+| Effect | Meaning |
+|---|---|
+| **Dizzy** | Move range −1 on the target's next turn |
+| **Shield** | Absorbs damage before HP. Doesn't stack (a new shield replaces the old one) |
 
 ---
 
