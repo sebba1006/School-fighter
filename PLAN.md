@@ -69,8 +69,9 @@ obstacle/player), cone, cross around self, lob (ignores cover).
   attacker, because friendly fire is off).
 
 ### Super meter
-- Max 100. **Dealing** damage gives **1.0 meter per HP**, **taking** damage
-  gives **0.5 meter per HP** (numbers can be tuned).
+- Max 100. **Dealing** damage gives **2 meter per HP**, **taking** damage
+  gives **1 meter per HP**. That works out to about 4–5 solid hits per super,
+  so roughly 1–2 supers per round (numbers can be tuned).
 - Full meter → super is available. Using it resets the meter to 0.
 - Super damage/shape is fixed per character.
 - Meter resets every round.
@@ -149,6 +150,16 @@ A lobby holds max 4 players, so unique picks always work.
 |---|---|
 | **Dizzy** | Move range −1 on the target's next turn |
 | **Shield** | Absorbs damage before HP. Doesn't stack (a new shield replaces the old one) |
+
+### First-pass numbers (to tune in playtests)
+Slam damage (knocked into an obstacle, wall or player): **5**.
+
+| Character | 1 | 2 | 3 | 4 | Super |
+|---|---|---|---|---|---|
+| Sebba | Punch 14 | Kick 8, knockback 2 | Sweep 8 | Charge 8 + 3 per tile run (max 20), knockback 1 | Mega Barrage 35 |
+| William | Tackle 12, knockback 1 | Punch 14 | Rage (+8 dmg, 15 shield) | Head Slam 10 + Dizzy | Body Smash 35 |
+| Snorre | Stab 15 | Block | Dual Spin 9 | Sugar Rush (1.3×) | Mega Sword: inner 30, outer 12 + Dizzy |
+| Mike | Shove 5, knockback 2 | Slingshot 11 | Water Gun 6 + Dizzy | Book Lob 9 | Flying Tackle 30 + Dizzy (self: −10/−15 HP, Dizzy) |
 
 ---
 
@@ -304,8 +315,8 @@ animate the events.
 
 - **Characters**: Mike's full look (height, skin, clothes, glasses?).
 - **Maps**: tune the draft layouts in playtests. More maps later (cafeteria?).
-- **Numbers**: HP, damage, slam damage, obstacle HP, meter rates.
+- **Numbers**: first pass is done (section 2b). Tune in playtests.
 - **Status effects**: bleed/burn/stun/heal, or none?
-- **Timing minigame** (press at the right moment for bonus damage): not
-  decided yet.
+- **Timing minigame** (press at the right moment for bonus damage): **later**,
+  a stretch goal after the core game ships.
 - **Game name**, menu style, music/sound.
