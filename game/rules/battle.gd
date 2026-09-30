@@ -525,6 +525,112 @@ func _build_order() -> Array[int]:
 	return out
 
 
+# ---------------------------------------------------------------- previews (read-only, for the UI)
+
+## Tiles the current fighter can still walk to this turn, with the steps left.
+func reachable_tiles() -> Array[Vector2i]:
+	var f := current()
+	var left := move_budget - path.size()
+	var out: Array[Vector2i] = []
+	var seen := {f.pos: 0}
+	var frontier: Array[Vector2i] = [f.pos]
+	for i in left:
+		var next: Array[Vector2i] = []
+		for t in frontier:
+			for d in DIRS:
+				var n := t + d
+				if not seen.has(n) and _walkable(n):
+					seen[n] = i + 1
+					next.append(n)
+					out.append(n)
+		frontier = next
+	return out
+
+
+## What an attack would do, without doing it.
+## Returns [{"pos": Vector2i, "kind": "hit" | "dizzy" | "path" | "self"}, ...]
+func preview(fighter_id: int, slot: int, dir, dist := 0) -> Array:
+	var f := fighters[fighter_id]
+	if slot < 0 or slot > SUPER_SLOT:
+		return []
+	var atk: Dictionary = f.def["super"] if slot == SUPER_SLOT else f.def.attacks[slot]
+	var out := []
+	var add := func(t: Vector2i, kind: String) -> void:
+		if _in_bounds(t):
+			out.append({"pos": t, "kind": kind})
+	if SELF_TYPES.has(atk.type):
+		add.call(f.pos, "self")
+		return out
+	if not _valid_dir(dir):
+		return []
+	var hit_kind := "dizzy" if atk.get("status", "") == "dizzy" else "hit"
+	match atk.type:
+		"melee":
+			add.call(f.pos + dir, hit_kind)
+		"around":
+			for d in AROUND:
+				add.call(f.pos + d, hit_kind)
+		"dash":
+			var at := f.pos
+			var run := 0
+			while run < atk["range"] and _walkable(at + dir):
+				at += dir
+				run += 1
+				add.call(at, "path")
+			add.call(at + dir, hit_kind)
+		"projectile":
+			for d in range(1, atk["range"] + 1):
+				var t: Vector2i = f.pos + dir * d
+				if not _in_bounds(t):
+					break
+				var o := _fighter_at(t)
+				if obstacles.has(t) or (o != null and o.team != f.team):
+					add.call(t, hit_kind)
+					break
+				add.call(t, "path")
+		"line":
+			for d in range(1, atk["range"] + 1):
+				var t: Vector2i = f.pos + dir * d
+				if not _in_bounds(t):
+					break
+				add.call(t, hit_kind)
+				if obstacles.has(t):
+					break
+		"lob":
+			var center: Vector2i = f.pos + dir * clampi(dist, atk.min_range, atk.max_range)
+			for d in [Vector2i.ZERO, Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+				add.call(center + d, hit_kind)
+		"shockwave":
+			var impact: Vector2i = f.pos + dir
+			for dy in range(-2, 3):
+				for dx in range(-2, 3):
+					var t := impact + Vector2i(dx, dy)
+					if t != f.pos:
+						add.call(t, "hit" if maxi(absi(dx), absi(dy)) <= 1 else "dizzy")
+		"leap":
+			var target := _leap_target(f, dir, atk["range"])
+			var reach: int = atk["range"]
+			if not target.is_empty():
+				reach = maxi(absi(target.fighter.pos.x - f.pos.x), absi(target.fighter.pos.y - f.pos.y))
+			for d in range(1, reach + 1):
+				add.call(f.pos + dir * d, "path")
+			if not target.is_empty():
+				out[out.size() - 1].kind = hit_kind
+	return out
+
+
+## Short reason an attack can't be used right now, or "" if it can.
+func attack_blocked_reason(fighter_id: int, slot: int) -> String:
+	var f := fighters[fighter_id]
+	if f.no_attack_now:
+		return "cannot_attack"
+	if slot == SUPER_SLOT and f.meter < METER_MAX:
+		return "super_not_ready"
+	if slot == 3 and f.def.attacks[3].type == "self_sugar" and f.sugar_active:
+		return "already_active"
+	return ""
+
+
 # ---------------------------------------------------------------- helpers
 
 func _roll(lo: int, hi: int) -> int:

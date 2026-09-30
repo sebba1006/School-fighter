@@ -327,7 +327,7 @@ animate the events.
 |---|---|---|
 | M0 ✅ | Project setup | Godot project, folder layout, test runner, README |
 | M1 ✅ | Rules engine | Grid, move, 4 attacks, super, meter, knockback, obstacles, rounds. All unit-tested |
-| M2 | Local battle | Playable hot-seat 1v1 on one device with placeholder sprites + one test map |
+| M2 ✅ | Local battle | Playable hot-seat 1v1 on one device with placeholder sprites + one test map |
 | M3 | Online 1v1 | Headless server, nicknames, create/join by code, synced battle |
 | M4 | 3–4 players | FFA + 2v2, host settings (map/rounds/timer/teams), turn order |
 | M5 | Robustness | Turn timer, reconnect, host migration, rematch, lobby cleanup |
