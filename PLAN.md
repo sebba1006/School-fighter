@@ -159,7 +159,7 @@ Slam damage (knocked into an obstacle, wall or player): **5**.
 | Sebba | Punch 14 | Kick 8, knockback 2 | Sweep 8 | Charge 8 + 3 per tile run (max 20), knockback 1 | Mega Barrage 35 |
 | William | Tackle 12, knockback 1 | Punch 14 | Rage (+8 dmg, 15 shield) | Head Slam 10 + Dizzy | Body Smash 35 |
 | Snorre | Stab 15 | Block | Dual Spin 9 | Sugar Rush (1.3×) | Mega Sword: inner 30, outer 12 + Dizzy |
-| Mike | Shove 5, knockback 2 | Slingshot 11 | Water Gun 6 + Dizzy | Book Lob 9 | Flying Tackle 30 + Dizzy (self: −10/−15 HP, Dizzy) |
+| Mike | Shove 5, knockback 2 | Slingshot 11 | Water Gun 6 + Dizzy | Book Lob 9 | Flying Tackle 45 + Dizzy (self: −10/−15 HP, Dizzy) |
 
 ---
 
