@@ -170,13 +170,13 @@ A lobby holds max 4 players, so unique picks always work.
 | Locker | 60 | Very tough side walls |
 
 Legend: `L` locker, `D` desk, `T` teacher's desk, `B` bench, `C` ball cart,
-`A`/`B#` team spawns, `.` floor. These are first drafts to be tuned in playtests.
+`1`/`2` team spawns, `.` floor. These are first drafts to be tuned in playtests.
 
 ### Classroom (10×7)
 ```
 L L L L L L L L L L
-A . . . . . . . . B
-A . D . D . D . . B
+1 . . . . . . . . 2
+1 . D . D . D . . 2
 . . . . . T . . . .
 . . D . D . D . . .
 . . . . . . . . . .
@@ -186,8 +186,8 @@ L L L L L L L L L L
 ### Hallway (14×5): long and narrow, great for Mike's line attacks
 ```
 L L L L L L L L L L L L L L
-A . . . . D . . D . . . . B
-A . . D . . . . . . D . . B
+1 . . . . D . . D . . . . 2
+1 . . D . . . . . . D . . 2
 . . . . . D . . D . . . . .
 L L L L L L L L L L L L L L
 ```
@@ -195,8 +195,8 @@ L L L L L L L L L L L L L L
 ### Gym (10×8): open floor, brawler-friendly
 ```
 L L L L L L L L L L
-A . . . . . . . . B
-A . . . . . . . . B
+1 . . . . . . . . 2
+1 . . . . . . . . 2
 . . . B . . B . . .
 . . . . . C . . . .
 . . . B . . B . . .
