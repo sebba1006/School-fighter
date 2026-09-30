@@ -217,6 +217,32 @@ L L L L L L L L L L
 
 ---
 
+## 2d. Rule details (decided while building M1)
+
+Small rules the design didn't cover, as implemented in `game/rules/battle.gd`:
+
+- **Attacks hit desks and lockers too.** Any attack that covers an obstacle's
+  tile damages it, which is how cover gets broken.
+- **Stepping back onto your previous tile undoes that step**, so a misclick on
+  the joystick doesn't waste a move.
+- **Charge / Shoulder Tackle** run up to their range (4 / 2 tiles), then hit
+  whatever is directly ahead. So Charge reaches an enemy up to 5 tiles away, and
+  its damage counts the tiles actually run (8 + 3 × 4 = 20 max).
+- **Slingshot and Flying Tackle pass teammates.** Water Gun, Book Lob and area
+  attacks skip teammates too (no friendly fire).
+- **Mega Sword** lands on the tile in front of Snorre. The 3×3 around that tile is
+  the inner ring (30), the next ring out is the outer ring (12 + Dizzy).
+- **Block** stops the whole hit: damage, knockback and Dizzy.
+- **Bonuses apply to supers too** (Rage +8, Last Stand +3, Sugar Rush ×1.3).
+- **A super's own damage doesn't fill the attacker's meter** (the victim still
+  gains meter).
+- **Dizzy** always affects the victim's next turn, even when Mike gives it to
+  himself during his own turn.
+- **Match end:** the match stops as soon as the leader can't be caught. If a
+  round ends with everyone knocked out at once, nobody gets the point.
+
+---
+
 ## 3. Lobby and online
 
 ### Lobby flow
@@ -299,8 +325,8 @@ animate the events.
 
 | # | Milestone | Done when |
 |---|---|---|
-| M0 | Project setup | Godot project, folder layout, test runner, README |
-| M1 | Rules engine | Grid, move, 4 attacks, super, meter, knockback, obstacles, rounds. All unit-tested |
+| M0 ✅ | Project setup | Godot project, folder layout, test runner, README |
+| M1 ✅ | Rules engine | Grid, move, 4 attacks, super, meter, knockback, obstacles, rounds. All unit-tested |
 | M2 | Local battle | Playable hot-seat 1v1 on one device with placeholder sprites + one test map |
 | M3 | Online 1v1 | Headless server, nicknames, create/join by code, synced battle |
 | M4 | 3–4 players | FFA + 2v2, host settings (map/rounds/timer/teams), turn order |
