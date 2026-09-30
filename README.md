@@ -32,7 +32,11 @@ game/                 Godot 4 project (open game/project.godot)
 
 ## Playing
 
-Open `game/project.godot` in Godot 4.5 (desktop or the Android editor app) and
+**In the browser:** https://sebba1006.github.io/School-fighter/ (local battles:
+two players take turns on the same device; turn phones sideways). It updates by
+itself every time `main` changes.
+
+**In Godot:** open `game/project.godot` in Godot 4.5 (desktop or the Android editor app) and
 press Play.
 
 | | PC | Touch |
