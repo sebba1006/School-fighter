@@ -170,15 +170,15 @@ A lobby holds max 4 players, so unique picks always work.
 | Locker | 60 | Very tough side walls |
 
 Legend: `L` locker, `D` desk, `T` teacher's desk, `B` bench, `C` ball cart,
-`1`/`2` team spawns, `.` floor. These are first drafts to be tuned in playtests.
+`1`/`2` team spawns, `.` floor. All layouts are mirrored left↔right so neither side has an advantage. They're first drafts to be tuned in playtests.
 
 ### Classroom (10×7)
 ```
 L L L L L L L L L L
 1 . . . . . . . . 2
-1 . D . D . D . . 2
-. . . . . T . . . .
-. . D . D . D . . .
+1 . D . D D . D . 2
+. . . . T T . . . .
+. . D . D D . D . .
 . . . . . . . . . .
 L L L L L L L L L L
 ```
@@ -198,7 +198,7 @@ L L L L L L L L L L
 1 . . . . . . . . 2
 1 . . . . . . . . 2
 . . . B . . B . . .
-. . . . . C . . . .
+. . . . C C . . . .
 . . . B . . B . . .
 . . . . . . . . . .
 L L L L L L L L L L
