@@ -105,7 +105,7 @@ A lobby holds max 4 players, so unique picks always work.
 
 ### William (2/4): wrestler bruiser
 - **Look**: blond hair, glasses, light skin. Tallest of the three
-  (about 150–168 cm). Clothes **TBD**.
+  (about 150–168 cm). Mostly **black and red** clothes.
 - **Stats**: HP 115, move 3.
 - **Passive – Last Stand**: below 35% HP (40 HP or less), all his attacks do **+3 damage**.
 
@@ -119,7 +119,7 @@ A lobby holds max 4 players, so unique picks always work.
 
 ### Snorre (3/4): sugar-fuelled swordsman
 - **Look**: brown hair, light skin, shortest of the three (about 140–155 cm).
-  Carries a sword. Clothes **TBD**.
+  Carries a sword. **White t-shirt, gray pants**.
 - **Stats**: HP 95, move 3.
 
 | Slot | Attack | Shape | Effect |
@@ -130,7 +130,19 @@ A lobby holds max 4 players, so unique picks always work.
 | 4 | Sugar Rush | Self | **Free action** (he can still attack this turn). This turn his attacks do **1.3× damage**. On his **next turn he cannot attack** (he can still move) |
 | Super | Mega Sword | Jumps, slams sword into the ground | Shockwave. **Inner ring** (tiles next to the impact): big damage. **Outer ring**: smaller damage + **Dizzy** |
 
-### Character 4/4: TBD (another friend, later)
+### Mike (4/4): ranged thrower
+- **Look**: short brown hair. Rest **TBD** (height, skin, clothes, glasses?).
+- **Stats**: HP 85, move 3. Lowest HP, so rushing him down is the counter.
+- **Style**: uses a mix of school stuff (slingshot, water gun, books). The only
+  ranged character, so he gives the roster its long-range threat.
+
+| Slot | Attack | Shape | Effect |
+|---|---|---|---|
+| 1 | Shove | 1 tile in front | Low damage, **knockback 2** (gets enemies off him) |
+| 2 | Slingshot | Straight line, up to 5 tiles | Hits the first enemy. **Stopped by obstacles** |
+| 3 | Water Gun | Line of 3 tiles | Low damage + **Dizzy**. Stopped by obstacles |
+| 4 | Book Lob | Target tile 2–4 tiles away, plus-shape (5 tiles) | **Arcs over obstacles**. Medium damage |
+| Super | **TBD** (long-range, Mike's own idea) | | |
 
 ### Shared status effects
 | Effect | Meaning |
@@ -236,7 +248,7 @@ animate the events.
 
 ## 7. Still to decide (next sessions)
 
-- **Characters**: the 3 friend characters (look, stats, 4 attacks + super).
+- **Characters**: Mike's super and full look.
 - **Maps**: which ones (classroom, cafeteria, gym…?), sizes, obstacle layouts.
 - **Numbers**: HP, damage, slam damage, obstacle HP, meter rates.
 - **Status effects**: bleed/burn/stun/heal, or none?
