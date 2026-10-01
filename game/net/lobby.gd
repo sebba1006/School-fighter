@@ -18,7 +18,7 @@ const MAX_PLAYERS := 4
 const TIMER_CHOICES := [0, 15, 30, 45, 60]
 const DISCONNECT_GRACE_MS := 60000
 ## Quick-chat emotes (texts live in the game); at most one per player per 1.5 s.
-const EMOTE_COUNT := 6
+const EMOTE_COUNT := 16
 const EMOTE_COOLDOWN_MS := 1500
 
 var code: String

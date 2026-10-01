@@ -49,7 +49,9 @@ const ERRORS := {
 	"no_room": "NO ROOM TO SPILL THERE",
 }
 ## Quick-chat emotes (online). The server only relays the number.
-const EMOTES := ["GG", "NICE!", "HAHA", "OOPS", "NOOO", "GOOD LUCK"]
+## New ones go at the end: the number is what gets sent.
+const EMOTES := ["GG", "NICE!", "HAHA", "OOPS", "NOOO", "GOOD LUCK",
+	"HI!", "WOW", "SORRY", "THANKS", "WATCH THIS!", "LUCKY!", "HELP ME!", "NICE TEAM", "SO CLOSE", "REMATCH?"]
 const STATUS_TEXT := {
 	"dizzy": ["DIZZY", UiTheme.DIZZY],
 	"rage": ["RAGE!", UiTheme.HIT],
@@ -92,7 +94,7 @@ var joystick: Control
 var leave_button: Button
 var sound_button: Button
 var chat_button: Button
-var _emote_panel: HBoxContainer
+var _emote_panel: GridContainer
 var _confirm_box: PanelContainer
 ## Tiles still to walk after tapping a blue tile.
 var _auto_path: Array[Vector2i] = []
@@ -284,8 +286,10 @@ func _build_hud() -> void:
 	sound_button = _top_button("SOUND ON" if Audio.is_enabled() else "SOUND OFF", _toggle_sound)
 	if online():
 		chat_button = _top_button("CHAT", _toggle_emotes)
-		_emote_panel = HBoxContainer.new()
-		_emote_panel.add_theme_constant_override("separation", 3)
+		_emote_panel = GridContainer.new()
+		_emote_panel.columns = 4
+		_emote_panel.add_theme_constant_override("h_separation", 3)
+		_emote_panel.add_theme_constant_override("v_separation", 3)
 		_emote_panel.z_index = 4080
 		_emote_panel.visible = false
 		for i in EMOTES.size():
@@ -530,7 +534,9 @@ func _layout() -> void:
 		tx += tb.size.x + 4
 	if _emote_panel != null:
 		_emote_panel.size = _emote_panel.get_combined_minimum_size()
-		_emote_panel.position = Vector2(floorf((vs.x - _emote_panel.size.x) / 2.0), 30)
+		# centred over the board, between the joystick column and the attack cards
+		var mid := (JOY_COL + right_x) / 2.0
+		_emote_panel.position = Vector2(floorf(mid - _emote_panel.size.x / 2.0), 30)
 
 	# joystick: big, bottom-left
 	joystick.position = Vector2(8, vs.y - joystick.custom_minimum_size.y - 8)
