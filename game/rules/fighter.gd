@@ -25,6 +25,8 @@ var sugar_active := false
 var sugar_multiplier := 1.0
 var no_attack_next := false
 var no_attack_now := false
+## Left the match (disconnected too long). Stays knocked out for the rest of it.
+var forfeited := false
 
 
 func _init(p_id: int, p_char_id: String, p_team: int, p_def: Dictionary) -> void:
@@ -38,7 +40,7 @@ func _init(p_id: int, p_char_id: String, p_team: int, p_def: Dictionary) -> void
 
 
 func reset_for_round() -> void:
-	hp = max_hp
+	hp = 0 if forfeited else max_hp
 	meter = 0
 	shield = {}
 	dizzy_next = false

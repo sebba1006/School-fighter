@@ -3,6 +3,7 @@ extends Control
 ## and number of rounds.
 
 signal start_requested(config: Dictionary)
+signal back_requested
 
 const Characters = preload("res://rules/characters.gd")
 const Maps = preload("res://rules/maps.gd")
@@ -81,9 +82,17 @@ func _ready() -> void:
 	start.add_theme_font_override("font", UiTheme.title_font())
 	start.add_theme_font_size_override("font_size", 16)
 	start.custom_minimum_size = Vector2(160, 30)
-	start.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	start.pressed.connect(_start)
-	col.add_child(start)
+	var buttons := HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	buttons.add_theme_constant_override("separation", 8)
+	var back := Button.new()
+	back.text = "BACK"
+	back.custom_minimum_size = Vector2(70, 30)
+	back.pressed.connect(func(): back_requested.emit())
+	buttons.add_child(back)
+	buttons.add_child(start)
+	col.add_child(buttons)
 
 	var help := UiTheme.label("PC: WASD move/aim - 1-4 attack - Q super - SPACE use - Z undo - E end turn", 8, UiTheme.CHALK_DIM)
 	help.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

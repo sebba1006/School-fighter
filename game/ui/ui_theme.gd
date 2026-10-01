@@ -66,6 +66,15 @@ static func theme() -> Theme:
 	t.set_color("font_disabled_color", "Button", CHALK_DIM.darkened(0.45))
 	t.set_font_size("font_size", "Button", 8)
 
+	t.set_stylebox("normal", "LineEdit", _box(BOARD_DEEP, LINE))
+	t.set_stylebox("focus", "LineEdit", _box(BOARD_DEEP, GOLD))
+	t.set_stylebox("read_only", "LineEdit", _box(BOARD_DEEP, LINE))
+	t.set_color("font_color", "LineEdit", CHALK)
+	t.set_color("font_placeholder_color", "LineEdit", CHALK_DIM.darkened(0.4))
+	t.set_color("caret_color", "LineEdit", GOLD)
+	t.set_color("selection_color", "LineEdit", LINE)
+	t.set_font_size("font_size", "LineEdit", 8)
+
 	t.set_stylebox("panel", "PanelContainer", _box(PANEL, LINE))
 	t.set_stylebox("panel", "Panel", _box(PANEL, LINE))
 	_theme = t

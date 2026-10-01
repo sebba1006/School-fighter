@@ -1,10 +1,17 @@
 extends Control
-## Local battle: draws the board, reads joystick / keyboard / buttons, sends
+## Battle screen: draws the board, reads joystick / keyboard / buttons, sends
 ## intents to the rules engine and animates the events that come back.
 ## All game logic lives in rules/battle.gd; this file only shows it.
+##
+## Local mode: intents go straight into the local battle.
+## Online mode (`net` set): intents go to the server, and every accepted move
+## ("op") comes back from it and is applied to the local copy of the battle,
+## in the same order for everyone.
 
 signal menu_requested
 signal rematch_requested
+## Online: the player pressed LEAVE.
+signal leave_requested
 
 const Battle = preload("res://rules/battle.gd")
 const Maps = preload("res://rules/maps.gd")
@@ -27,6 +34,9 @@ const ERRORS := {
 	"bad_dist": "OUT OF RANGE",
 	"bad_dir": "PICK A DIRECTION",
 	"already_active": "ALREADY ON A SUGAR RUSH",
+	"not_your_turn": "NOT YOUR TURN",
+	"not_in_turn": "WAIT FOR THE NEXT TURN",
+	"offline": "NOT CONNECTED - RECONNECTING...",
 }
 const STATUS_TEXT := {
 	"dizzy": ["DIZZY", UiTheme.DIZZY],
@@ -60,12 +70,59 @@ var end_button: Button
 var joystick: Control
 var bottom_bar: VBoxContainer
 var overlay: PanelContainer
+var _overlay_event := {}
+var _overlay_is_match := false
 var _hint_error_until := 0
 
+# online
+var net: Node = null
+var my_fighter := -1
+var is_host := false
+var _waiting := false  # sent an intent, waiting for the server
+var _ops: Array = []
+var _playing_ops := false
+var _turn_end_at := 0  # msec, 0 = no timer
 
+
+## Local battle.
 func setup(p_config: Dictionary) -> void:
 	config = p_config
 	battle = Battle.new(config)
+
+
+## Online battle. `past_ops` are replayed silently (rejoining a running match).
+func setup_online(p_config: Dictionary, p_net: Node, you: int, host: bool, past_ops := [], turn_ms := -1) -> void:
+	config = p_config
+	net = p_net
+	my_fighter = you
+	is_host = host
+	battle = Battle.new(config)
+	for op in past_ops:
+		_apply_op(op)
+	_turn_end_at = Time.get_ticks_msec() + turn_ms if turn_ms >= 0 else 0
+	net.message.connect(_on_net_message)
+
+
+func online() -> bool:
+	return net != null
+
+
+func set_host(v: bool) -> void:
+	if v == is_host:
+		return
+	is_host = v
+	if overlay != null:
+		_show_overlay(_overlay_event, _overlay_is_match)
+
+
+func _name_of(f) -> String:
+	if online():
+		return "%s (%s)" % [str(config.players[f.id].get("name", "?")).to_upper(), f.def.name.to_upper()]
+	return "P%d %s" % [f.id + 1, f.def.name.to_upper()]
+
+
+func _my_turn() -> bool:
+	return battle.phase == Battle.Phase.TURN and (not online() or battle.current().id == my_fighter)
 
 
 func _ready() -> void:
@@ -78,7 +135,13 @@ func _ready() -> void:
 	board.add_child(highlight)
 	_build_hud()
 	get_viewport().size_changed.connect(_layout)
-	_start_round()
+	if not online():
+		_start_round()
+	elif battle.round_number > 0:
+		_rebuild_from_state()
+	else:
+		_layout()
+		_refresh()
 
 
 # ---------------------------------------------------------------- building
@@ -110,6 +173,8 @@ func _build_board() -> void:
 		v.get_child(0).rotation = 0
 		v.get_child(0).position = Vector2(0, -16)
 		v.get_child(0).modulate = Color.WHITE
+		if not f.alive():
+			v.knock_out()
 	_layout()
 
 
@@ -121,7 +186,7 @@ func _build_hud() -> void:
 		box.add_theme_constant_override("separation", 1)
 		var head := HBoxContainer.new()
 		head.add_theme_constant_override("separation", 4)
-		head.add_child(UiTheme.label("P%d %s" % [f.id + 1, f.def.name.to_upper()], 8, color))
+		head.add_child(UiTheme.label(_name_of(f), 8, color))
 		var status := UiTheme.label("", 8, UiTheme.GOLD)
 		head.add_child(status)
 		box.add_child(head)
@@ -129,14 +194,14 @@ func _build_hud() -> void:
 		hp_row.add_theme_constant_override("separation", 3)
 		var hp := Bar.new()
 		hp.color = UiTheme.HIT
-		hp.custom_minimum_size = Vector2(110, 6)
+		hp.custom_minimum_size = Vector2(110 if n == 2 else 80, 6)
 		hp_row.add_child(hp)
 		var hp_text := UiTheme.label("", 8, UiTheme.CHALK)
 		hp_row.add_child(hp_text)
 		box.add_child(hp_row)
 		var meter := Bar.new()
 		meter.color = UiTheme.GOLD
-		meter.custom_minimum_size = Vector2(110, 3)
+		meter.custom_minimum_size = Vector2(110 if n == 2 else 80, 3)
 		box.add_child(meter)
 		add_child(box)
 		panels.append({"box": box, "hp": hp, "hp_text": hp_text, "meter": meter, "status": status})
@@ -193,12 +258,13 @@ func _layout() -> void:
 	board.position = Vector2(floorf((vs.x - bw) / 2.0), TOP_H + 16 + floorf(maxf(0.0, avail - bh) / 2.0))
 
 	# top bar: fighters spread across, round info in the middle
+	# first half of the fighters on the left, the rest on the right
 	var n := panels.size()
+	var left := ceili(n / 2.0)
+	var w := 150.0 if n == 2 else 122.0
 	for i in n:
 		var box: Control = panels[i].box
-		var x := 6.0 + i * (vs.x - 12) / n
-		if n == 2 and i == 1:
-			x = vs.x - 156
+		var x := 6.0 + i * (w + 6) if i < left else vs.x - 6 - w - (n - 1 - i) * (w + 6)
 		box.position = Vector2(floorf(x), 3)
 	round_label.position = Vector2(floorf(vs.x / 2.0 - 60), 4)
 	round_label.size = Vector2(120, 10)
@@ -239,7 +305,10 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _on_dir(dir: Vector2i) -> void:
-	if busy or mode == "over":
+	if busy or mode == "over" or _waiting:
+		return
+	if not _my_turn():
+		_error("not_your_turn")
 		return
 	if mode == "move":
 		_send({"type": "move", "dir": dir})
@@ -253,7 +322,7 @@ func _on_dir(dir: Vector2i) -> void:
 
 
 func _on_attack_pressed(slot: int) -> void:
-	if busy or mode == "over":
+	if busy or mode == "over" or _waiting or not _my_turn():
 		return
 	if mode == "aim" and aim_slot == slot:
 		_confirm()
@@ -289,7 +358,7 @@ func _cancel_aim() -> void:
 
 
 func _on_undo() -> void:
-	if busy:
+	if busy or _waiting or not _my_turn():
 		return
 	if mode == "aim":
 		_cancel_aim()
@@ -298,13 +367,15 @@ func _on_undo() -> void:
 
 
 func _on_end_turn() -> void:
-	if busy or mode == "over":
+	if busy or mode == "over" or _waiting or not _my_turn():
 		return
 	mode = "move"
 	_send({"type": "end_turn"})
 
 
 func _atk(slot: int) -> Dictionary:
+	if battle.order.is_empty():
+		return battle.fighters[maxi(0, my_fighter)].def.attacks[0]
 	var f := battle.current()
 	return f.def["super"] if slot == Battle.SUPER_SLOT else f.def.attacks[slot]
 
@@ -323,6 +394,13 @@ func _start_round() -> void:
 
 
 func _send(intent: Dictionary) -> void:
+	if online():
+		if not net.send({"t": "intent", "intent": intent}):
+			_error("offline")
+			return
+		_waiting = true
+		_refresh()
+		return
 	var r := battle.apply(battle.current().id, intent)
 	if not r.ok:
 		_error(r.error)
@@ -402,6 +480,10 @@ func _play(events: Array) -> void:
 				if leaper == e.fighter:
 					await fighter_views[e.fighter].leap_to(battle.fighters[e.fighter].pos, 0.25).finished
 					fighter_views[e.fighter].set_tile(battle.fighters[e.fighter].pos)
+			"forfeit":
+				_popup(fighter_views[e.fighter], "LEFT THE GAME", UiTheme.CHALK_DIM, -40)
+				if not fighter_views[e.fighter].knocked_out:
+					await fighter_views[e.fighter].knock_out().finished
 			"turn_start":
 				_refresh()
 				await _turn_banner(battle.fighters[e.fighter])
@@ -461,7 +543,10 @@ func _super_flash() -> void:
 
 func _turn_banner(f) -> void:
 	var color: Color = UiTheme.TEAM[battle.teams.find(f.team)]
-	var l := UiTheme.label("P%d  %s'S TURN" % [f.id + 1, f.def.name.to_upper()], 16, color, true)
+	var text := "%s'S TURN" % _name_of(f)
+	if online() and f.id == my_fighter:
+		text = "YOUR TURN!"
+	var l := UiTheme.label(text, 16, color, true)
 	l.add_theme_constant_override("outline_size", 4)
 	l.add_theme_color_override("font_outline_color", Color("17121c"))
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -478,11 +563,17 @@ func _turn_banner(f) -> void:
 
 
 func _show_overlay(e: Dictionary, is_match: bool) -> void:
+	_close_overlay()
 	mode = "over"
-	var winner := "NOBODY"
+	_overlay_event = e
+	_overlay_is_match = is_match
+	var winners := []
 	for f in battle.fighters:
 		if f.team == e.winner_team:
-			winner = "P%d %s" % [f.id + 1, f.def.name.to_upper()]
+			winners.append(_name_of(f))
+	var winner := " & ".join(winners) if not winners.is_empty() else "NOBODY"
+	if online() and battle.fighters[my_fighter].team == e.winner_team:
+		winner = "YOU"
 	var score := []
 	for t in battle.teams:
 		score.append(str(e.wins[t]))
@@ -491,7 +582,8 @@ func _show_overlay(e: Dictionary, is_match: bool) -> void:
 	col.add_theme_constant_override("separation", 6)
 	col.alignment = BoxContainer.ALIGNMENT_CENTER
 	overlay.add_child(col)
-	var title_text := ("%s WINS THE MATCH!" if is_match else "%s WINS ROUND %d") % ([winner] if is_match else [winner, e["round"]])
+	var verb := "WIN" if winner == "YOU" or winners.size() > 1 else "WINS"
+	var title_text := ("%s %s THE MATCH!" if is_match else "%s %s ROUND %d") % ([winner, verb] if is_match else [winner, verb, e["round"]])
 	if e.winner_team == -1:
 		title_text = "ROUND %d IS A DRAW" % e["round"]
 	var title := UiTheme.label(title_text, 16, UiTheme.GOLD, true)
@@ -504,7 +596,18 @@ func _show_overlay(e: Dictionary, is_match: bool) -> void:
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 8)
 	col.add_child(row)
-	if is_match:
+	if online():
+		if is_match:
+			if is_host:
+				row.add_child(_overlay_button("BACK TO LOBBY", func(): net.send({"t": "to_lobby"})))
+			else:
+				row.add_child(UiTheme.label("WAITING FOR THE HOST", 8, UiTheme.CHALK_DIM))
+			row.add_child(_overlay_button("LEAVE", func(): leave_requested.emit()))
+		elif is_host:
+			row.add_child(_overlay_button("SUDDEN DEATH" if battle.round_number >= battle.rounds_total else "NEXT ROUND", _next_round))
+		else:
+			row.add_child(UiTheme.label("WAITING FOR THE HOST TO START THE NEXT ROUND", 8, UiTheme.CHALK_DIM))
+	elif is_match:
 		var again := Button.new()
 		again.text = "REMATCH"
 		again.custom_minimum_size = Vector2(80, 24)
@@ -523,45 +626,172 @@ func _show_overlay(e: Dictionary, is_match: bool) -> void:
 		row.add_child(next)
 	overlay.z_index = 4090  # above everything on the board
 	add_child(overlay)
-	overlay.custom_minimum_size = Vector2(260, 80)
+	overlay.custom_minimum_size = Vector2(300, 80)
 	var vs := get_viewport_rect().size
-	overlay.position = Vector2(floorf((vs.x - 260) / 2.0), floorf((vs.y - 80) / 2.0))
+	overlay.position = Vector2(floorf((vs.x - 300) / 2.0), floorf((vs.y - 80) / 2.0))
 	_refresh()
 
 
-func _next_round() -> void:
+func _overlay_button(text: String, callback: Callable) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.custom_minimum_size = Vector2(100, 24)
+	b.pressed.connect(callback)
+	return b
+
+
+func _close_overlay() -> void:
 	if overlay != null:
 		overlay.queue_free()
 		overlay = null
+
+
+func _next_round() -> void:
+	if online():
+		net.send({"t": "next_round"})
+		return
+	_close_overlay()
 	_start_round()
+
+
+# ---------------------------------------------------------------- online
+
+func _on_net_message(msg: Dictionary) -> void:
+	match msg.get("t"):
+		"op":
+			_ops.append(msg)
+			if not _playing_ops:
+				_drain_ops()
+		"error":
+			if _waiting:
+				_waiting = false
+				_error(msg.get("code", "error"))
+				_refresh()
+		"match_sync":
+			_ops.clear()
+			battle = Battle.new(msg.config)
+			for op in msg.ops:
+				_apply_op(op)
+			my_fighter = msg.you
+			_turn_end_at = Time.get_ticks_msec() + msg.turn_ms if msg.turn_ms >= 0 else 0
+			_waiting = false
+			busy = false
+			mode = "move"
+			_rebuild_from_state()
+
+
+## Plays queued ops one after another (each one's animation finishes first).
+func _drain_ops() -> void:
+	_playing_ops = true
+	while not _ops.is_empty() and is_inside_tree():
+		var op: Dictionary = _ops.pop_front()
+		if op.op == "start_round":
+			_close_overlay()
+			mode = "move"
+		var events := _apply_op(op)
+		if op.op == "start_round":
+			_build_board()
+		if battle.state_hash() != op.hash:
+			# Our copy drifted from the server's: ask for the full match again.
+			_ops.clear()
+			net.send({"t": "sync"})
+			break
+		if op.op == "intent" and op.fighter == my_fighter:
+			_waiting = false
+			if op.intent.get("type") == "attack":
+				mode = "move"
+		if op.get("timeout", false) and op.fighter == my_fighter:
+			mode = "move"
+			_error_text("TIME'S UP!")
+		_turn_end_at = Time.get_ticks_msec() + op.turn_ms if op.turn_ms >= 0 else 0
+		busy = true
+		_refresh()
+		await _play(events)
+		busy = false
+		_refresh()
+	_playing_ops = false
+
+
+func _apply_op(op: Dictionary) -> Array:
+	match op.op:
+		"start_round":
+			return battle.start_round()
+		"intent":
+			return battle.apply(op.fighter, op.intent).events
+		"forfeit":
+			return battle.forfeit(op.fighter)
+	return []
+
+
+## Redraws everything from the battle state, e.g. after rejoining.
+func _rebuild_from_state() -> void:
+	_close_overlay()
+	_build_board()
+	_refresh()
+	if battle.phase == Battle.Phase.MATCH_OVER:
+		_show_overlay({"winner_team": battle.match_winner, "wins": battle.round_wins, "round": battle.round_number}, true)
+	elif battle.phase == Battle.Phase.ROUND_OVER:
+		var winner := -1
+		for f in battle.fighters:
+			if f.alive():
+				winner = f.team
+		_show_overlay({"winner_team": winner, "wins": battle.round_wins, "round": battle.round_number}, false)
+
+
+func _process(_delta: float) -> void:
+	if online() and round_label != null and battle.round_number > 0:
+		_update_round_label()
+
+
+func _update_round_label() -> void:
+	var rtxt := "ROUND %d OF %d" % [battle.round_number, battle.rounds_total]
+	if battle.is_sudden_death():
+		rtxt = "SUDDEN DEATH"
+	if online():
+		if net.status != "online":
+			round_label.text = "RECONNECTING..."
+			round_label.add_theme_color_override("font_color", UiTheme.HIT)
+			return
+		if _turn_end_at > 0 and battle.phase == Battle.Phase.TURN:
+			var secs := ceili(maxf(0.0, _turn_end_at - Time.get_ticks_msec()) / 1000.0)
+			rtxt += "  %ds" % secs
+			round_label.add_theme_color_override("font_color", UiTheme.HIT if secs <= 5 else UiTheme.CHALK_DIM)
+			round_label.text = rtxt
+			return
+	round_label.add_theme_color_override("font_color", UiTheme.CHALK_DIM)
+	round_label.text = rtxt
 
 
 # ---------------------------------------------------------------- refresh
 
 func _refresh() -> void:
 	_refresh_panels()
+	if battle.order.is_empty():
+		hint_label.text = "STARTING..."
+		for b in attack_buttons:
+			b.disabled = true
+		return
 	var f := battle.current()
 	for v in fighter_views:
 		v.active = false
 	if battle.phase == Battle.Phase.TURN and not busy:
 		fighter_views[f.id].active = true
 
-	var rtxt := "ROUND %d OF %d" % [battle.round_number, battle.rounds_total]
-	if battle.is_sudden_death():
-		rtxt = "SUDDEN DEATH"
-	round_label.text = rtxt
+	_update_round_label()
 
-	var in_turn := battle.phase == Battle.Phase.TURN and mode != "over"
+	var in_turn := _my_turn() and mode != "over" and not _waiting
+	# Online, the buttons always show your own fighter's moves.
+	var bf = battle.fighters[my_fighter] if online() else f
 	for slot in 5:
 		var b := attack_buttons[slot]
-		var atk := _atk(slot)
+		var atk: Dictionary = bf.def["super"] if slot == Battle.SUPER_SLOT else bf.def.attacks[slot]
 		var key := "Q" if slot == Battle.SUPER_SLOT else str(slot + 1)
 		b.text = "%s %s" % [key, atk.name.to_upper()]
-		if slot == Battle.SUPER_SLOT and f.meter < Battle.METER_MAX:
-			b.text = "Q SUPER %d%%" % f.meter
-		b.disabled = busy or not in_turn or battle.attack_blocked_reason(f.id, slot) != ""
+		if slot == Battle.SUPER_SLOT and bf.meter < Battle.METER_MAX:
+			b.text = "Q SUPER %d%%" % bf.meter
+		b.disabled = busy or not in_turn or battle.attack_blocked_reason(bf.id, slot) != ""
 		b.button_pressed = false
-		b.modulate = UiTheme.GOLD if (slot == Battle.SUPER_SLOT and f.meter >= Battle.METER_MAX) else Color.WHITE
+		b.modulate = UiTheme.GOLD if (slot == Battle.SUPER_SLOT and bf.meter >= Battle.METER_MAX) else Color.WHITE
 		if mode == "aim" and slot == aim_slot:
 			b.modulate = Color(1.4, 1.4, 1.2)
 	undo_button.disabled = busy or not in_turn or (mode == "move" and battle.path.is_empty())
@@ -577,6 +807,7 @@ func _refresh() -> void:
 				tiles.append({"pos": t, "kind": "reach"})
 		elif mode == "aim":
 			tiles = battle.preview(f.id, aim_slot, aim_dir, aim_dist)
+	if battle.phase == Battle.Phase.TURN and not busy:
 		tiles.append({"pos": f.pos, "kind": "current"})
 	highlight.tiles = tiles
 	highlight.queue_redraw()
@@ -584,8 +815,12 @@ func _refresh() -> void:
 	if Time.get_ticks_msec() < _hint_error_until:
 		return
 	hint_label.add_theme_color_override("font_color", UiTheme.CHALK_DIM)
-	if not in_turn:
+	if _waiting:
+		hint_label.text = "..."
+	elif battle.phase != Battle.Phase.TURN or mode == "over":
 		hint_label.text = ""
+	elif online() and not _my_turn():
+		hint_label.text = "WAITING FOR %s..." % _name_of(f)
 	elif mode == "move":
 		var left := battle.move_budget - battle.path.size()
 		var extra := "  (DIZZY)" if battle.move_budget < f.move else ""
@@ -624,13 +859,17 @@ func _refresh_panels() -> void:
 			st.append("SUGAR")
 		if f.no_attack_next or f.no_attack_now:
 			st.append("CRASH")
-		if f.dizzy_next or (battle.current() == f and battle.move_budget < f.move and battle.phase == Battle.Phase.TURN):
+		if f.dizzy_next or (battle.phase == Battle.Phase.TURN and battle.current() == f and battle.move_budget < f.move):
 			st.append("DIZZY")
 		p.status.text = " ".join(st)
 
 
 func _error(code: String) -> void:
-	hint_label.text = ERRORS.get(code, code.to_upper())
+	_error_text(ERRORS.get(code, code.to_upper()))
+
+
+func _error_text(text: String) -> void:
+	hint_label.text = text
 	hint_label.add_theme_color_override("font_color", UiTheme.HIT)
 	_hint_error_until = Time.get_ticks_msec() + 1500
 	get_tree().create_timer(1.55).timeout.connect(func():
