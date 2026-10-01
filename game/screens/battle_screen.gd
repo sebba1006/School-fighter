@@ -97,6 +97,8 @@ var _waiting := false  # sent an intent, waiting for the server
 var _ops: Array = []
 var _playing_ops := false
 var _turn_end_at := 0  # msec, 0 = no timer
+## fighter id -> HP currently shown in the top bars
+var _hp_shown := {}
 
 
 ## Local battle.
@@ -577,6 +579,7 @@ func _atk(slot: int) -> Dictionary:
 
 func _start_round() -> void:
 	mode = "move"
+	_hp_shown.clear()
 	var events := battle.start_round()
 	_build_board()
 	_refresh()
@@ -621,19 +624,28 @@ func _play(events: Array) -> void:
 			"attack":
 				var f = battle.fighters[e.fighter]
 				var atk: Dictionary = f.def["super"] if e["super"] else f.def.attacks[_slot_of(f, e.attack)]
-				_popup(fighter_views[e.fighter], atk.name.to_upper() + ("!!" if e["super"] else "!"), UiTheme.GOLD if e["super"] else UiTheme.CHALK, -30)
-				Audio.play("super" if e["super"] else "whoosh")
 				if e["super"]:
-					await _super_flash()
-				if e.dir is Vector2i and atk.type != "leap" and atk.type != "dash":
-					await fighter_views[e.fighter].lunge(e.dir).finished
+					Audio.play("super")
+					await _super_cutin(f, atk)
+					await _super_move(e, f, atk)
+				else:
+					_popup(fighter_views[e.fighter], atk.name.to_upper() + "!", UiTheme.CHALK, -30)
+					Audio.play("whoosh")
+					if e.dir is Vector2i and atk.type != "leap" and atk.type != "dash":
+						await fighter_views[e.fighter].lunge(e.dir).finished
 			"leap":
 				leaper = e.fighter
+				_fx("dust", _px_center(fighter_views[e.fighter].position))
 				await fighter_views[e.fighter].leap_to(e.to, 0.28).finished
+				Audio.play("slam")
+				_fx("spark", _tile_center(e.to), {"scale": 1.4})
+				_fx("dust", _tile_center(e.to) + Vector2(0, 10))
+				await _shake(4)
 			"damage":
 				var v = fighter_views[e.fighter]
 				Audio.play("hit")
 				v.flash(UiTheme.HIT)
+				_hp_shown[e.fighter] = e.hp
 				var text := "-%d" % (e.amount - e.absorbed)
 				if e.absorbed > 0:
 					text += " (SHIELD %d)" % e.absorbed
@@ -677,6 +689,8 @@ func _play(events: Array) -> void:
 					_popup(fighter_views[e.fighter], st[0], st[1], -36)
 					await get_tree().create_timer(0.2).timeout
 			"self_damage":
+				_hp_shown[e.fighter] = e.hp
+				_refresh_panels()
 				_popup(fighter_views[e.fighter], "-%d" % e.amount, UiTheme.HIT, -20)
 				if leaper == e.fighter:
 					await fighter_views[e.fighter].leap_to(battle.fighters[e.fighter].pos, 0.25).finished
@@ -724,13 +738,189 @@ func _popup(v: Node2D, text: String, color: Color, dy := -24) -> void:
 	tw.chain().tween_callback(l.queue_free)
 
 
-func _shake() -> void:
+func _shake(strength := 3) -> void:
 	var home := board.position
 	var tw := create_tween()
-	for i in 4:
-		tw.tween_property(board, "position", home + Vector2(3 if i % 2 == 0 else -3, 1), 0.03)
+	for i in 4 + strength:
+		tw.tween_property(board, "position", home + Vector2(strength if i % 2 == 0 else -strength, 1), 0.03)
 	tw.tween_property(board, "position", home, 0.03)
 	await tw.finished
+
+
+# ---------------------------------------------------------------- supers
+
+## The cut-in before every super: the screen darkens, the fighter slides in big
+## and the super's name flies in from the other side.
+func _super_cutin(f, atk: Dictionary) -> void:
+	var vs := get_viewport_rect().size
+	var color: Color = UiTheme.TEAM[battle.teams.find(f.team)]
+	var layer := Control.new()
+	layer.z_index = 4085
+	layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.size = vs
+	add_child(layer)
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0)
+	dim.size = vs
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(dim)
+	var band := ColorRect.new()
+	band.color = Color(color.darkened(0.55), 0.92)
+	band.position = Vector2(0, floorf(vs.y / 2.0 - 46))
+	band.size = Vector2(vs.x, 92)
+	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	band.scale = Vector2(1, 0)
+	band.pivot_offset = Vector2(0, 46)
+	layer.add_child(band)
+	var pic := TextureRect.new()
+	pic.texture = PixelArt.character(f.char_id)
+	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT
+	pic.size = Vector2(80, 120)
+	pic.position = Vector2(-90, floorf(vs.y / 2.0 - 70))
+	pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(pic)
+	var name := UiTheme.label(atk.name.to_upper() + "!!", 32, UiTheme.GOLD, true)
+	name.add_theme_constant_override("outline_size", 6)
+	name.add_theme_color_override("font_outline_color", Color("17121c"))
+	name.position = Vector2(vs.x + 10, floorf(vs.y / 2.0 - 20))
+	layer.add_child(name)
+	var who := UiTheme.label(f.def.name.to_upper(), 8, UiTheme.CHALK)
+	who.position = Vector2(vs.x + 10, floorf(vs.y / 2.0 + 18))
+	layer.add_child(who)
+
+	var tw := create_tween().set_parallel().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(dim, "color:a", 0.45, 0.12)
+	tw.tween_property(band, "scale:y", 1.0, 0.12)
+	tw.tween_property(pic, "position:x", 40.0, 0.22)
+	tw.tween_property(name, "position:x", 140.0, 0.22)
+	tw.tween_property(who, "position:x", 142.0, 0.26)
+	await tw.finished
+	await get_tree().create_timer(0.5).timeout
+	var out := create_tween().set_parallel()
+	out.tween_property(layer, "modulate:a", 0.0, 0.15)
+	out.tween_property(pic, "position:x", vs.x, 0.15)
+	await out.finished
+	layer.queue_free()
+
+
+## Each fighter's own super animation (the damage numbers come right after).
+func _super_move(e: Dictionary, f, atk: Dictionary) -> void:
+	var v = fighter_views[f.id]
+	var home: Vector2 = v.position
+	var dir: Vector2i = e.dir if e.dir is Vector2i else Vector2i.RIGHT
+	var target: Vector2i = f.pos + dir
+	var tpx := _tile_center(target)
+	var tv = _view_at(target)
+	match atk.id:
+		"mega_barrage":
+			# a flurry of quick punches
+			for i in 8:
+				var tw := create_tween()
+				tw.tween_property(v, "position", home + Vector2(dir) * 8 + Vector2(0, randf_range(-3, 3)), 0.035)
+				tw.tween_property(v, "position", home, 0.035)
+				_fx("spark", tpx + Vector2(randf_range(-9, 9), randf_range(-16, 4)), {"scale": 0.7})
+				if i % 2 == 0:
+					Audio.play("hit")
+				if tv != null:
+					tv.flash(Color(1.8, 1.8, 1.8))
+				await tw.finished
+			_fx("spark", tpx, {"scale": 1.5})
+			await _shake(3)
+		"body_smash":
+			# big jump, then crash down onto the enemy: rocks everywhere
+			var up := create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+			up.tween_property(v, "position", home + Vector2(dir) * 10 + Vector2(0, -34), 0.22)
+			await up.finished
+			var down := create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+			down.tween_property(v, "position", home + Vector2(dir) * 14, 0.09)
+			await down.finished
+			Audio.play("slam")
+			for i in 14:
+				_fx("rock", tpx + Vector2(randf_range(-10, 10), 8), {"vel": Vector2(randf_range(-110, 110), randf_range(-190, -90))})
+			_fx("spark", tpx, {"scale": 1.6})
+			_fx("dust", tpx + Vector2(0, 10))
+			await _shake(6)
+			create_tween().tween_property(v, "position", home, 0.12)
+		"mega_sword":
+			# leap up, slam the sword down, shockwave rolls out in two rings
+			var up := create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+			up.tween_property(v, "position", home + Vector2(0, -32), 0.2)
+			await up.finished
+			var down := create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+			down.tween_property(v, "position", home + Vector2(dir) * 6, 0.08)
+			await down.finished
+			Audio.play("slam")
+			var tiles := []
+			for dy in range(-2, 3):
+				for dx in range(-2, 3):
+					var t := target + Vector2i(dx, dy)
+					if t != f.pos and battle._in_bounds(t):
+						tiles.append([t, UiTheme.HIT if maxi(absi(dx), absi(dy)) <= 1 else UiTheme.DIZZY])
+			_fx("tiles", Vector2.ZERO, {"tiles": tiles})
+			_fx("ring", tpx, {"radius": 40.0})
+			_fx("ring", tpx, {"radius": 84.0, "delay": 0.1})
+			for i in 6:
+				_fx("rock", tpx + Vector2(randf_range(-6, 6), 6), {"vel": Vector2(randf_range(-80, 80), randf_range(-150, -70))})
+			await _shake(5)
+			create_tween().tween_property(v, "position", home, 0.12)
+		"triple_uppercut":
+			# three uppercuts, the enemy pops higher each time
+			for i in 3:
+				var tw := create_tween()
+				tw.tween_property(v, "position", home + Vector2(dir) * 9 + Vector2(0, -6), 0.06)
+				tw.tween_property(v, "position", home, 0.08)
+				Audio.play("hit")
+				_fx("spark", tpx + Vector2(0, -6 - i * 6), {"scale": 0.8 + i * 0.3})
+				_popup_at(tpx + Vector2(-6, -40 - i * 8), "%d!" % (i + 1), UiTheme.GOLD)
+				if tv != null:
+					var pop := create_tween()
+					pop.tween_property(tv, "position:y", tv.position.y - 8 - i * 6, 0.08)
+					pop.tween_property(tv, "position:y", tv.position.y, 0.1)
+				await get_tree().create_timer(0.2).timeout
+			await _shake(4)
+		_:
+			if e.dir is Vector2i and atk.type != "leap":
+				await v.lunge(dir).finished
+
+
+func _tile_center(t: Vector2i) -> Vector2:
+	return Vector2(t.x * TILE + 16, t.y * TILE + 16)
+
+
+## Centre of a fighter's tile from a fighter view's position.
+func _px_center(p: Vector2) -> Vector2:
+	return p + Vector2(16, 20)
+
+
+func _view_at(t: Vector2i):
+	for f in battle.fighters:
+		if f.pos == t:
+			return fighter_views[f.id]
+	return null
+
+
+func _popup_at(p: Vector2, text: String, color: Color) -> void:
+	var l := UiTheme.label(text, 16, color, true)
+	l.add_theme_constant_override("outline_size", 4)
+	l.add_theme_color_override("font_outline_color", Color("17121c"))
+	l.z_index = 4000
+	l.position = p
+	board.add_child(l)
+	var tw := create_tween().set_parallel()
+	tw.tween_property(l, "position:y", p.y - 12, 0.5)
+	tw.tween_property(l, "modulate:a", 0.0, 0.5).set_delay(0.25)
+	tw.chain().tween_callback(l.queue_free)
+
+
+## Spawns a short visual effect on the board (sparks, rocks, dust, rings, tile flashes).
+func _fx(kind: String, at: Vector2, opts := {}) -> void:
+	var fx := Fx.new()
+	fx.kind = kind
+	fx.position = at
+	fx.opts = opts
+	fx.z_index = 3000
+	board.add_child(fx)
 
 
 func _super_flash() -> void:
@@ -895,6 +1085,7 @@ func _drain_ops() -> void:
 			mode = "move"
 		var events := _apply_op(op)
 		if op.op == "start_round":
+			_hp_shown.clear()
 			_build_board()
 		if battle.state_hash() != op.hash:
 			# Our copy drifted from the server's: ask for the full match again.
@@ -930,6 +1121,7 @@ func _apply_op(op: Dictionary) -> Array:
 
 ## Redraws everything from the battle state, e.g. after rejoining.
 func _rebuild_from_state() -> void:
+	_hp_shown.clear()
 	_close_overlay()
 	_build_board()
 	_refresh()
@@ -1061,9 +1253,14 @@ func _refresh() -> void:
 func _refresh_panels() -> void:
 	for f in battle.fighters:
 		var p: Dictionary = panels[f.id]
-		p.hp.value = float(f.hp) / f.max_hp
+		# While a move is animating, bars show HP as of the last hit shown so far
+		# (the rules engine already has the final numbers).
+		if not busy:
+			_hp_shown[f.id] = f.hp
+		var hp_now: int = _hp_shown.get(f.id, f.hp)
+		p.hp.value = float(hp_now) / f.max_hp
 		p.hp.queue_redraw()
-		p.hp_text.text = "%d" % f.hp
+		p.hp_text.text = "%d" % hp_now
 		p.meter.value = float(f.meter) / Battle.METER_MAX
 		p.meter.color = UiTheme.GOLD if f.meter >= Battle.METER_MAX else UiTheme.GOLD.darkened(0.35)
 		p.meter.queue_redraw()
@@ -1139,6 +1336,75 @@ class HighlightLayer extends Node2D:
 				draw_rect(r, Color(c, 0.9), false, 1.0)
 			else:
 				draw_rect(r, c)
+
+
+## One short-lived effect. Draws itself and frees itself when done.
+class Fx extends Node2D:
+	var kind := "spark"
+	var opts := {}
+	var t := 0.0
+	var _vel := Vector2.ZERO
+	var _rot := 0.0
+
+	func _ready() -> void:
+		_vel = opts.get("vel", Vector2.ZERO)
+		_rot = randf() * TAU
+
+	func _life() -> float:
+		match kind:
+			"rock":
+				return 0.7
+			"ring":
+				return 0.45 + opts.get("delay", 0.0)
+			"tiles":
+				return 0.55
+			"dust":
+				return 0.4
+		return 0.25
+
+	func _process(delta: float) -> void:
+		t += delta
+		if kind == "rock":
+			_vel.y += 420.0 * delta
+			position += _vel * delta
+			_rot += delta * 9.0
+		if t >= _life():
+			queue_free()
+		queue_redraw()
+
+	func _draw() -> void:
+		var k := clampf(t / _life(), 0.0, 1.0)
+		match kind:
+			"spark":
+				var sc: float = opts.get("scale", 1.0)
+				for i in 8:
+					var a := _rot + i * TAU / 8.0
+					var d := Vector2(cos(a), sin(a))
+					var r0 := 3.0 * sc + k * 6.0 * sc
+					var r1 := r0 + (8.0 - k * 6.0) * sc
+					draw_line(d * r0, d * r1, Color(1, 0.95, 0.6, 1.0 - k), 2.0)
+				draw_circle(Vector2.ZERO, 4.0 * sc * (1.0 - k), Color(1, 1, 1, 1.0 - k))
+			"rock":
+				draw_set_transform(Vector2.ZERO, _rot)
+				draw_rect(Rect2(-3, -3, 6, 6), Color("8a6a46"))
+				draw_rect(Rect2(-3, -3, 6, 6), Color("17121c"), false, 1.0)
+				draw_set_transform(Vector2.ZERO)
+			"dust":
+				for i in 5:
+					var off := Vector2(-12 + i * 6, 0) + Vector2(0, -k * 6)
+					draw_circle(off, 3.0 + k * 5.0, Color(0.85, 0.82, 0.75, 0.7 * (1.0 - k)))
+			"ring":
+				var delay: float = opts.get("delay", 0.0)
+				if t < delay:
+					return
+				var kk := clampf((t - delay) / 0.45, 0.0, 1.0)
+				var r: float = lerpf(6.0, opts.get("radius", 60.0), kk)
+				draw_arc(Vector2.ZERO, r, 0, TAU, 40, Color(1, 0.85, 0.4, 1.0 - kk), 3.0)
+			"tiles":
+				for item in opts.get("tiles", []):
+					var tile: Vector2i = item[0]
+					var c: Color = item[1]
+					draw_rect(Rect2(tile.x * 32 + 1, tile.y * 32 + 1, 30, 30), Color(c, 0.6 * (1.0 - k)))
 
 
 class Bar extends Control:
