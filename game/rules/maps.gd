@@ -1,10 +1,11 @@
 extends RefCounted
 ## Map definitions (see PLAN.md section 2c).
 ## Legend: L locker, D desk, T teacher's desk, B bench, C ball cart,
-## 1 / 2 team spawns (left / right), . floor.
+## F lunch table, K food counter, 1 / 2 team spawns (left / right), . floor.
+## `floor` picks the floor art (default: classroom lino).
 ## `ffa_spawns` are the three corner spawns used in a 3-player free-for-all.
 
-const OBSTACLE_HP := {"L": 60, "D": 20, "T": 40, "B": 30, "C": 15}
+const OBSTACLE_HP := {"L": 60, "D": 20, "T": 40, "B": 30, "C": 15, "F": 25, "K": 50}
 
 const ALL := {
 	"classroom": {
@@ -44,5 +45,19 @@ const ALL := {
 			"LLLLLLLLLL",
 		],
 		"ffa_spawns": [[0, 1], [9, 1], [0, 6]],
+	},
+	"cafeteria": {
+		"name": "Cafeteria",
+		"floor": "cafeteria",
+		"rows": [
+			"KKKKKKKKKKKK",
+			"1..........2",
+			"1.FFF..FFF.2",
+			"............",
+			"..FFF..FFF..",
+			"............",
+			"LLLLLLLLLLLL",
+		],
+		"ffa_spawns": [[0, 1], [11, 1], [0, 5]],
 	},
 }

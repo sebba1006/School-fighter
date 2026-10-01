@@ -29,11 +29,11 @@ short code and fight on pixel-art school maps.
 | Turn timer | Host picks 15 / 30 / 45 / 60 s / off (default 30 s) |
 | Disconnect | Match pauses, 60 s to rejoin, otherwise that player loses/is KO'd |
 | Controls – PC | WASD move/aim, 1–4 attacks, Q super, Space confirm, Esc cancel |
-| Controls – mobile | Virtual joystick (move/aim) + 5 on-screen buttons + confirm |
+| Controls – mobile | Big joystick bottom-left; right column with attack cards (name + damage), UNDO, END TURN, USE. Reachable tiles are blue: tap one to walk there. Tap a tile to aim, tap it again to attack |
 | Platforms | **Android first**, **website** too, iOS later (maybe PC) |
 | Engine | **Godot 4** (GDScript). One project exports Android, Web, iOS, PC |
 | Art | **Real pixel art, all made by Claude**. References can be anything: photos, sketches, screenshots or just a description |
-| Characters | **4 at launch**, based on the owner and friends. **Unique picks** (no duplicates in a lobby). See section 2b |
+| Characters | **5**, based on the owner and friends. **Unique picks** (no duplicates in a lobby). See section 2b |
 
 ---
 
@@ -107,14 +107,14 @@ A lobby holds max 4 players, so unique picks always work.
 ### William (2/4): wrestler bruiser
 - **Look**: blond hair, glasses, light skin. Tallest of the three
   (about 150–168 cm). Mostly **black and red** clothes.
-- **Stats**: HP 115, move 3.
-- **Passive – Last Stand**: below 35% HP (40 HP or less), all his attacks do **+3 damage**.
+- **Stats**: HP 100, move 3. *(Nerfed after playtesting: was 115.)*
+- **Passive – Last Stand**: below 35% HP (34 HP or less), all his attacks do **+3 damage**.
 
 | Slot | Attack | Shape | Effect |
 |---|---|---|---|
 | 1 | Shoulder Tackle | Rush up to 2 tiles in a line | Hits first enemy, knockback 1 |
 | 2 | Punch | 1 tile in front | Solid damage |
-| 3 | Rage | Self | For **1–2 of his turns (random)**: **+8 damage** on attacks and a **15 HP shield**. Both end together; the shield never heals real HP. Uses his action |
+| 3 | Rage | Self | For **1–2 of his turns (random)**: **+2 damage** on attacks. No shield. Uses his action *(nerfed: was +8 and a 15 HP shield)* |
 | 4 | Head Slam | 1 tile in front | Damage + **Dizzy** |
 | Super | Body Smash | 1 adjacent enemy | Pro-wrestling body slam, big fixed damage. Rocks fly up around him (visual only) |
 
@@ -145,6 +145,32 @@ A lobby holds max 4 players, so unique picks always work.
 | 4 | Book Lob | Target tile 2–4 tiles away, plus-shape (5 tiles) | **Arcs over obstacles**. Medium damage |
 | Super | Flying Tackle | Closest enemy in a straight line, **up to 3 tiles** | Leaps onto the enemy, tackles them to the ground and punches them: big fixed damage + **Dizzy**. Mike then **jumps back to where he started**. **Cost**: Mike loses **10 HP** (**15 HP** if he leaped over an obstacle) and becomes **Dizzy** himself. The self-damage can't KO him (minimum 1 HP) |
 
+### Leon (5/6): half close range, half (weaker) long range
+- **Look**: light brown hair, light skin, blue t-shirt, light gray pants
+  (black shoes are a guess).
+- **Stats**: HP 95, move 3.
+
+| Slot | Attack | Shape | Effect |
+|---|---|---|---|
+| 1 | Jab | 1 tile in front | 13 damage |
+| 2 | Hook | 1 tile in front | 10 damage, knockback 1 |
+| 3 | Ball Throw | First enemy within 4 tiles | 8 damage (weaker and shorter than Mike's Slingshot) |
+| 4 | Eraser Flick | First enemy within 3 tiles | 6 damage + Dizzy |
+| Super | Triple Uppercut | 1 adjacent enemy | **30–38 damage** (random roll) |
+
+### Lucy & Charlie (6/6): the dog duo
+- **Look**: two beagles. Charlie is the big, older one (grey muzzle), and
+  Lucy, the puppy, lies on top of him.
+- **Stats**: HP 110, move 3. Their attacks are a bit weaker than the others'.
+
+| Slot | Attack | Shape | Effect |
+|---|---|---|---|
+| 1 | Bite | 1 tile in front | 11 damage |
+| 2 | Pounce | Dash up to 2 tiles | 9 damage, knockback 1 |
+| 3 | Zoomies | All 8 tiles around | 7 damage |
+| 4 | Bark | Line of 2 tiles | 5 damage + Dizzy |
+| Super | Mega Woof | 1 adjacent enemy | A big WOOF: **30–40 damage** and **pushed 1 or 2 tiles** (both random) |
+
 ### Shared status effects
 | Effect | Meaning |
 |---|---|
@@ -157,15 +183,32 @@ Slam damage (knocked into an obstacle, wall or player): **5**.
 | Character | 1 | 2 | 3 | 4 | Super |
 |---|---|---|---|---|---|
 | Sebba | Punch 14 | Kick 8, knockback 2 | Sweep 8 | Charge 8 + 3 per tile run (max 20), knockback 1 | Mega Barrage 35 |
-| William | Tackle 12, knockback 1 | Punch 14 | Rage (+8 dmg, 15 shield) | Head Slam 10 + Dizzy | Body Smash 35 |
+| William | Tackle 10, knockback 1 | Punch 12 | Rage (+2 dmg) | Head Slam 9 + Dizzy | Body Smash 35 |
 | Snorre | Stab 15 | Block | Dual Spin 9 | Sugar Rush (1.3×) | Mega Sword: inner 30, outer 12 + Dizzy |
 | Mike | Shove 5, knockback 2 | Slingshot 11 | Water Gun 6 + Dizzy | Book Lob 9 | Flying Tackle 45 + Dizzy (self: −10/−15 HP, Dizzy) |
+
+### Balance pass (computer simulation)
+`tools/balance_sim.gd` lets a computer player (`ai/bot.gd`) fight every
+matchup on every map (1200 matches). Before tuning, Sebba won 99% (walk
+away, then a long-run-up Charge) and Snorre/Mike were around 20%. After:
+
+| Fighter | Overall win rate | Changes |
+|---|---|---|
+| Sebba | 55% | HP 95, Kick push 1, Charge 7 + 2/tile up to 3 tiles (max 13), Mega Barrage 32 |
+| William | 42% | (nerfed earlier: HP 100, Rage +2, Tackle 10, Punch 12, Head Slam 9) |
+| Snorre | 50% | HP 100, Stab 16, Dual Spin 10, Mega Sword 28 / 11 |
+| Mike | 49% | HP 95, Shove 7, Slingshot 12, Water Gun 7, Book Lob 10 |
+| Leon | 54% | Jab 14, Ball Throw 9 |
+| Lucy & Charlie | 52% | Added later at these numbers, no changes needed (6-fighter run: Sebba 58, William 44, Snorre 51, Mike 42, Leon 53) |
+
+Known lopsided matchup: Mike beats Snorre almost every time in the
+simulation (Snorre can't close the distance). Watch for it in real games.
 
 ---
 
 ## 2c. Maps
 
-3 maps at launch. The host picks one in the lobby. Every map follows the same rule:
+4 maps. The host picks one in the lobby. Every map follows the same rule:
 **lockers along the sides, desks (or other cover) in the middle**.
 
 - Spawns: **opposite ends**. 1v1 and 2v2 use the left edge vs. the right edge.
@@ -214,6 +257,18 @@ L L L L L L L L L L
 . . . . . . . . . .
 L L L L L L L L L L
 ```
+
+### Cafeteria (12×7): long lunch tables, food counter along the top wall
+```
+K K K K K K K K K K K K
+1 . . . . . . . . . . 2
+1 . F F F . . F F F . 2
+. . . . . . . . . . . .
+. . F F F . . F F F . .
+. . . . . . . . . . . .
+L L L L L L L L L L L L
+```
+`F` lunch table (25 HP), `K` food counter (50 HP). Blue and white tiled floor.
 
 ---
 

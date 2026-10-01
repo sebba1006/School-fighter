@@ -9,6 +9,7 @@ const Characters = preload("res://rules/characters.gd")
 const Maps = preload("res://rules/maps.gd")
 const PixelArt = preload("res://art/pixel_art.gd")
 const UiTheme = preload("res://ui/ui_theme.gd")
+const FighterInfo = preload("res://ui/fighter_info.gd")
 
 var picks := ["sebba", "william"]
 var map_id := "classroom"
@@ -17,6 +18,7 @@ var rounds := 3
 var _char_buttons := [{}, {}]  # per player: char_id -> Button
 var _map_buttons := {}
 var _rounds_label: Label
+var _info: Label
 
 
 func _ready() -> void:
@@ -47,6 +49,11 @@ func _ready() -> void:
 	col.add_child(players)
 	for p in 2:
 		players.add_child(_player_picker(p))
+
+	_info = UiTheme.label("", 8, UiTheme.CHALK_DIM)
+	_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_info.custom_minimum_size.y = 40
+	col.add_child(_info)
 
 	var options := HBoxContainer.new()
 	options.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -94,9 +101,7 @@ func _ready() -> void:
 	buttons.add_child(start)
 	col.add_child(buttons)
 
-	var help := UiTheme.label("PC: WASD move/aim - 1-4 attack - Q super - SPACE use - Z undo - E end turn", 8, UiTheme.CHALK_DIM)
-	help.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	col.add_child(help)
+	_info.text = FighterInfo.summary(picks[0])
 	_refresh()
 
 
@@ -108,12 +113,12 @@ func _player_picker(p: int) -> Control:
 	row.add_theme_constant_override("separation", 4)
 	box.add_child(row)
 	for id in Characters.ALL:
-		var b := _toggle(Characters.ALL[id].name.to_upper())
+		var b := _toggle(Characters.ALL[id].name.to_upper().replace(" & ", " &\n"))
 		b.icon = PixelArt.character(id)
 		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
-		b.custom_minimum_size = Vector2(56, 70)
-		b.pressed.connect(func(): picks[p] = id; _refresh())
+		b.custom_minimum_size = Vector2(46, 76)
+		b.pressed.connect(func(): picks[p] = id; _info.text = FighterInfo.summary(id); _refresh())
 		_char_buttons[p][id] = b
 		row.add_child(b)
 	return box

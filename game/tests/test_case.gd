@@ -3,6 +3,7 @@ extends RefCounted
 ## Every test must call done() as its last line so a crash midway is caught.
 
 const Battle = preload("res://rules/battle.gd")
+const Fixture = preload("res://tests/fixture_characters.gd")
 
 const R := Vector2i.RIGHT
 const L := Vector2i.LEFT
@@ -38,6 +39,7 @@ func make(rows: Array, players: Array, rounds := 1) -> Battle:
 		"players": list,
 		"rounds": rounds,
 		"first_team": 0,
+		"characters": Fixture.ALL,
 	})
 	b.start_round()
 	return b

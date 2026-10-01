@@ -7,16 +7,15 @@ func test_rage_lasts_one_turn() -> void:
 	put(b, 1, 2, 2)
 	b.forced_rolls = [1]
 	check(attack(b, 0, 2).ok, "rage")
-	eq(b.fighters[0].shield, {"kind": "hp", "amount": 15}, "shield")
+	eq(b.fighters[0].shield, {}, "rage gives no shield")
 	eq(b.current().id, 1, "rage uses the attack")
 	attack(b, 1, 0, L)
-	eq(hp(b, 0), 115, "shield absorbs 14")
+	eq(hp(b, 0), 86, "sebba's punch lands fully")
 	attack(b, 0, 1, R)
-	eq(hp(b, 1), 100 - 22, "boosted punch 14 + 8")
-	eq(b.fighters[0].shield, {}, "shield gone when rage ends")
+	eq(hp(b, 1), 100 - 14, "boosted punch 12 + 2")
 	end_turn(b, 1)
 	attack(b, 0, 1, R)
-	eq(hp(b, 1), 78 - 14, "normal punch again")
+	eq(hp(b, 1), 86 - 12, "normal punch again")
 	done()
 
 
@@ -30,10 +29,10 @@ func test_rage_can_last_two_turns() -> void:
 	attack(b, 0, 1, R)
 	end_turn(b, 1)
 	attack(b, 0, 1, R)
-	eq(hp(b, 1), 100 - 22 - 22, "two boosted punches")
+	eq(hp(b, 1), 100 - 14 - 14, "two boosted punches")
 	end_turn(b, 1)
 	attack(b, 0, 1, R)
-	eq(hp(b, 1), 56 - 14, "then normal")
+	eq(hp(b, 1), 72 - 12, "then normal")
 	done()
 
 
@@ -87,13 +86,13 @@ func test_last_stand_below_35_percent() -> void:
 	var b := make(open_rows(), [["william", 0], ["sebba", 1]])
 	put(b, 0, 1, 2)
 	put(b, 1, 2, 2)
-	b.fighters[0].hp = 41
+	b.fighters[0].hp = 35
 	attack(b, 0, 1, R)
-	eq(hp(b, 1), 86, "41 hp: normal 14")
+	eq(hp(b, 1), 88, "35 hp: normal 12")
 	end_turn(b, 1)
-	b.fighters[0].hp = 40
+	b.fighters[0].hp = 34
 	attack(b, 0, 1, R)
-	eq(hp(b, 1), 86 - 17, "40 hp: 14 + 3")
+	eq(hp(b, 1), 88 - 15, "34 hp: 12 + 3")
 	done()
 
 
@@ -102,6 +101,6 @@ func test_head_slam_dizzies() -> void:
 	put(b, 0, 1, 2)
 	put(b, 1, 2, 2)
 	attack(b, 0, 3, R)
-	eq(hp(b, 1), 90, "10 damage")
+	eq(hp(b, 1), 91, "9 damage")
 	eq(b.move_budget, 2, "sebba dizzy on his turn")
 	done()

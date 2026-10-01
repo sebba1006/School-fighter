@@ -47,7 +47,7 @@ func test_knockback_into_enemy_hurts_both() -> void:
 	attack(b, 0, 1, R)
 	eq(b.fighters[1].pos, Vector2i(3, 2), "mike stops next to william")
 	eq(hp(b, 1), 72, "mike: kick + slam")
-	eq(hp(b, 2), 110, "william: slam")
+	eq(hp(b, 2), 95, "william: slam")
 	done()
 
 
@@ -59,7 +59,7 @@ func test_knockback_never_hurts_attackers_teammate() -> void:
 	put(b, 3, 8, 4)
 	attack(b, 0, 1, R)
 	eq(hp(b, 1), 72, "mike still slams")
-	eq(hp(b, 2), 115, "william (sebba's ally) unhurt")
+	eq(hp(b, 2), 100, "william (sebba's ally) unhurt")
 	done()
 
 
@@ -72,7 +72,7 @@ func test_sweep_hits_enemies_around_but_not_allies() -> void:
 	attack(b, 0, 2, R)
 	eq(hp(b, 1), 77, "mike")
 	eq(hp(b, 3), 87, "snorre")
-	eq(hp(b, 2), 115, "william (ally)")
+	eq(hp(b, 2), 100, "william (ally)")
 	done()
 
 
@@ -119,7 +119,7 @@ func test_slingshot_is_blocked_by_desks_and_passes_allies() -> void:
 	attack(b, 0, 1, R)
 	eq(b.obstacles[Vector2i(3, 2)].hp, 9, "desk took the shot")
 	eq(hp(b, 1), 100, "sebba behind cover")
-	eq(hp(b, 2), 115, "william (ally) not hit")
+	eq(hp(b, 2), 100, "william (ally) not hit")
 
 	var b2 := make(open_rows(), [["mike", 0], ["sebba", 1], ["william", 0], ["snorre", 1]])
 	put(b2, 0, 0, 2)
@@ -174,7 +174,7 @@ func test_mega_sword_inner_and_outer_rings() -> void:
 	eq(hp(b, 3), 88, "sebba in outer ring")
 	check(b.fighters[3].dizzy_next, "outer ring dizzy")
 	check(not b.fighters[1].dizzy_next, "inner ring not dizzy")
-	eq(hp(b, 2), 115, "ally unhurt")
+	eq(hp(b, 2), 100, "ally unhurt")
 	eq(b.fighters[0].meter, 0, "super empties meter and doesn't refill it")
 	done()
 
@@ -251,4 +251,53 @@ func test_obstacles_break() -> void:
 	var r := attack(b, 0, 0, R)
 	check(has_event(r, "obstacle_broken"), "desk broken after 28 damage")
 	check(not b.obstacles.has(Vector2i(2, 2)), "tile is free")
+	done()
+
+
+func test_triple_uppercut_rolls_30_to_38() -> void:
+	for roll in [30, 38]:
+		var b := make(open_rows(), [["leon", 0], ["sebba", 1]])
+		put(b, 0, 1, 2)
+		put(b, 1, 2, 2)
+		b.fighters[0].meter = 100
+		b.forced_rolls = [roll]
+		check(attack(b, 0, 4, R).ok, "triple uppercut")
+		eq(hp(b, 1), 100 - roll, "rolled %d" % roll)
+	var b2 := make(open_rows(), [["leon", 0], ["sebba", 1]])
+	put(b2, 0, 1, 2)
+	put(b2, 1, 2, 2)
+	b2.fighters[0].meter = 100
+	attack(b2, 0, 4, R)
+	check(hp(b2, 1) >= 62 and hp(b2, 1) <= 70, "random roll stays in 30-38 (got %d damage)" % (100 - hp(b2, 1)))
+	done()
+
+
+func test_leon_ranged_attacks_are_short() -> void:
+	var b := make(open_rows(), [["leon", 0], ["sebba", 1]])
+	put(b, 0, 0, 2)
+	put(b, 1, 5, 2)
+	attack(b, 0, 2, R)
+	eq(hp(b, 1), 100, "ball throw can't reach 5 tiles")
+	var b2 := make(open_rows(), [["leon", 0], ["sebba", 1]])
+	put(b2, 0, 0, 2)
+	put(b2, 1, 4, 2)
+	attack(b2, 0, 2, R)
+	eq(hp(b2, 1), 92, "ball throw at 4 tiles: 8")
+	done()
+
+
+func test_mega_woof_rolls_damage_and_push() -> void:
+	var rows := [".........", "1.......2", "........."]
+	for rolls in [[30, 1], [40, 2]]:
+		var b := Battle.new({"map": {"name": "t", "rows": rows, "ffa_spawns": []}, "first_team": 0,
+			"players": [{"char": "dogs", "team": 0}, {"char": "sebba", "team": 1}]})
+		b.start_round()
+		b.fighters[0].pos = Vector2i(1, 1)
+		b.turn_start_pos = Vector2i(1, 1)
+		b.fighters[1].pos = Vector2i(2, 1)
+		b.fighters[0].meter = 100
+		b.forced_rolls.assign(rolls)
+		check(b.apply(0, {"type": "attack", "slot": 4, "dir": R}).ok, "mega woof")
+		eq(b.fighters[1].pos, Vector2i(2 + rolls[1], 1), "pushed %d" % rolls[1])
+		eq(b.fighters[1].hp, b.fighters[1].max_hp - rolls[0], "rolled %d damage" % rolls[0])
 	done()

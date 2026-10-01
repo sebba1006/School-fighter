@@ -71,10 +71,12 @@ func _init(config: Dictionary) -> void:
 	rounds_total = config.get("rounds", 1)
 	_rng.seed = config.get("seed", 0)
 	_first_team = config.get("first_team", -1)
+	# Tests can pass their own fighter numbers; the game always uses Characters.ALL.
+	var roster: Dictionary = config.get("characters", Characters.ALL)
 	var players: Array = config.players
 	for i in players.size():
 		var p: Dictionary = players[i]
-		fighters.append(Fighter.new(i, p["char"], p.team, Characters.ALL[p["char"]]))
+		fighters.append(Fighter.new(i, p["char"], p.team, roster[p["char"]]))
 		if not teams.has(p.team):
 			teams.append(p.team)
 	teams.sort()
@@ -211,7 +213,8 @@ func _resolve(ctx: Dictionary, atk: Dictionary, dist: int) -> void:
 	var dir = ctx.dir
 	match atk.type:
 		"melee":
-			_hit_tile(ctx, f.pos + dir, atk.damage, atk)
+			var dmg: int = atk.damage if atk.has("damage") else _roll(atk.damage_min, atk.damage_max)
+			_hit_tile(ctx, f.pos + dir, dmg, atk)
 		"around":
 			for d in AROUND:
 				_hit_tile(ctx, f.pos + d, atk.damage)
@@ -270,7 +273,8 @@ func _resolve(ctx: Dictionary, atk: Dictionary, dist: int) -> void:
 			f.rage_turns = _roll(atk.turns_min, atk.turns_max)
 			f.rage_fresh = true
 			f.rage_bonus = atk.bonus
-			f.shield = {"kind": "hp", "amount": atk.shield}
+			if atk.get("shield", 0) > 0:
+				f.shield = {"kind": "hp", "amount": atk.shield}
 			ctx.events.append({"type": "status", "fighter": f.id, "status": "rage", "turns": f.rage_turns, "shield": atk.shield})
 		"self_block":
 			f.shield = {"kind": "block"}
@@ -313,6 +317,8 @@ func _hit_tile(ctx: Dictionary, tile: Vector2i, base: int, opts := {}) -> void:
 		return
 	_apply_status(ctx, t, opts.get("status", ""))
 	var kb: int = opts.get("knockback", 0)
+	if opts.has("knockback_max"):
+		kb = _roll(opts.knockback_min, opts.knockback_max)
 	if kb > 0:
 		_knockback(ctx, t, ctx.dir, kb)
 
@@ -593,6 +599,33 @@ func reachable_tiles() -> Array[Vector2i]:
 					next.append(n)
 					out.append(n)
 		frontier = next
+	return out
+
+
+## Shortest walk for the current fighter to `t` within the moves left this
+## turn, as the list of tiles to step on, or [] if it can't get there.
+func path_to(t: Vector2i) -> Array[Vector2i]:
+	var f := current()
+	var left := move_budget - path.size()
+	var came := {f.pos: f.pos}
+	var frontier: Array[Vector2i] = [f.pos]
+	for i in left:
+		var next: Array[Vector2i] = []
+		for p in frontier:
+			for d in DIRS:
+				var n: Vector2i = p + d
+				if came.has(n) or not _walkable(n):
+					continue
+				came[n] = p
+				next.append(n)
+		frontier = next
+	if not came.has(t) or t == f.pos:
+		return []
+	var out: Array[Vector2i] = []
+	var at := t
+	while at != f.pos:
+		out.push_front(at)
+		at = came[at]
 	return out
 
 

@@ -96,6 +96,13 @@ func _run() -> void:
 	await _wait(0.4)
 	await _snap(0, "o9_after_a")
 	await _snap(1, "o10_after_b")
+	# emotes: A opens CHAT and sends "GG"; B should see a bubble
+	sa._toggle_emotes()
+	await _wait(0.2)
+	await _snap(0, "o11_chat_open")
+	sa._emote_panel.get_child(0).pressed.emit()
+	await _wait(0.5)
+	await _snap(1, "o12_emote_seen")
 	print("ONLINE UI OK")
 	quit(0)
 

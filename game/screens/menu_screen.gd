@@ -3,9 +3,13 @@ extends Control
 
 signal online_pressed
 signal local_pressed
+signal howto_pressed
+signal stats_pressed
 
+const Characters = preload("res://rules/characters.gd")
 const PixelArt = preload("res://art/pixel_art.gd")
 const UiTheme = preload("res://ui/ui_theme.gd")
+const Audio = preload("res://audio/audio.gd")
 
 
 func _ready() -> void:
@@ -25,7 +29,7 @@ func _ready() -> void:
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 6)
-	for id in ["sebba", "william", "snorre", "mike"]:
+	for id in Characters.ALL:
 		var t := TextureRect.new()
 		t.texture = PixelArt.character(id)
 		t.custom_minimum_size = Vector2(32, 48)
@@ -40,9 +44,36 @@ func _ready() -> void:
 		b.custom_minimum_size = Vector2(180, 30)
 		b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		var sig: Signal = item[1]
-		b.pressed.connect(func(): sig.emit())
+		b.pressed.connect(func():
+			Audio.play("click")
+			sig.emit())
 		col.add_child(b)
+
+	var small := HBoxContainer.new()
+	small.alignment = BoxContainer.ALIGNMENT_CENTER
+	small.add_theme_constant_override("separation", 6)
+	for item in [["HOW TO PLAY", howto_pressed], ["STATS", stats_pressed]]:
+		var b := Button.new()
+		b.text = item[0]
+		b.custom_minimum_size = Vector2(87, 24)
+		var sig: Signal = item[1]
+		b.pressed.connect(func():
+			Audio.play("click")
+			sig.emit())
+		small.add_child(b)
+	col.add_child(small)
 
 	var sub := UiTheme.label("online: 2-4 players, each on their own device", 8, UiTheme.CHALK_DIM)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(sub)
+
+	var sound := Button.new()
+	sound.custom_minimum_size = Vector2(90, 20)
+	sound.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	sound.text = "SOUND ON" if Audio.is_enabled() else "SOUND OFF"
+	sound.pressed.connect(func():
+		Audio.set_enabled(not Audio.is_enabled())
+		Audio.play("click")
+		sound.text = "SOUND ON" if Audio.is_enabled() else "SOUND OFF")
+	col.add_child(sound)
+	Audio.start_music()

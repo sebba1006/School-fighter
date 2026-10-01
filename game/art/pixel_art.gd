@@ -16,14 +16,17 @@ const PAL := {
 	"hairChestnut": ["94602f", "6a401c", "b98049"],
 	"hairDark": ["5a3a22", "3b2514", "7a5432"],
 	"hairBlond": ["e8c25a", "bf922f", "f7df8e"],
+	"hairLightBrown": ["a87a4a", "805a32", "c89a66"],
 	"teeGray": ["9a9ba3", "72737c", "babbc2"],
 	"teeWhite": ["eceef1", "c3c7cf", "ffffff"],
 	"teeBlack": ["393943", "26262d", "50505c"],
+	"teeBlue": ["3f78c9", "2b5595", "6b9be0"],
 	"red": ["c8323a", "912029", "e3585d"],
 	"hoodie": ["3b3b46", "26262e", "53535f"],
 	"pocket": ["2e2e37", "22222a", "3b3b46"],
 	"pantsBlack": ["2c2c34", "1d1d23", "3d3d47"],
 	"pantsGray": ["6f7079", "54555d", "8a8b94"],
+	"pantsLightGray": ["a4a6ae", "82848c", "c0c2c9"],
 	"shoeBlack": ["1f1f25", "141418", "34343d"],
 	"shoeRed": ["b62c33", "7f1c22", "d64b50"],
 	"shoeBrown": ["5b3a26", "3f2718", "77513a"],
@@ -41,6 +44,18 @@ const PAL := {
 	"ballRed": ["d9463b", "a32d25", "f0776c"],
 	"ballBlue": ["3f78c9", "2b5595", "6b9be0"],
 	"ballOrange": ["e8893a", "b9651f", "f5ab69"],
+	"tableTop": ["dfe3e8", "b9bec7", "f3f5f8"],
+	"tableEdge": ["9aa2ad", "7a828d", "b4bbc4"],
+	"benchBlue": ["4f7fc4", "3a5f96", "6f9be0"],
+	"steel": ["b8bfc9", "8f96a3", "d8dde4"],
+	"steelDark": ["8f96a3", "6c727d", "a9b0ba"],
+	"foodYellow": ["e8c84a", "b99a2a", "f5df7f"],
+	"foodGreen": ["6cbf5a", "4c9640", "8fd77f"],
+	"beagleTan": ["c8894a", "9e6534", "e0a86e"],
+	"beagleBlack": ["3a332f", "241f1c", "524842"],
+	"beagleWhite": ["f2efe8", "cdc8be", "ffffff"],
+	"beagleEar": ["a8703c", "7e5129", "c08550"],
+	"oldMuzzle": ["dcd8cf", "b9b4aa", "f0eee8"],
 	"eye": "ffffff",
 	"pupil": "1a1420",
 	"mouth": "7a2e2e",
@@ -56,6 +71,7 @@ const LOOKS := {
 	"sebba": {"legs": 10, "hair": "hairBrown", "hair_style": "neat", "shirt": "teeGray", "sleeve": "teeGray", "pants": "pantsBlack", "shoes": "shoeBlack", "glasses": true, "mouth": "flat", "pupil": 1},
 	"william": {"legs": 13, "hair": "hairBlond", "hair_style": "swept", "shirt": "teeBlack", "sleeve": "red", "stripe": "red", "pants": "pantsBlack", "shoes": "shoeRed", "glasses": true, "mouth": "smile", "pupil": 0},
 	"snorre": {"legs": 9, "hair": "hairChestnut", "hair_style": "messy", "shirt": "teeWhite", "sleeve": "teeWhite", "pants": "pantsGray", "shoes": "shoeBrown", "sword": true, "mouth": "smile", "pupil": 0},
+	"leon": {"legs": 11, "hair": "hairLightBrown", "hair_style": "swoop", "shirt": "teeBlue", "sleeve": "teeBlue", "pants": "pantsLightGray", "shoes": "shoeBlack", "mouth": "smile", "pupil": 1},
 	"mike": {"legs": 11, "hair": "hairDark", "hair_style": "short", "shirt": "hoodie", "sleeve": "hoodie", "hoodie": true, "pants": "pantsBlack", "shoes": "shoeBlack", "slingshot": true, "mouth": "smirk", "pupil": 1},
 }
 
@@ -135,7 +151,8 @@ class Painter:
 static func character(char_id: String, bob := false) -> Texture2D:
 	var key := "char_%s_%s" % [char_id, bob]
 	if not _cache.has(key):
-		_cache[key] = ImageTexture.create_from_image(_character_image(LOOKS[char_id], bob))
+		var img := _dogs_image(bob) if char_id == "dogs" else _character_image(LOOKS[char_id], bob)
+		_cache[key] = ImageTexture.create_from_image(img)
 	return _cache[key]
 
 
@@ -218,6 +235,13 @@ static func _character_image(c: Dictionary, bob: bool) -> Image:
 		"short":
 			p.rect(17, hcy - 3, 21, hcy - 3, h)
 			p.px(21, hcy - 2, h)
+		"swoop":
+			# fringe swept to one side with a little flick on top
+			p.rect(10, hcy - 3, 16, hcy - 3, h)
+			p.rect(10, hcy - 2, 12, hcy - 2, h)
+			p.px(14, top - 3, h)
+			p.px(15, top - 3, h)
+			p.px(16, top - 2, h)
 
 	p.rect(11, hcy - 1, 13, hcy + 1, "eye")
 	p.rect(18, hcy - 1, 20, hcy + 1, "eye")
@@ -257,15 +281,54 @@ static func _character_image(c: Dictionary, bob: bool) -> Image:
 	return p.bake()
 
 
+## Lucy (the puppy) lying on the back of Charlie (the older beagle), side view.
+static func _dogs_image(bob: bool) -> Image:
+	var p := Painter.new(CHAR_W, CHAR_H)
+	# Charlie: the big one, standing, facing right
+	p.rect(2, 27, 3, 34, "beagleTan")  # tail up
+	p.rect(2, 26, 3, 27, "beagleWhite")
+	p.ell(14, 37, 11, 5.5, "beagleTan")
+	p.ell(13, 34, 8, 2.5, "beagleBlack")
+	p.rect(7, 40, 21, 42, "beagleWhite")
+	p.rect(22, 35, 24, 41, "beagleWhite")
+	for x in [5, 9, 18, 22]:
+		p.rect(x, 41, x + 1, 46, "beagleWhite")
+	p.ell(26, 30, 4.5, 4.5, "beagleTan")
+	p.rect(27, 31, 31, 34, "oldMuzzle")  # grey old-dog muzzle
+	p.rect(26, 26, 27, 30, "oldMuzzle")
+	p.rect(30, 31, 31, 32, "pupil")
+	p.px(28, 29, "pupil")
+	p.rect(22, 28, 24, 35, "beagleEar")
+	# Lucy: the puppy, lying on his back (breathes with the idle bob).
+	# Kept one row above him so the outline separates the two dogs.
+	var o := 1 if bob else 0
+	p.rect(3, 23 + o, 3, 27 + o, "beagleTan")
+	p.px(3, 22 + o, "beagleWhite")
+	p.ell(10, 28 + o, 6, 2.5, "beagleTan", 30 + o)
+	p.ell(9, 26.5 + o, 4, 1.5, "beagleBlack")
+	p.ell(15, 22 + o, 3.5, 3.5, "beagleTan")  # head up, looking ahead
+	p.rect(17, 22 + o, 20, 24 + o, "beagleWhite")
+	p.px(20, 22 + o, "pupil")
+	p.px(16, 21 + o, "pupil")
+	p.rect(15, 18 + o, 15, 21 + o, "beagleWhite")
+	p.rect(12, 21 + o, 13, 26 + o, "beagleEar")
+	p.rect(15, 29 + o, 18, 30, "beagleWhite")  # front paws
+	return p.bake()
+
+
 # ---------------------------------------------------------------- tiles
 
-## Linoleum floor tile. `alt` shifts the checker so tiles don't repeat identically.
-static func floor_tile(alt := false) -> Texture2D:
-	var key := "floor_%s" % alt
+## Floor tile. `alt` shifts the checker so tiles don't repeat identically.
+## Styles: "lino" (classroom beige) or "cafeteria" (blue and white).
+static func floor_tile(alt := false, style := "lino") -> Texture2D:
+	var key := "floor_%s_%s" % [alt, style]
 	if not _cache.has(key):
 		var img := Image.create(TILE, TILE, false, Image.FORMAT_RGBA8)
 		var a := Color("d8cdb4")
 		var b := Color("c9bc9f")
+		if style == "cafeteria":
+			a = Color("e9eef3")
+			b = Color("b9cde6")
 		for y in TILE:
 			for x in TILE:
 				var check := (int(x / 8.0) + int(y / 8.0) + (1 if alt else 0)) % 2 == 0
@@ -330,6 +393,27 @@ static func _obstacle_image(kind: String, damaged: bool, tall: bool) -> Image:
 			p.rect(25, o + 18, 27, o + 27, "metal")
 			if damaged:
 				for c in [[12, o + 13], [13, o + 14], [13, o + 15], [14, o + 16]]:
+					p.px(c[0], c[1], "crack")
+		"F":  # lunch table: segments join up into long tables, with a bench in front
+			p.rect(0, o + 6, 31, o + 14, "tableTop")
+			p.rect(0, o + 15, 31, o + 17, "tableEdge")
+			p.rect(14, o + 18, 17, o + 22, "steelDark")
+			p.rect(0, o + 24, 31, o + 27, "benchBlue")
+			p.rect(3, o + 28, 4, o + 30, "steelDark")
+			p.rect(27, o + 28, 28, o + 30, "steelDark")
+			if damaged:
+				for c in [[8, o + 7], [9, o + 8], [9, o + 9], [10, o + 10], [22, o + 12], [23, o + 13]]:
+					p.px(c[0], c[1], "crack")
+		"K":  # food counter: steel front, food along the top
+			var top := 2 if tall else o + 1
+			p.rect(0, top + 6, 31, o + 29, "steel")
+			p.rect(0, top + 6, 31, top + 8, "steelDark")
+			p.rect(2, o + 18, 29, o + 18, "seam")
+			p.ell(6, top + 4, 3, 3, "ballRed")
+			p.ell(15.5, top + 4, 4, 2.5, "foodYellow")
+			p.ell(25, top + 4, 3, 3, "foodGreen")
+			if damaged:
+				for c in [[9, o + 22], [10, o + 23], [10, o + 24], [11, o + 25], [21, o + 12], [22, o + 13]]:
 					p.px(c[0], c[1], "crack")
 		"C":  # ball cart
 			p.rect(3, o + 12, 28, o + 24, "metal")
