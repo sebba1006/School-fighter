@@ -22,7 +22,7 @@ short code and fight on pixel-art school maps.
 | Super meter | Fills from damage. **Dealing damage gives more meter than taking it.** Super damage is **fixed** (not scaled by meter) |
 | Grid | Bigger boards with obstacles. **Several maps, host picks** |
 | Obstacles | Block movement, block attacks (cover), bonus damage when knocked into, **breakable** (have HP) |
-| Turn order | Alternating. 2v2: A1 → B1 → A2 → B2. FFA: P1 → P2 → P3. Random starter |
+| Turn order | Alternating teams, always. 2v2: red → blue → red → blue; inside a team the players take turns, also after a KO (A1 → B1 → A1 → B2 if A2 is out). FFA: P1 → P2 → P3. Round 1 starts with a random team; later rounds start with the team that did not act last |
 | Friendly fire | Off. Area attacks skip teammates |
 | Teams (2v2) | Host assigns |
 | Rounds | Host picks 1–5 rounds |

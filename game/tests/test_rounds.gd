@@ -22,7 +22,34 @@ func test_knocked_out_fighters_are_skipped() -> void:
 	b.fighters[1].hp = 1
 	var r := attack(b, 0, 0, R)
 	check(has_event(r, "ko"), "mike KO")
-	eq(b.current().id, 2, "mike's turn skipped")
+	eq(b.current().id, 3, "mike is out, so blue's other fighter (snorre) goes next")
+	done()
+
+
+func test_2v2_keeps_alternating_after_a_ko() -> void:
+	# A1=0, A2=1 (team 0), B1=2, B2=3 (team 1); order A1 B1 A2 B2
+	var b := make(open_rows(), [["sebba", 0], ["william", 0], ["mike", 1], ["snorre", 1]])
+	b.fighters[1].hp = 0  # A2 is out
+	var seen: Array[int] = []
+	for i in 6:
+		var cur := b.current()
+		seen.append(cur.id)
+		end_turn(b, cur.id)
+	eq(seen, [0, 2, 0, 3, 0, 2] as Array[int], "A1 B1 A1 B2 A1 B1: teams alternate, B1 and B2 take turns")
+	done()
+
+
+func test_next_round_continues_the_alternation() -> void:
+	var b := Battle.new({"map": "classroom", "rounds": 3, "seed": 3, "characters": Fixture.ALL,
+		"players": [{"char": "sebba", "team": 0}, {"char": "mike", "team": 1}]})
+	b.start_round()
+	var last := b.current()
+	b.fighters[1 - last.id].hp = 1
+	b.fighters[1 - last.id].pos = last.pos + Vector2i(0, 1)
+	b.apply(last.id, {"type": "attack", "slot": 0, "dir": Vector2i(0, 1)})
+	eq(b.phase, Battle.Phase.ROUND_OVER, "round 1 over")
+	b.start_round()
+	check(b.current().team != last.team, "the other team starts round 2")
 	done()
 
 

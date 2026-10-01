@@ -58,6 +58,11 @@ var move_budget := 0
 
 var _rng := RandomNumberGenerator.new()
 var _first_team := -1
+## Who acted last on each team this round (team -> fighter id), and the team
+## that acted last overall. Turns always pass to the next team, and inside a
+## team they rotate, so a 2v2 goes red, blue, red, blue even after a KO.
+var _team_last := {}
+var _last_team := -1
 
 
 ## config:
@@ -96,6 +101,7 @@ func start_round() -> Array:
 		f.reset_for_round()
 	_place_fighters()
 	order = _build_order()
+	_team_last.clear()
 	turn_index = 0
 	while not current().alive() and turn_index < order.size() - 1:
 		turn_index += 1
@@ -434,10 +440,7 @@ func _end_turn() -> Array:
 	f.sugar_active = false
 	f.no_attack_now = false
 	events.append({"type": "turn_end", "fighter": f.id})
-	for i in order.size():
-		turn_index = (turn_index + 1) % order.size()
-		if current().alive():
-			break
+	_advance_turn()
 	events.append_array(_begin_turn())
 	return events
 
@@ -452,6 +455,8 @@ func _check_round_end(events: Array) -> void:
 	var winner: int = alive_teams[0] if alive_teams.size() == 1 else -1
 	if winner != -1:
 		round_wins[winner] += 1
+	if phase == Phase.TURN:
+		_last_team = current().team  # the next round starts with the other team
 	phase = Phase.ROUND_OVER
 	events.append({"type": "round_end", "round": round_number, "winner_team": winner, "wins": round_wins.duplicate()})
 	var mw := _decided_winner()
@@ -518,13 +523,40 @@ func _spawn_tiles(ch: String) -> Array[Vector2i]:
 	return out
 
 
+## Hands the turn to the next team that still has someone standing, and to
+## that team's next living fighter after the one who acted last.
+func _advance_turn() -> void:
+	var cur := current()
+	_team_last[cur.team] = cur.id
+	_last_team = cur.team
+	var ti := teams.find(cur.team)
+	for k in range(1, teams.size() + 1):
+		var t: int = teams[(ti + k) % teams.size()]
+		var members: Array[int] = []
+		for id in order:
+			if fighters[id].team == t:
+				members.append(id)
+		var start := members.find(_team_last.get(t, -1)) + 1
+		for j in members.size():
+			var id := members[(start + j) % members.size()]
+			if fighters[id].alive():
+				turn_index = order.find(id)
+				return
+
+
 func _build_order() -> Array[int]:
 	var by_team := {}
 	for t in teams:
 		by_team[t] = []
 	for f in fighters:
 		by_team[f.team].append(f.id)
-	var start: int = _first_team if _first_team != -1 else teams[_roll(0, teams.size() - 1)]
+	# Round 1 starts with a random team; later rounds carry on the
+	# alternation from where the last round stopped.
+	var start: int = _first_team
+	if start == -1 and _last_team != -1:
+		start = teams[(teams.find(_last_team) + 1) % teams.size()]
+	elif start == -1:
+		start = teams[_roll(0, teams.size() - 1)]
 	var rotated := teams.duplicate()
 	while rotated[0] != start:
 		rotated.push_back(rotated.pop_front())
@@ -569,7 +601,7 @@ func forfeit(fighter_id: int) -> Array:
 ## A fingerprint of everything that matters in the battle. The server sends it
 ## with every move so clients can tell if their copy got out of sync.
 func state_hash() -> int:
-	var parts := [phase, round_number, turn_index, move_budget, path.size(), _rng.state]
+	var parts := [phase, round_number, turn_index, move_budget, path.size(), _rng.state, _last_team, _team_last]
 	for f in fighters:
 		parts.append_array([f.hp, f.pos.x, f.pos.y, f.meter, f.shield.get("kind", ""), f.shield.get("amount", 0),
 			f.dizzy_next, f.rage_turns, f.sugar_active, f.no_attack_next, f.no_attack_now, f.forfeited])
