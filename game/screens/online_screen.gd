@@ -207,11 +207,11 @@ func _show_lobby() -> void:
 	pick_box.add_child(picks)
 	for id in Characters.ALL:
 		var b := Button.new()
-		b.text = Characters.ALL[id].name.to_upper()
+		b.text = Characters.ALL[id].name.to_upper().replace(" & ", " &\n")
 		b.icon = PixelArt.character(id)
 		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
-		b.custom_minimum_size = Vector2(56, 70)
+		b.custom_minimum_size = Vector2(46, 76)
 		b.toggle_mode = true
 		b.set_pressed_no_signal(me.get("char") == id)
 		b.disabled = members.any(func(m): return m.char == id and m.pid != lobby.you_pid)

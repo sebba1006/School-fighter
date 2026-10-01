@@ -4,7 +4,8 @@ extends RefCounted
 ##
 ## Attack types (resolved in battle.gd):
 ##   melee       hits the tile in front (fixed `damage`, or a random roll
-##               between `damage_min` and `damage_max`)
+##               between `damage_min` and `damage_max`; knockback can also be
+##               random with `knockback_min` / `knockback_max`)
 ##   around      hits all 8 tiles around the user
 ##   dash        runs up to `range` tiles, then hits whatever is directly ahead
 ##   projectile  hits the first enemy or obstacle within `range` tiles
@@ -75,5 +76,18 @@ const ALL := {
 			{"id": "eraser_flick", "name": "Eraser Flick", "type": "projectile", "range": 3, "damage": 6, "status": "dizzy"},
 		],
 		"super": {"id": "triple_uppercut", "name": "Triple Uppercut", "type": "melee", "damage_min": 30, "damage_max": 38},
+	},
+	"dogs": {
+		"name": "Lucy & Charlie",
+		"short": "Lucy+Charlie",
+		"hp": 110,
+		"move": 3,
+		"attacks": [
+			{"id": "bite", "name": "Bite", "type": "melee", "damage": 11},
+			{"id": "pounce", "name": "Pounce", "type": "dash", "range": 2, "damage": 9, "knockback": 1},
+			{"id": "zoomies", "name": "Zoomies", "type": "around", "damage": 7},
+			{"id": "bark", "name": "Bark", "type": "line", "range": 2, "damage": 5, "status": "dizzy"},
+		],
+		"super": {"id": "mega_woof", "name": "Mega Woof", "type": "melee", "damage_min": 30, "damage_max": 40, "knockback_min": 1, "knockback_max": 2},
 	},
 }

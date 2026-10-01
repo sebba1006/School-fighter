@@ -145,7 +145,7 @@ A lobby holds max 4 players, so unique picks always work.
 | 4 | Book Lob | Target tile 2–4 tiles away, plus-shape (5 tiles) | **Arcs over obstacles**. Medium damage |
 | Super | Flying Tackle | Closest enemy in a straight line, **up to 3 tiles** | Leaps onto the enemy, tackles them to the ground and punches them: big fixed damage + **Dizzy**. Mike then **jumps back to where he started**. **Cost**: Mike loses **10 HP** (**15 HP** if he leaped over an obstacle) and becomes **Dizzy** himself. The self-damage can't KO him (minimum 1 HP) |
 
-### Leon (5/5): half close range, half (weaker) long range
+### Leon (5/6): half close range, half (weaker) long range
 - **Look**: light brown hair, light skin, blue t-shirt, light gray pants
   (black shoes are a guess).
 - **Stats**: HP 95, move 3.
@@ -157,6 +157,19 @@ A lobby holds max 4 players, so unique picks always work.
 | 3 | Ball Throw | First enemy within 4 tiles | 8 damage (weaker and shorter than Mike's Slingshot) |
 | 4 | Eraser Flick | First enemy within 3 tiles | 6 damage + Dizzy |
 | Super | Triple Uppercut | 1 adjacent enemy | **30–38 damage** (random roll) |
+
+### Lucy & Charlie (6/6): the dog duo
+- **Look**: two beagles. Charlie is the big, older one (grey muzzle), and
+  Lucy, the puppy, lies on top of him.
+- **Stats**: HP 110, move 3. Their attacks are a bit weaker than the others'.
+
+| Slot | Attack | Shape | Effect |
+|---|---|---|---|
+| 1 | Bite | 1 tile in front | 11 damage |
+| 2 | Pounce | Dash up to 2 tiles | 9 damage, knockback 1 |
+| 3 | Zoomies | All 8 tiles around | 7 damage |
+| 4 | Bark | Line of 2 tiles | 5 damage + Dizzy |
+| Super | Mega Woof | 1 adjacent enemy | A big WOOF: **30–40 damage** and **pushed 1 or 2 tiles** (both random) |
 
 ### Shared status effects
 | Effect | Meaning |
@@ -186,6 +199,7 @@ away, then a long-run-up Charge) and Snorre/Mike were around 20%. After:
 | Snorre | 50% | HP 100, Stab 16, Dual Spin 10, Mega Sword 28 / 11 |
 | Mike | 49% | HP 95, Shove 7, Slingshot 12, Water Gun 7, Book Lob 10 |
 | Leon | 54% | Jab 14, Ball Throw 9 |
+| Lucy & Charlie | 52% | Added later at these numbers, no changes needed (6-fighter run: Sebba 58, William 44, Snorre 51, Mike 42, Leon 53) |
 
 Known lopsided matchup: Mike beats Snorre almost every time in the
 simulation (Snorre can't close the distance). Watch for it in real games.

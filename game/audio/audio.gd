@@ -87,6 +87,13 @@ func _build_sounds() -> void:
 	_sounds.click = _wav(_tone(0.03, 1000, 1000, "square", 0.18, 2.0))
 	_sounds.turn = _wav(_tone(0.12, 660, 880, "tri", 0.3, 1.0))
 	_sounds["super"] = _wav(_notes([72, 76, 79, 84], 0.07, 0.25, "square", 0.3))
+	# dog barks: a short "wuf" and the big Mega Woof
+	var bark := _mix(_tone(0.11, 560, 320, "square", 0.3, 1.4), _noise(0.07, 0.12, 2.0, 2))
+	var bark2 := _mix(_tone(0.11, 500, 280, "square", 0.3, 1.4), _noise(0.07, 0.12, 2.0, 2))
+	var gap := PackedFloat32Array()
+	gap.resize(int(0.05 * RATE))
+	_sounds.bark = _wav(bark + gap + bark2)
+	_sounds.woof = _wav(_mix(_tone(0.45, 420, 160, "square", 0.45, 1.1), _noise(0.3, 0.2, 1.5, 3)))
 	_sounds.win = _wav(_notes([67, 72, 76, 79], 0.1, 0.35, "square", 0.3))
 
 

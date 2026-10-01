@@ -317,6 +317,8 @@ func _hit_tile(ctx: Dictionary, tile: Vector2i, base: int, opts := {}) -> void:
 		return
 	_apply_status(ctx, t, opts.get("status", ""))
 	var kb: int = opts.get("knockback", 0)
+	if opts.has("knockback_max"):
+		kb = _roll(opts.knockback_min, opts.knockback_max)
 	if kb > 0:
 		_knockback(ctx, t, ctx.dir, kb)
 

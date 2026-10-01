@@ -51,6 +51,11 @@ const PAL := {
 	"steelDark": ["8f96a3", "6c727d", "a9b0ba"],
 	"foodYellow": ["e8c84a", "b99a2a", "f5df7f"],
 	"foodGreen": ["6cbf5a", "4c9640", "8fd77f"],
+	"beagleTan": ["c8894a", "9e6534", "e0a86e"],
+	"beagleBlack": ["3a332f", "241f1c", "524842"],
+	"beagleWhite": ["f2efe8", "cdc8be", "ffffff"],
+	"beagleEar": ["a8703c", "7e5129", "c08550"],
+	"oldMuzzle": ["dcd8cf", "b9b4aa", "f0eee8"],
 	"eye": "ffffff",
 	"pupil": "1a1420",
 	"mouth": "7a2e2e",
@@ -146,7 +151,8 @@ class Painter:
 static func character(char_id: String, bob := false) -> Texture2D:
 	var key := "char_%s_%s" % [char_id, bob]
 	if not _cache.has(key):
-		_cache[key] = ImageTexture.create_from_image(_character_image(LOOKS[char_id], bob))
+		var img := _dogs_image(bob) if char_id == "dogs" else _character_image(LOOKS[char_id], bob)
+		_cache[key] = ImageTexture.create_from_image(img)
 	return _cache[key]
 
 
@@ -272,6 +278,41 @@ static func _character_image(c: Dictionary, bob: bool) -> Image:
 		p.rect(27, hy - 1, 27, hy + 1, "wood")
 		for o in [[26, -2], [28, -2], [26, -3], [28, -3]]:
 			p.px(o[0], hy + o[1], "wood")
+	return p.bake()
+
+
+## Lucy (the puppy) lying on the back of Charlie (the older beagle), side view.
+static func _dogs_image(bob: bool) -> Image:
+	var p := Painter.new(CHAR_W, CHAR_H)
+	# Charlie: the big one, standing, facing right
+	p.rect(2, 27, 3, 34, "beagleTan")  # tail up
+	p.rect(2, 26, 3, 27, "beagleWhite")
+	p.ell(14, 37, 11, 5.5, "beagleTan")
+	p.ell(13, 34, 8, 2.5, "beagleBlack")
+	p.rect(7, 40, 21, 42, "beagleWhite")
+	p.rect(22, 35, 24, 41, "beagleWhite")
+	for x in [5, 9, 18, 22]:
+		p.rect(x, 41, x + 1, 46, "beagleWhite")
+	p.ell(26, 30, 4.5, 4.5, "beagleTan")
+	p.rect(27, 31, 31, 34, "oldMuzzle")  # grey old-dog muzzle
+	p.rect(26, 26, 27, 30, "oldMuzzle")
+	p.rect(30, 31, 31, 32, "pupil")
+	p.px(28, 29, "pupil")
+	p.rect(22, 28, 24, 35, "beagleEar")
+	# Lucy: the puppy, lying on his back (breathes with the idle bob).
+	# Kept one row above him so the outline separates the two dogs.
+	var o := 1 if bob else 0
+	p.rect(3, 23 + o, 3, 27 + o, "beagleTan")
+	p.px(3, 22 + o, "beagleWhite")
+	p.ell(10, 28 + o, 6, 2.5, "beagleTan", 30 + o)
+	p.ell(9, 26.5 + o, 4, 1.5, "beagleBlack")
+	p.ell(15, 22 + o, 3.5, 3.5, "beagleTan")  # head up, looking ahead
+	p.rect(17, 22 + o, 20, 24 + o, "beagleWhite")
+	p.px(20, 22 + o, "pupil")
+	p.px(16, 21 + o, "pupil")
+	p.rect(15, 18 + o, 15, 21 + o, "beagleWhite")
+	p.rect(12, 21 + o, 13, 26 + o, "beagleEar")
+	p.rect(15, 29 + o, 18, 30, "beagleWhite")  # front paws
 	return p.bake()
 
 

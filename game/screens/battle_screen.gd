@@ -692,7 +692,7 @@ func _play(events: Array) -> void:
 					await _super_move(e, f, atk)
 				else:
 					_popup(fighter_views[e.fighter], atk.name.to_upper() + "!", UiTheme.CHALK, -30)
-					Audio.play("whoosh")
+					Audio.play("bark" if atk.id == "bark" else "whoosh")
 					if e.dir is Vector2i and atk.type != "leap" and atk.type != "dash":
 						await fighter_views[e.fighter].lunge(e.dir).finished
 			"leap":
@@ -929,6 +929,20 @@ func _super_move(e: Dictionary, f, atk: Dictionary) -> void:
 			_fx("ring", tpx, {"radius": 84.0, "delay": 0.1})
 			for i in 6:
 				_fx("rock", tpx + Vector2(randf_range(-6, 6), 6), {"vel": Vector2(randf_range(-80, 80), randf_range(-150, -70))})
+			await _shake(5)
+			create_tween().tween_property(v, "position", home, 0.12)
+		"mega_woof":
+			# Charlie and Lucy bark together: big WOOF, sound waves roll at the enemy
+			var tw := create_tween()
+			tw.tween_property(v, "position", home + Vector2(dir) * -4, 0.1)
+			tw.tween_property(v, "position", home + Vector2(dir) * 6, 0.06)
+			await tw.finished
+			Audio.play("woof")
+			_popup_at(home + Vector2(4, -34), "WOOF!", UiTheme.GOLD)
+			var mouth := _tile_center(f.pos) + Vector2(dir) * 12
+			for i in 3:
+				_fx("ring", mouth + Vector2(dir) * (i * 10), {"radius": 18.0 + i * 8, "delay": i * 0.08})
+			_fx("spark", tpx, {"scale": 1.3})
 			await _shake(5)
 			create_tween().tween_property(v, "position", home, 0.12)
 		"triple_uppercut":

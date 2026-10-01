@@ -284,3 +284,20 @@ func test_leon_ranged_attacks_are_short() -> void:
 	attack(b2, 0, 2, R)
 	eq(hp(b2, 1), 92, "ball throw at 4 tiles: 8")
 	done()
+
+
+func test_mega_woof_rolls_damage_and_push() -> void:
+	var rows := [".........", "1.......2", "........."]
+	for rolls in [[30, 1], [40, 2]]:
+		var b := Battle.new({"map": {"name": "t", "rows": rows, "ffa_spawns": []}, "first_team": 0,
+			"players": [{"char": "dogs", "team": 0}, {"char": "sebba", "team": 1}]})
+		b.start_round()
+		b.fighters[0].pos = Vector2i(1, 1)
+		b.turn_start_pos = Vector2i(1, 1)
+		b.fighters[1].pos = Vector2i(2, 1)
+		b.fighters[0].meter = 100
+		b.forced_rolls.assign(rolls)
+		check(b.apply(0, {"type": "attack", "slot": 4, "dir": R}).ok, "mega woof")
+		eq(b.fighters[1].pos, Vector2i(2 + rolls[1], 1), "pushed %d" % rolls[1])
+		eq(b.fighters[1].hp, b.fighters[1].max_hp - rolls[0], "rolled %d damage" % rolls[0])
+	done()

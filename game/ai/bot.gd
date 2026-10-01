@@ -101,7 +101,7 @@ static func _score(b: Battle, f, atk: Dictionary, dir: Vector2i, dist: int) -> f
 			dmg += f.rage_bonus
 		if t.kind == "dizzy":
 			dmg += 3.0
-		if atk.get("knockback", 0) > 0:
+		if atk.get("knockback", 0) > 0 or atk.has("knockback_max"):
 			dmg += 2.0
 		if o.shield.get("kind") == "block":
 			dmg = 1.0

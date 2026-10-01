@@ -34,6 +34,8 @@ static func attack_info(atk: Dictionary) -> String:
 		parts.append("%d-%d AWAY" % [atk.min_range, atk.max_range])
 	if atk.get("knockback", 0) > 0:
 		parts.append("PUSH %d" % atk.knockback)
+	elif atk.has("knockback_max"):
+		parts.append("PUSH %d-%d" % [atk.knockback_min, atk.knockback_max])
 	if atk.get("status", "") == "dizzy" or atk.get("outer_status", "") == "dizzy":
 		parts.append("DIZZY")
 	return ", ".join(parts)

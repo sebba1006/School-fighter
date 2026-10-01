@@ -113,11 +113,11 @@ func _player_picker(p: int) -> Control:
 	row.add_theme_constant_override("separation", 4)
 	box.add_child(row)
 	for id in Characters.ALL:
-		var b := _toggle(Characters.ALL[id].name.to_upper())
+		var b := _toggle(Characters.ALL[id].name.to_upper().replace(" & ", " &\n"))
 		b.icon = PixelArt.character(id)
 		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
-		b.custom_minimum_size = Vector2(56, 70)
+		b.custom_minimum_size = Vector2(46, 76)
 		b.pressed.connect(func(): picks[p] = id; _info.text = FighterInfo.summary(id); _refresh())
 		_char_buttons[p][id] = b
 		row.add_child(b)
