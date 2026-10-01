@@ -47,3 +47,23 @@ func test_every_cpu_level_plays_legal_turns() -> void:
 			turns += 1
 		check(b.phase == Battle.Phase.MATCH_OVER, "%s: 1v1v1 finished" % level)
 	done()
+
+
+func test_bot_uses_items() -> void:
+	for item in Battle.ITEM_IDS:
+		var b := Battle.new({"map": "classroom", "rounds": 1, "seed": 9, "items": true, "characters": Fixture.ALL,
+			"players": [{"char": "sebba", "team": 0}, {"char": "mike", "team": 1}]})
+		b.start_round()
+		for f in b.fighters:
+			f.item = item
+		var used := false
+		var turns := 0
+		while b.phase == Battle.Phase.TURN and turns < 300:
+			var had: String = b.current().item
+			Bot.play_turn(b, 2.0)
+			if had != "" and b.fighters.any(func(f): return f.item == "") :
+				used = true
+			turns += 1
+		check(used, "%s got used" % item)
+		check(b.phase == Battle.Phase.MATCH_OVER, "%s: match finished" % item)
+	done()

@@ -45,6 +45,8 @@ const ERRORS := {
 	"not_your_turn": "NOT YOUR TURN",
 	"not_in_turn": "WAIT FOR THE NEXT TURN",
 	"offline": "NOT CONNECTED - RECONNECTING...",
+	"no_item": "NO ITEM - BREAK A LOCKER TO FIND ONE",
+	"no_room": "NO ROOM TO SPILL THERE",
 }
 ## Quick-chat emotes (online). The server only relays the number.
 const EMOTES := ["GG", "NICE!", "HAHA", "OOPS", "NOOO", "GOOD LUCK"]
@@ -62,6 +64,7 @@ var board := Node2D.new()
 var floor_layer := FloorLayer.new()
 var highlight := HighlightLayer.new()
 var obstacle_nodes := {}  # Vector2i -> Sprite2D
+var puddle_nodes := {}  # Vector2i -> Sprite2D
 var fighter_views: Array = []
 
 var busy := false
@@ -77,6 +80,10 @@ var attack_buttons: Array[Button] = []
 var attack_names: Array[Label] = []
 var attack_infos: Array[Label] = []
 var super_bar: Bar
+var item_button: Button  # the held item, above the joystick (hidden when empty)
+var item_name: Label
+var item_info: Label
+var item_icon: TextureRect
 var undo_button: Button
 var ok_button: Button
 var end_button: Button
@@ -200,9 +207,12 @@ func _ready() -> void:
 # ---------------------------------------------------------------- building
 
 func _build_board() -> void:
-	for n in obstacle_nodes.values():
+	for n in obstacle_nodes.values() + puddle_nodes.values():
 		n.queue_free()
 	obstacle_nodes.clear()
+	puddle_nodes.clear()
+	for t in battle.puddles:
+		_add_puddle(t)
 	floor_layer.size = Vector2i(battle.width, battle.height)
 	floor_layer.style = battle.map_def.get("floor", "lino")
 	floor_layer.queue_redraw()
@@ -317,6 +327,29 @@ func _build_hud() -> void:
 		attack_buttons.append(b)
 		attack_names.append(name)
 		attack_infos.append(info)
+	item_button = Button.new()
+	item_button.custom_minimum_size = Vector2(JOY_COL - 12, 32)
+	item_button.size = item_button.custom_minimum_size
+	item_button.focus_mode = Control.FOCUS_NONE
+	item_button.pressed.connect(_on_attack_pressed.bind(Battle.ITEM_SLOT))
+	item_icon = TextureRect.new()
+	item_icon.position = Vector2(4, 8)
+	item_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	item_button.add_child(item_icon)
+	var icol := VBoxContainer.new()
+	icol.add_theme_constant_override("separation", 1)
+	icol.position = Vector2(24, 4)
+	icol.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	item_name = UiTheme.label("", 8, UiTheme.CHALK)
+	item_info = UiTheme.label("", 8, UiTheme.GOLD)
+	for l in [item_name, item_info]:
+		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		l.clip_text = true
+		l.custom_minimum_size.x = JOY_COL - 40
+		icol.add_child(l)
+	item_button.add_child(icol)
+	item_button.visible = false
+	add_child(item_button)
 	undo_button = _side_button("UNDO", _on_undo, 22, 8)
 	end_button = _side_button("END TURN", _on_end_turn, 26, 8)
 	ok_button = _side_button("USE", _confirm, 44, 16)
@@ -494,6 +527,7 @@ func _layout() -> void:
 
 	# joystick: big, bottom-left
 	joystick.position = Vector2(8, vs.y - joystick.custom_minimum_size.y - 8)
+	item_button.position = Vector2(6, joystick.position.y - item_button.size.y - 4)
 	# right column: attacks from the top, actions at the bottom (USE lowest, easy to reach)
 	var y2 := TOP_H + 4.0
 	for b in attack_buttons:
@@ -526,7 +560,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.is_action_pressed("attack_%d" % (i + 1)):
 			_on_attack_pressed(i)
 			return
-	if event.is_action_pressed("attack_super"):
+	if event is InputEventKey and event.keycode == KEY_5:
+		_on_attack_pressed(Battle.ITEM_SLOT)
+	elif event.is_action_pressed("attack_super"):
 		_on_attack_pressed(Battle.SUPER_SLOT)
 	elif event.is_action_pressed("confirm"):
 		if mode == "over" and overlay != null:
@@ -653,8 +689,8 @@ func _on_end_turn() -> void:
 func _atk(slot: int) -> Dictionary:
 	if battle.order.is_empty():
 		return battle.fighters[maxi(0, my_fighter)].def.attacks[0]
-	var f := battle.current()
-	return f.def["super"] if slot == Battle.SUPER_SLOT else f.def.attacks[slot]
+	var atk := battle.slot_attack(battle.current(), slot)
+	return atk if not atk.is_empty() else battle.current().def.attacks[0]
 
 
 # ---------------------------------------------------------------- engine
@@ -722,7 +758,8 @@ func _play(events: Array) -> void:
 	var round_end := {}
 	var match_end := {}
 	var leaper := -1
-	for e in events:
+	for i in events.size():
+		var e: Dictionary = events[i]
 		match e.type:
 			"move":
 				Audio.play("step")
@@ -734,6 +771,9 @@ func _play(events: Array) -> void:
 				if e["super"] and e.fighter == my_fighter:
 					_my_supers += 1
 				var f = battle.fighters[e.fighter]
+				if e.get("item", false):
+					await _use_item_anim(e, events, i)
+					continue
 				var atk: Dictionary = f.def["super"] if e["super"] else f.def.attacks[_slot_of(f, e.attack)]
 				if e["super"]:
 					Audio.play("super")
@@ -791,6 +831,38 @@ func _play(events: Array) -> void:
 					tw.tween_property(s, "modulate:a", 0.0, 0.25)
 					tw.tween_property(s, "position:y", s.position.y + 6, 0.25)
 					tw.chain().tween_callback(s.queue_free)
+			"item":
+				Audio.play("pickup")
+				var name: String = Battle.ITEMS[e.item].name.to_upper()
+				_popup(fighter_views[e.fighter], "GOT %s!" % name, UiTheme.GOLD, -44)
+				var icon := Sprite2D.new()
+				icon.texture = PixelArt.item_icon(e.item)
+				icon.position = _tile_center(e.at)
+				icon.z_index = 4000
+				board.add_child(icon)
+				var tw := create_tween()
+				tw.tween_property(icon, "position", icon.position + Vector2(0, -14), 0.2)
+				tw.tween_property(icon, "position", fighter_views[e.fighter].position + Vector2(0, -20), 0.25)
+				tw.tween_callback(icon.queue_free)
+				await tw.finished
+				_refresh()
+			"puddle":
+				Audio.play("splash")
+				_add_puddle(e.at, true)
+				await get_tree().create_timer(0.25).timeout
+			"slip":
+				Audio.play("slip")
+				var pn: Sprite2D = puddle_nodes.get(e.at)
+				if pn != null:
+					puddle_nodes.erase(e.at)
+					create_tween().tween_property(pn, "modulate:a", 0.0, 0.4).finished.connect(pn.queue_free)
+				var sv = fighter_views[e.fighter]
+				_popup(sv, "SLIP!", UiTheme.DIZZY, -40)
+				var body: Node2D = sv.get_child(0)
+				var tw := create_tween()
+				tw.tween_property(body, "rotation", -0.5, 0.1)
+				tw.tween_property(body, "rotation", 0.0, 0.2)
+				await tw.finished
 			"ko":
 				if _last_attacker == my_fighter and e.fighter != my_fighter:
 					_my_kos += 1
@@ -830,6 +902,61 @@ func _play(events: Array) -> void:
 		_show_overlay(match_end, true)
 	elif not round_end.is_empty():
 		_show_overlay(round_end, false)
+
+
+## Item use: the item flies to what it hits (book, pencils) or splashes in
+## front of the user (water bottle; the "puddle" event draws the puddle).
+func _use_item_anim(e: Dictionary, events: Array, i: int) -> void:
+	var atk: Dictionary = Battle.ITEMS[e.attack]
+	var v = fighter_views[e.fighter]
+	_popup(v, atk.name.to_upper() + "!", UiTheme.GOLD, -30)
+	Audio.play("whoosh")
+	if atk.type == "spill":
+		await v.lunge(e.dir).finished
+		return
+	var from: Vector2 = v.position + Vector2(0, -16)
+	var to: Vector2 = from + Vector2(e.dir) * TILE * atk["range"]
+	for j in range(i + 1, events.size()):
+		var n: Dictionary = events[j]
+		if n.type == "damage" or n.type == "blocked":
+			to = fighter_views[n.fighter].position + Vector2(0, -16)
+			break
+		if n.type == "obstacle_damage":
+			to = _tile_center(n.at)
+			break
+		if n.type == "turn_end":
+			break
+	var count: int = atk.get("hits", 1)
+	var last: Tween
+	for k in count:
+		var sp := Sprite2D.new()
+		sp.texture = PixelArt.item_icon(e.attack)
+		sp.position = from
+		sp.z_index = 4000
+		board.add_child(sp)
+		var tw := create_tween().set_parallel()
+		tw.tween_property(sp, "position", to, 0.22).set_delay(k * 0.07)
+		tw.tween_property(sp, "rotation", TAU * 1.5, 0.22).set_delay(k * 0.07)
+		tw.chain().tween_callback(sp.queue_free)
+		last = tw
+	await last.finished
+
+
+func _add_puddle(t: Vector2i, grow := false) -> void:
+	var sp := Sprite2D.new()
+	sp.texture = PixelArt.puddle()
+	sp.centered = false
+	sp.position = Vector2(t.x * TILE, t.y * TILE)
+	sp.modulate = Color(1, 1, 1, 0.9)
+	sp.z_index = t.y * 10 - 5
+	board.add_child(sp)
+	puddle_nodes[t] = sp
+	if grow:
+		sp.scale = Vector2(0.2, 0.2)
+		sp.position += Vector2(TILE, TILE) * 0.4
+		var tw := create_tween().set_parallel()
+		tw.tween_property(sp, "scale", Vector2.ONE, 0.25)
+		tw.tween_property(sp, "position", Vector2(t.x * TILE, t.y * TILE), 0.25)
 
 
 func _slot_of(f, attack_id: String) -> int:
@@ -1341,6 +1468,14 @@ func _refresh() -> void:
 		b.modulate = UiTheme.GOLD if (slot == Battle.SUPER_SLOT and bf.meter >= Battle.METER_MAX) else Color.WHITE
 		if mode == "aim" and slot == aim_slot:
 			b.modulate = Color(1.4, 1.4, 1.2)
+	item_button.visible = bf.item != ""
+	if bf.item != "":
+		var it: Dictionary = Battle.ITEMS[bf.item]
+		item_icon.texture = PixelArt.item_icon(bf.item)
+		item_name.text = "5 " + it.name.to_upper()
+		item_info.text = "PUDDLE: SLIP + DIZZY" if it.type == "spill" else FighterInfo.attack_info(it)
+		item_button.disabled = busy or not in_turn or battle.attack_blocked_reason(bf.id, Battle.ITEM_SLOT) != ""
+		item_button.modulate = Color(1.4, 1.4, 1.2) if mode == "aim" and aim_slot == Battle.ITEM_SLOT else Color.WHITE
 	undo_button.disabled = busy or not in_turn or (mode == "move" and battle.path.is_empty())
 	undo_button.text = "BACK" if mode == "aim" else "UNDO"
 	ok_button.disabled = busy or mode != "aim"
@@ -1385,6 +1520,8 @@ func _refresh() -> void:
 			txt = "%s: TAP WHERE TO THROW (DISTANCE %d), THEN USE" % [atk.name.to_upper(), aim_dist]
 		elif atk.type.begins_with("self"):
 			txt = "%s: PRESS AGAIN OR USE" % atk.name.to_upper()
+		elif atk.type == "spill":
+			txt = "WATER BOTTLE: PICK WHERE TO SPILL (NEXT TO YOU), THEN USE"
 		hint_label.text = txt
 
 
@@ -1415,6 +1552,8 @@ func _refresh_panels() -> void:
 			st.append("SUGAR")
 		if f.no_attack_next or f.no_attack_now:
 			st.append("CRASH")
+		if f.item != "":
+			st.append(Battle.ITEMS[f.item].name.to_upper())
 		if f.dizzy_next or (battle.phase == Battle.Phase.TURN and battle.current() == f and battle.move_budget < f.move):
 			st.append("DIZZY")
 		p.status.text = " ".join(st)

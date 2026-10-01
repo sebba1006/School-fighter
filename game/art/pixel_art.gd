@@ -65,6 +65,10 @@ const PAL := {
 	"glass": ["a9d4ec", "7fb2d1", "d6eef9"],
 	"flask": ["7fd36b", "58a848", "a8e898"],
 	"bone": ["ece6d2", "c4bca4", "fffaea"],
+	"pencil": ["f0c330", "c4961c", "f8dc72"],
+	"pencilWood": ["e8c79a", "c9a272", "f5dfbf"],
+	"eraser": ["e88aa0", "c46a80", "f5b3c3"],
+	"puddle": ["7fbbe6", "5d9cd0", "b8def5"],
 	"eye": "ffffff",
 	"pupil": "1a1420",
 	"mouth": "7a2e2e",
@@ -323,6 +327,47 @@ static func _dogs_image(bob: bool) -> Image:
 	p.rect(12, 21 + o, 13, 26 + o, "beagleEar")
 	p.rect(15, 29 + o, 18, 30, "beagleWhite")  # front paws
 	return p.bake()
+
+
+# ---------------------------------------------------------------- items
+
+## 16x16 icon for an item: "book", "pencils" or "water".
+static func item_icon(id: String) -> Texture2D:
+	var key := "item_" + id
+	if not _cache.has(key):
+		var p := Painter.new(16, 16)
+		match id:
+			"book":
+				p.rect(2, 3, 13, 13, "red")
+				p.rect(3, 12, 13, 13, "teeWhite")  # page edges
+				p.rect(2, 3, 3, 13, "pantsBlack")  # spine
+				p.rect(6, 6, 11, 7, "guard")
+			"pencils":
+				for i in 3:
+					var y := 3 + i * 4
+					p.rect(4, y, 12, y + 1, "pencil")
+					p.rect(13, y, 13, y + 1, "pencilWood")
+					p.px(14, y, "pupil")
+					p.rect(2, y, 3, y + 1, "eraser")
+			"water":
+				p.rect(5, 4, 10, 14, "glass")
+				p.rect(6, 2, 9, 3, "glass")
+				p.rect(6, 1, 9, 1, "ballBlue")
+				p.rect(5, 8, 10, 10, "ballBlue")  # label
+		_cache[key] = ImageTexture.create_from_image(p.bake())
+	return _cache[key]
+
+
+## A water puddle lying on a floor tile.
+static func puddle() -> Texture2D:
+	if not _cache.has("puddle"):
+		var p := Painter.new(TILE, TILE)
+		p.ell(15, 17, 12, 7, "puddle")
+		p.ell(24, 21, 5, 4, "puddle")
+		p.ell(8, 12, 4, 3, "puddle")
+		p.rect(10, 14, 13, 14, "teeWhite")  # shine
+		_cache["puddle"] = ImageTexture.create_from_image(p.bake())
+	return _cache["puddle"]
 
 
 # ---------------------------------------------------------------- tiles

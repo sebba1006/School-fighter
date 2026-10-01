@@ -25,7 +25,7 @@ var code: String
 var host := ""  # token of the host
 ## [{"token", "pid", "name", "char", "team", "ready", "connected", "gone_since"}]
 var members: Array = []
-var settings := {"map": "classroom", "rounds": 3, "timer": 30}
+var settings := {"map": "classroom", "rounds": 3, "timer": 30, "items": true}
 var battle: Battle = null
 var config := {}
 var fighter_of := {}  # token -> fighter id
@@ -171,6 +171,8 @@ func handle(token: String, msg: Dictionary, now: int) -> void:
 				settings.rounds = clampi(msg.rounds, 1, 5)
 			if msg.get("timer") is int and TIMER_CHOICES.has(msg.timer):
 				settings.timer = msg.timer
+			if msg.get("items") is bool:
+				settings.items = msg.items
 			_broadcast_state()
 		"team":
 			if not is_host or in_match():
@@ -260,7 +262,7 @@ func _start_match() -> String:
 		var team: int = m.team if n == 4 else i
 		players.append({"char": m.char, "team": team, "name": m.name, "pid": m.pid})
 		fighter_of[m.token] = i
-	config = {"map": settings.map, "rounds": settings.rounds, "timer": settings.timer, "seed": randi(), "players": players}
+	config = {"map": settings.map, "rounds": settings.rounds, "timer": settings.timer, "items": settings.items, "seed": randi(), "players": players}
 	battle = Battle.new(config)
 	print("lobby %s: match started, %d players on %s" % [code, n, settings.map])
 	ops.clear()

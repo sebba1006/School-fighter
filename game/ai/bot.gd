@@ -10,6 +10,8 @@ extends RefCounted
 const Battle = preload("res://rules/battle.gd")
 
 const KO_BONUS := 40.0
+## Items are a bonus (lost at the end of the round), so prefer using them.
+const ITEM_BONUS := 6.0
 ## CPU difficulty for VS CPU fights. `noise` makes it pick worse moves more
 ## often; `lazy` is the chance it only walks and skips attacking that turn.
 const LEVELS := {
@@ -41,11 +43,11 @@ static func plan(b: Battle, noise := 0.0) -> Dictionary:
 		if _nearest(p, enemies) > 7:
 			continue
 		f.pos = p
-		for slot in 5:
+		for slot in Battle.ITEM_SLOT + 1:
 			if b.attack_blocked_reason(f.id, slot) != "":
 				continue
-			var atk: Dictionary = f.def["super"] if slot == Battle.SUPER_SLOT else f.def.attacks[slot]
-			if SELF_TYPES.has(atk.type):
+			var atk := b.slot_attack(f, slot)
+			if SELF_TYPES.has(atk.type) or atk.type == "spill":
 				continue
 			for dir in Battle.DIRS:
 				var dists := [0]
@@ -57,6 +59,8 @@ static func plan(b: Battle, noise := 0.0) -> Dictionary:
 						sc += randf() * noise
 					if slot == Battle.SUPER_SLOT:
 						sc += 5.0
+					if slot == Battle.ITEM_SLOT and sc > 0.0:
+						sc += ITEM_BONUS
 					best_any_attack = maxf(best_any_attack, sc)
 					if sc > best.score:
 						best = {"score": sc, "pos": p, "intents": [{"type": "attack", "slot": slot, "dir": dir, "dist": dist}]}
@@ -82,8 +86,28 @@ static func plan(b: Battle, noise := 0.0) -> Dictionary:
 				if best.score < 8.0 and _nearest(home, enemies) <= 3:
 					best = {"score": 8.0, "pos": home, "intents": [{"type": "attack", "slot": slot}]}
 
+	# Water bottle: spill a puddle toward an enemy who is a few tiles away.
+	if f.item == "water" and best.score < 12.0 and b.attack_blocked_reason(f.id, Battle.ITEM_SLOT) == "":
+		for o in enemies:
+			var gap: Vector2i = o.pos - home
+			var dist := absi(gap.x) + absi(gap.y)
+			var dir := Vector2i(signi(gap.x), 0) if absi(gap.x) >= absi(gap.y) else Vector2i(0, signi(gap.y))
+			if dist >= 2 and dist <= 4 and b._walkable(home + dir) and not b.puddles.has(home + dir):
+				best = {"score": 12.0, "pos": home, "intents": [{"type": "attack", "slot": Battle.ITEM_SLOT, "dir": dir}]}
+				break
 	if best.has("intents"):
 		return {"path": b.path_to(best.pos), "intents": best.intents}
+	# Nothing to hit: with a water bottle, walk closer and spill it toward the enemy.
+	if f.item == "water" and b.attack_blocked_reason(f.id, Battle.ITEM_SLOT) == "":
+		var spot := _toward(b, enemies)
+		var target: Vector2i = enemies[0].pos
+		for o in enemies:
+			if _dist(spot, o.pos) < _dist(spot, target):
+				target = o.pos
+		var d := target - spot
+		var dir := Vector2i(signi(d.x), 0) if absi(d.x) >= absi(d.y) else Vector2i(0, signi(d.y))
+		if _dist(spot, target) <= 7 and dir != Vector2i.ZERO and b._walkable(spot + dir):
+			return {"path": b.path_to(spot), "intents": [{"type": "attack", "slot": Battle.ITEM_SLOT, "dir": dir}]}
 	return {"path": b.path_to(_toward(b, enemies)), "intents": [{"type": "end_turn"}]}
 
 
@@ -127,11 +151,17 @@ static func _damage(atk: Dictionary, kind: String, run: int) -> float:
 		"dash":
 			return float(atk.damage + atk.get("damage_per_tile", 0) * run)
 	if atk.has("damage"):
-		return float(atk.damage)
+		return float(atk.damage * atk.get("hits", 1))
 	return (atk.damage_min + atk.damage_max) / 2.0
 
 
+static func _dist(a: Vector2i, c: Vector2i) -> int:
+	return absi(a.x - c.x) + absi(a.y - c.y)
+
+
 static func _slot_of(f, atk: Dictionary) -> int:
+	if Battle.ITEMS.has(atk.get("id", "")) and Battle.ITEMS[atk.id] == atk:
+		return Battle.ITEM_SLOT
 	if atk == f.def["super"]:
 		return Battle.SUPER_SLOT
 	return f.def.attacks.find(atk)

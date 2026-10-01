@@ -22,6 +22,18 @@ const METER_PER_HP_TAKEN := 1
 const LAST_STAND_PERCENT := 35
 const LAST_STAND_BONUS := 3
 const SUPER_SLOT := 4
+## The held item (if any) is used like a 5th attack, in place of attacking.
+const ITEM_SLOT := 5
+## Breaking a locker (with items on) gives the breaker an item 30% of the time.
+const ITEM_CHANCE := 30
+const ITEM_IDS := ["book", "pencils", "water"]
+const ITEMS := {
+	"book": {"id": "book", "name": "Book", "type": "projectile", "range": 4, "damage": 12, "knockback": 1},
+	"pencils": {"id": "pencils", "name": "Pencils", "type": "projectile", "range": 4, "damage": 3, "hits": 3},
+	"water": {"id": "water", "name": "Water Bottle", "type": "spill"},
+}
+## Stepping in an enemy's puddle: this much damage, the walk stops, Dizzy next turn.
+const PUDDLE_DAMAGE := 5
 const DIRS: Array[Vector2i] = [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]
 const AROUND: Array[Vector2i] = [
 	Vector2i(-1, -1), Vector2i(0, -1), Vector2i(1, -1), Vector2i(-1, 0),
@@ -36,6 +48,9 @@ var width := 0
 var height := 0
 ## Vector2i -> {"type": "D", "hp": 20}
 var obstacles := {}
+## Water puddles on the floor: Vector2i -> id of the fighter who spilled it.
+var puddles := {}
+var items_on := false
 var fighters: Array[Fighter] = []
 ## Team ids in ascending order. 1v1 and 2v2 have two teams, a free-for-all has one per player.
 var teams: Array[int] = []
@@ -71,7 +86,9 @@ var _last_team := -1
 ##   rounds: 1-5 (default 1)
 ##   seed: RNG seed (default 0)
 ##   first_team: optional, forces which team starts every round
+##   items: true = broken lockers can drop items (default off)
 func _init(config: Dictionary) -> void:
+	items_on = config.get("items", false) == true
 	map_def = config.map if config.map is Dictionary else Maps.ALL[config.map]
 	rounds_total = config.get("rounds", 1)
 	_rng.seed = config.get("seed", 0)
@@ -155,7 +172,27 @@ func _move(f: Fighter, dir) -> Dictionary:
 	f.pos = to
 	f.facing = dir
 	path.append(to)
-	return _ok([{"type": "move", "fighter": f.id, "from": from, "to": to}])
+	var events: Array = [{"type": "move", "fighter": f.id, "from": from, "to": to}]
+	if puddles.has(to) and fighters[puddles[to]].team != f.team:
+		_slip(f, to, events)
+	return _ok(events)
+
+
+## Walking into an enemy's puddle: the puddle is used up, the fighter takes a
+## little damage, can't walk (or undo) any further this turn and is Dizzy next turn.
+func _slip(f: Fighter, tile: Vector2i, events: Array) -> void:
+	var owner: Fighter = fighters[puddles[tile]]
+	puddles.erase(tile)
+	events.append({"type": "slip", "fighter": f.id, "at": tile})
+	var ctx := {"attacker": owner, "dir": f.facing, "super": false, "events": events}
+	_deal(owner, f, PUDDLE_DAMAGE, ctx)
+	path.clear()
+	turn_start_pos = f.pos
+	move_budget = 0
+	_apply_status(ctx, f, "dizzy")
+	_check_round_end(events)
+	if phase == Phase.TURN and not f.alive():
+		events.append_array(_end_turn())
 
 
 func _undo(f: Fighter) -> Dictionary:
@@ -167,11 +204,24 @@ func _undo(f: Fighter) -> Dictionary:
 	return _ok([{"type": "move", "fighter": f.id, "from": from, "to": f.pos, "undo": true}])
 
 
+## The attack in a slot: 0-3 attacks, 4 super, 5 the held item ({} if none).
+func slot_attack(f: Fighter, slot: int) -> Dictionary:
+	if slot == ITEM_SLOT:
+		return ITEMS.get(f.item, {})
+	if slot == SUPER_SLOT:
+		return f.def["super"]
+	if slot >= 0 and slot < SUPER_SLOT:
+		return f.def.attacks[slot]
+	return {}
+
+
 func _attack(f: Fighter, slot: int, dir, dist: int) -> Dictionary:
-	if slot < 0 or slot > SUPER_SLOT:
+	if slot < 0 or slot > ITEM_SLOT:
 		return _fail("bad_slot")
 	var is_super := slot == SUPER_SLOT
-	var atk: Dictionary = f.def["super"] if is_super else f.def.attacks[slot]
+	if slot == ITEM_SLOT and f.item == "":
+		return _fail("no_item")
+	var atk: Dictionary = slot_attack(f, slot)
 	var is_self: bool = SELF_TYPES.has(atk.type)
 	if not is_self and not _valid_dir(dir):
 		return _fail("bad_dir")
@@ -187,8 +237,10 @@ func _attack(f: Fighter, slot: int, dir, dist: int) -> Dictionary:
 		f.facing = dir
 	if is_super:
 		f.meter = 0
+	if slot == ITEM_SLOT:
+		f.item = ""
 	var ctx := {"attacker": f, "dir": dir, "super": is_super, "events": []}
-	ctx.events.append({"type": "attack", "fighter": f.id, "attack": atk.id, "super": is_super, "dir": dir, "dist": dist})
+	ctx.events.append({"type": "attack", "fighter": f.id, "attack": atk.id, "super": is_super, "item": slot == ITEM_SLOT, "dir": dir, "dist": dist})
 	_resolve(ctx, atk, dist)
 	_check_round_end(ctx.events)
 	if phase == Phase.TURN and not atk.get("free", false):
@@ -209,6 +261,10 @@ func _validate(f: Fighter, atk: Dictionary, dir, dist: int) -> String:
 		"self_sugar":
 			if f.sugar_active:
 				return "already_active"
+		"spill":
+			var t: Vector2i = f.pos + dir
+			if not _walkable(t) or puddles.has(t):
+				return "no_room"
 	return ""
 
 
@@ -239,8 +295,13 @@ func _resolve(ctx: Dictionary, atk: Dictionary, dist: int) -> void:
 					break
 				var o := _fighter_at(t)
 				if obstacles.has(t) or (o != null and o.team != f.team):
-					_hit_tile(ctx, t, atk.damage, atk)
+					for h in atk.get("hits", 1):
+						_hit_tile(ctx, t, atk.damage, atk)
 					break
+		"spill":
+			var t: Vector2i = f.pos + dir
+			puddles[t] = f.id
+			ctx.events.append({"type": "puddle", "fighter": f.id, "at": t})
 		"line":
 			for d in range(1, atk["range"] + 1):
 				var t: Vector2i = f.pos + dir * d
@@ -404,6 +465,10 @@ func _damage_obstacle(ctx: Dictionary, tile: Vector2i, amount: int) -> void:
 	if o.hp <= 0:
 		obstacles.erase(tile)
 		ctx.events.append({"type": "obstacle_broken", "at": tile, "obstacle": o.type})
+		var f: Fighter = ctx.attacker
+		if items_on and o.type == "L" and f.alive() and _roll(1, 100) <= ITEM_CHANCE:
+			f.item = ITEM_IDS[_roll(0, ITEM_IDS.size() - 1)]
+			ctx.events.append({"type": "item", "fighter": f.id, "item": f.item, "at": tile})
 
 
 # ---------------------------------------------------------------- turns
@@ -490,6 +555,7 @@ func _load_map() -> void:
 	height = rows.size()
 	width = rows[0].length()
 	obstacles.clear()
+	puddles.clear()
 	for y in height:
 		for x in width:
 			var ch: String = rows[y][x]
@@ -604,11 +670,15 @@ func state_hash() -> int:
 	var parts := [phase, round_number, turn_index, move_budget, path.size(), _rng.state, _last_team, _team_last]
 	for f in fighters:
 		parts.append_array([f.hp, f.pos.x, f.pos.y, f.meter, f.shield.get("kind", ""), f.shield.get("amount", 0),
-			f.dizzy_next, f.rage_turns, f.sugar_active, f.no_attack_next, f.no_attack_now, f.forfeited])
+			f.dizzy_next, f.rage_turns, f.sugar_active, f.no_attack_next, f.no_attack_now, f.forfeited, f.item])
 	var tiles := obstacles.keys()
 	tiles.sort()
 	for t in tiles:
 		parts.append_array([t.x, t.y, obstacles[t].hp])
+	var wet := puddles.keys()
+	wet.sort()
+	for t in wet:
+		parts.append_array([t.x, t.y, puddles[t]])
 	return hash(str(parts))
 
 
@@ -665,9 +735,9 @@ func path_to(t: Vector2i) -> Array[Vector2i]:
 ## Returns [{"pos": Vector2i, "kind": "hit" | "dizzy" | "path" | "self"}, ...]
 func preview(fighter_id: int, slot: int, dir, dist := 0) -> Array:
 	var f := fighters[fighter_id]
-	if slot < 0 or slot > SUPER_SLOT:
+	var atk := slot_attack(f, slot)
+	if atk.is_empty():
 		return []
-	var atk: Dictionary = f.def["super"] if slot == SUPER_SLOT else f.def.attacks[slot]
 	var out := []
 	var add := func(t: Vector2i, kind: String) -> void:
 		if _in_bounds(t):
@@ -710,6 +780,8 @@ func preview(fighter_id: int, slot: int, dir, dist := 0) -> Array:
 				add.call(t, hit_kind)
 				if obstacles.has(t):
 					break
+		"spill":
+			add.call(f.pos + dir, "dizzy")
 		"lob":
 			var center: Vector2i = f.pos + dir * clampi(dist, atk.min_range, atk.max_range)
 			for d in [Vector2i.ZERO, Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
@@ -738,6 +810,8 @@ func attack_blocked_reason(fighter_id: int, slot: int) -> String:
 	var f := fighters[fighter_id]
 	if f.no_attack_now:
 		return "cannot_attack"
+	if slot == ITEM_SLOT and f.item == "":
+		return "no_item"
 	if slot == SUPER_SLOT and f.meter < METER_MAX:
 		return "super_not_ready"
 	if slot == 3 and f.def.attacks[3].type == "self_sugar" and f.sugar_active:

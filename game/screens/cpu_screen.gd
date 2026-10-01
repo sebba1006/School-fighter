@@ -23,6 +23,7 @@ var picks := ["sebba", RANDOM, RANDOM, RANDOM]  # slot 0 = you
 var slot := 0  # which slot the fighter row is choosing for
 var map_id := "classroom"
 var rounds := 3
+var items := true
 
 var _mode_buttons := {}
 var _level_buttons := {}
@@ -102,6 +103,13 @@ func _ready() -> void:
 	_rounds_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	options.add_child(_rounds_label)
 	options.add_child(_small("+", func(): rounds = mini(5, rounds + 1); _refresh()))
+	var it := Button.new()
+	it.custom_minimum_size = Vector2(70, 20)
+	it.text = "ITEMS ON"
+	it.pressed.connect(func():
+		items = not items
+		it.text = "ITEMS ON" if items else "ITEMS OFF")
+	options.add_child(it)
 
 	var buttons := _row(col)
 	buttons.add_theme_constant_override("separation", 8)
@@ -207,7 +215,7 @@ func _start() -> void:
 		if i > 0:
 			p["cpu"] = level
 		players.append(p)
-	start_requested.emit({"map": map_id, "rounds": rounds, "players": players, "seed": randi()})
+	start_requested.emit({"map": map_id, "rounds": rounds, "items": items, "players": players, "seed": randi()})
 
 
 func _row(parent: Control) -> HBoxContainer:

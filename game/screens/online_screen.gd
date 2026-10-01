@@ -248,9 +248,18 @@ func _show_lobby() -> void:
 			var i := TIMERS.find(settings.timer)
 			net.send({"t": "settings", "timer": TIMERS[(i + 1) % TIMERS.size()]}))
 		srow.add_child(t)
+		srow.add_child(_fixed(Control.new(), 8))
+		srow.add_child(UiTheme.label("ITEMS", 8, UiTheme.CHALK_DIM))
+		var it := Button.new()
+		var items_on: bool = settings.get("items", true)
+		it.text = "ON" if items_on else "OFF"
+		it.custom_minimum_size = Vector2(40, 20)
+		it.pressed.connect(func(): net.send({"t": "settings", "items": not items_on}))
+		srow.add_child(it)
 	else:
-		srow.add_child(UiTheme.label("MAP %s   ROUNDS %d   TURN TIMER %s" % [
-			Maps.ALL[settings.map].name.to_upper(), settings.rounds, _timer_text(settings.timer)], 8, UiTheme.CHALK_DIM))
+		srow.add_child(UiTheme.label("MAP %s   ROUNDS %d   TURN TIMER %s   ITEMS %s" % [
+			Maps.ALL[settings.map].name.to_upper(), settings.rounds, _timer_text(settings.timer),
+			"ON" if settings.get("items", true) else "OFF"], 8, UiTheme.CHALK_DIM))
 
 	var brow := _row(_lobby_view)
 	if host:

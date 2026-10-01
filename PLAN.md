@@ -299,6 +299,24 @@ skeleton (15 HP). White tiled floor.
 
 ---
 
+## 2c-2. Items (Dad's idea)
+
+A setting: **ITEMS ON/OFF** (host online, or on the local / VS CPU setup; on by default).
+
+- When a **locker** breaks, the fighter who broke it (attack, or slamming
+  someone into it) gets an item **30%** of the time. Other obstacles drop nothing.
+- You hold **1 item**; a new one replaces the old. Items are lost when the round ends.
+- Using an item **is your attack for the turn** (you can still move first).
+  It's the card above the joystick, or key **5**.
+
+| Item | What it does |
+|---|---|
+| Book | Thrown: first enemy in a line up to 4 tiles, 12 damage, push 1 |
+| Pencils | Thrown: first enemy in a line up to 4 tiles, 3 hits of 3 damage |
+| Water bottle | Spill a puddle on the tile in front of you. An enemy who walks into it slips: 5 damage, stops walking (no undo), Dizzy next turn. The puddle is then gone. Your own team walks over it safely. Pushes and dashes don't trigger it |
+
+---
+
 ## 2d. Rule details (decided while building M1)
 
 Small rules the design didn't cover, as implemented in `game/rules/battle.gd`:

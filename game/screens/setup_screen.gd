@@ -14,6 +14,7 @@ const FighterInfo = preload("res://ui/fighter_info.gd")
 var picks := ["sebba", "william"]
 var map_id := "classroom"
 var rounds := 3
+var items := true
 
 var _char_buttons := [{}, {}]  # per player: char_id -> Button
 var _map_buttons := {}
@@ -83,6 +84,7 @@ func _ready() -> void:
 	plus.custom_minimum_size = Vector2(20, 20)
 	plus.pressed.connect(func(): rounds = mini(5, rounds + 1); _refresh())
 	options.add_child(plus)
+	options.add_child(_items_toggle())
 
 	var start := Button.new()
 	start.text = "START FIGHT"
@@ -124,6 +126,17 @@ func _player_picker(p: int) -> Control:
 	return box
 
 
+## "ITEMS ON/OFF": broken lockers can drop items.
+func _items_toggle() -> Button:
+	var b := Button.new()
+	b.custom_minimum_size = Vector2(70, 20)
+	b.text = "ITEMS ON"
+	b.pressed.connect(func():
+		items = not items
+		b.text = "ITEMS ON" if items else "ITEMS OFF")
+	return b
+
+
 func _toggle(text: String) -> Button:
 	var b := Button.new()
 	b.text = text
@@ -147,6 +160,7 @@ func _start() -> void:
 	start_requested.emit({
 		"map": map_id,
 		"rounds": rounds,
+		"items": items,
 		"players": [{"char": picks[0], "team": 0}, {"char": picks[1], "team": 1}],
 		"seed": randi(),
 	})

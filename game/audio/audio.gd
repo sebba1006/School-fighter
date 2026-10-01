@@ -94,6 +94,10 @@ func _build_sounds() -> void:
 	gap.resize(int(0.05 * RATE))
 	_sounds.bark = _wav(bark + gap + bark2)
 	_sounds.woof = _wav(_mix(_tone(0.45, 420, 160, "square", 0.45, 1.1), _noise(0.3, 0.2, 1.5, 3)))
+	# items
+	_sounds.pickup = _wav(_notes([76, 81, 88], 0.06, 0.2, "square", 0.25))
+	_sounds.splash = _wav(_mix(_noise(0.3, 0.3, 1.2, 1), _tone(0.2, 900, 300, "sine", 0.2, 1.5)))
+	_sounds.slip = _wav(_tone(0.3, 300, 900, "tri", 0.3, 0.8))
 	_sounds.win = _wav(_notes([67, 72, 76, 79], 0.1, 0.35, "square", 0.3))
 
 

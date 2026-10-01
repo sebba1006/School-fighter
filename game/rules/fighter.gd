@@ -25,6 +25,8 @@ var sugar_active := false
 var sugar_multiplier := 1.0
 var no_attack_next := false
 var no_attack_now := false
+## Item held ("" = none; see Battle.ITEMS). Lost at the end of the round.
+var item := ""
 ## Left the match (disconnected too long). Stays knocked out for the rest of it.
 var forfeited := false
 
@@ -51,6 +53,7 @@ func reset_for_round() -> void:
 	sugar_multiplier = 1.0
 	no_attack_next = false
 	no_attack_now = false
+	item = ""
 
 
 func alive() -> bool:
