@@ -17,6 +17,8 @@ var meter := 0
 var shield := {}
 ## Dizzy lands on the fighter's next turn: move range -1.
 var dizzy_next := false
+## Dizzy during this turn (one move less).
+var dizzy_now := false
 var rage_turns := 0
 ## True during the turn Rage was used, so that turn doesn't count down.
 var rage_fresh := false
@@ -25,6 +27,8 @@ var sugar_active := false
 var sugar_multiplier := 1.0
 var no_attack_next := false
 var no_attack_now := false
+## Shield item in use: {"kind": "melee" | "ranged", "pct": 20-45, "turns": n} or {}.
+var guard := {}
 ## Item held ("" = none; see Battle.ITEMS). Lost at the end of the round.
 var item := ""
 ## Left the match (disconnected too long). Stays knocked out for the rest of it.
@@ -46,6 +50,7 @@ func reset_for_round() -> void:
 	meter = 0
 	shield = {}
 	dizzy_next = false
+	dizzy_now = false
 	rage_turns = 0
 	rage_fresh = false
 	rage_bonus = 0
@@ -54,6 +59,7 @@ func reset_for_round() -> void:
 	no_attack_next = false
 	no_attack_now = false
 	item = ""
+	guard = {}
 
 
 func alive() -> bool:

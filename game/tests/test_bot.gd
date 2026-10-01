@@ -67,3 +67,24 @@ func test_bot_uses_items() -> void:
 		check(used, "%s got used" % item)
 		check(b.phase == Battle.Phase.MATCH_OVER, "%s: match finished" % item)
 	done()
+
+
+func test_bot_goes_for_a_box_in_reach() -> void:
+	var b := make(open_rows(), [["sebba", 0], ["mike", 1]])
+	put(b, 0, 0, 0)
+	put(b, 1, 8, 4)
+	b.box = Vector2i(2, 0)
+	var p := Bot.plan(b)
+	check(not p.path.is_empty() and p.path.back() == b.box, "walks onto the box")
+	done()
+
+
+func test_hurt_bot_puts_up_its_shield() -> void:
+	var b := make(open_rows(), [["sebba", 0], ["mike", 1]])
+	put(b, 0, 1, 2)
+	put(b, 1, 4, 2)
+	b.fighters[0].hp = 20
+	b.fighters[0].item = "shield"
+	var p := Bot.plan(b)
+	check(p.intents.any(func(i): return i.get("slot", -1) == Battle.ITEM_SLOT), "uses the shield")
+	done()

@@ -144,3 +144,65 @@ func test_items_and_puddles_reset_each_round() -> void:
 	check(b.puddles.is_empty(), "puddles gone")
 	eq(b.fighters[1].item, "", "items gone")
 	done()
+
+
+func test_mystery_box_appears_only_with_items_on() -> void:
+	var off := make(open_rows(), [["sebba", 0], ["mike", 1]])
+	for i in 8:
+		end_turn(off, off.current().id)
+	eq(off.box, Battle.NO_BOX, "no box with items off")
+	var b := make(open_rows(), [["sebba", 0], ["mike", 1]])
+	b.items_on = true
+	var spawned := false
+	for i in Battle.BOX_EVERY_TURNS:
+		var r := end_turn(b, b.current().id)
+		spawned = spawned or has_event(r, "box")
+	check(spawned and b.box != Battle.NO_BOX, "box after a few turns")
+	check(b._walkable(b.box), "on a free tile")
+	done()
+
+
+func test_walking_onto_the_box_gives_a_shield() -> void:
+	var b := make(open_rows(), [["sebba", 0], ["mike", 1]])
+	put(b, 0, 2, 2)
+	b.box = Vector2i(4, 2)
+	step(b, 0, R)
+	var r := step(b, 0, R)
+	check(has_event(r, "item"), "picked up")
+	eq(b.fighters[0].item, "shield", "holding a shield")
+	eq(b.box, Battle.NO_BOX, "box gone")
+	eq(b.apply(0, {"type": "undo"}).get("error"), "nothing_to_undo", "can't walk back off the box")
+	check(step(b, 0, R).ok, "the last move is still there")
+	done()
+
+
+func test_melee_guard_cuts_melee_damage_only() -> void:
+	var b := make(open_rows(), [["mike", 0], ["sebba", 1]])
+	put(b, 0, 3, 2)
+	put(b, 1, 4, 2)
+	b.fighters[0].item = "shield"
+	b.forced_rolls.assign([0, 50, 2])  # melee guard, 50% (above the max is fine for the test), 2 turns
+	var r := attack(b, 0, Battle.ITEM_SLOT)
+	check(r.ok, "shield used")
+	eq(b.fighters[0].guard.kind, "melee", "melee guard")
+	# Sebba punches (fixture punch damage) -> halved
+	var punch: int = b.fighters[1].def.attacks[0].damage
+	var before := hp(b, 0)
+	attack(b, 1, 0, L)
+	eq(before - hp(b, 0), punch - int(round(punch * 0.5)), "melee damage cut in half")
+	done()
+
+
+func test_ranged_guard_ignores_melee_and_wears_off() -> void:
+	var b := make(open_rows(), [["mike", 0], ["sebba", 1]])
+	put(b, 0, 3, 2)
+	put(b, 1, 4, 2)
+	b.fighters[0].item = "shield"
+	b.forced_rolls.assign([1, 40, 1])  # ranged guard, 40%, 1 turn
+	attack(b, 0, Battle.ITEM_SLOT)
+	var punch: int = b.fighters[1].def.attacks[0].damage
+	var before := hp(b, 0)
+	attack(b, 1, 0, L)
+	eq(before - hp(b, 0), punch, "punches aren't reduced by a ranged guard")
+	check(b.fighters[0].guard.is_empty(), "1 turn: gone when Mike's turn starts again")
+	done()

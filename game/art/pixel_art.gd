@@ -350,6 +350,11 @@ static func item_icon(id: String) -> Texture2D:
 					p.rect(13, y, 13, y + 1, "pencilWood")
 					p.px(14, y, "pupil")
 					p.rect(2, y, 3, y + 1, "eraser")
+			"shield":
+				p.ell(8, 7, 6, 6.5, "steel")
+				p.rect(2, 2, 13, 7, "steel")
+				p.rect(7, 3, 8, 12, "teeBlue")
+				p.rect(4, 6, 11, 7, "teeBlue")
 			"water":
 				p.rect(5, 4, 10, 14, "glass")
 				p.rect(6, 2, 9, 3, "glass")
@@ -357,6 +362,21 @@ static func item_icon(id: String) -> Texture2D:
 				p.rect(5, 8, 10, 10, "ballBlue")  # label
 		_cache[key] = ImageTexture.create_from_image(p.bake())
 	return _cache[key]
+
+
+## The mystery box (a "?" crate) sitting on a floor tile.
+static func mystery_box() -> Texture2D:
+	if not _cache.has("box"):
+		var p := Painter.new(TILE, TILE)
+		p.rect(6, 8, 25, 27, "deskTop")
+		p.rect(6, 8, 25, 10, "deskFront")
+		p.rect(6, 25, 25, 27, "deskFront")
+		# a "?" in gold
+		for c in [[13, 13], [14, 12], [15, 12], [16, 12], [17, 12], [18, 13], [18, 14], [17, 15], [16, 16], [15, 17], [15, 18], [15, 21], [15, 22]]:
+			p.px(c[0], c[1], "guard")
+			p.px(c[0] + 1, c[1], "guard")
+		_cache["box"] = ImageTexture.create_from_image(p.bake())
+	return _cache["box"]
 
 
 ## A water puddle lying on a floor tile.

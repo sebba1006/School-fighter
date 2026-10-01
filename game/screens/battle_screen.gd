@@ -65,6 +65,7 @@ var floor_layer := FloorLayer.new()
 var highlight := HighlightLayer.new()
 var obstacle_nodes := {}  # Vector2i -> Sprite2D
 var puddle_nodes := {}  # Vector2i -> Sprite2D
+var box_node: Sprite2D = null  # the mystery box, when there is one
 var fighter_views: Array = []
 
 var busy := false
@@ -213,6 +214,11 @@ func _build_board() -> void:
 	puddle_nodes.clear()
 	for t in battle.puddles:
 		_add_puddle(t)
+	if box_node != null:
+		box_node.queue_free()
+		box_node = null
+	if battle.box != Battle.NO_BOX:
+		_add_box(battle.box)
 	floor_layer.size = Vector2i(battle.width, battle.height)
 	floor_layer.style = battle.map_def.get("floor", "lino")
 	floor_layer.sand = battle.sand
@@ -803,6 +809,8 @@ func _play(events: Array) -> void:
 				var text := "-%d" % (e.amount - e.absorbed)
 				if e.absorbed > 0:
 					text += " (SHIELD %d)" % e.absorbed
+				if e.get("guarded", 0) > 0:
+					text += " (GUARD %d)" % e.guarded
 				_popup(v, text, UiTheme.HIT)
 				_refresh_panels()
 				await get_tree().create_timer(0.18).timeout
@@ -835,7 +843,15 @@ func _play(events: Array) -> void:
 					tw.tween_property(s, "modulate:a", 0.0, 0.25)
 					tw.tween_property(s, "position:y", s.position.y + 6, 0.25)
 					tw.chain().tween_callback(s.queue_free)
+			"box":
+				Audio.play("turn")
+				_add_box(e.at, true)
+				_popup_at(_tile_center(e.at) + Vector2(0, -20), "MYSTERY BOX!", UiTheme.GOLD)
+				await get_tree().create_timer(0.35).timeout
 			"item":
+				if e.item == "shield" and box_node != null:
+					box_node.queue_free()
+					box_node = null
 				Audio.play("pickup")
 				var name: String = Battle.ITEMS[e.item].name.to_upper()
 				_popup(fighter_views[e.fighter], "GOT %s!" % name, UiTheme.GOLD, -44)
@@ -873,6 +889,11 @@ func _play(events: Array) -> void:
 				Audio.play("ko")
 				_popup(fighter_views[e.fighter], "KO!", UiTheme.HIT, -40)
 				await fighter_views[e.fighter].knock_out().finished
+			"status" when e.status == "guard":
+				Audio.play("block")
+				_popup(fighter_views[e.fighter], "%s GUARD -%d%%" % [e.kind.to_upper(), e.pct], UiTheme.CHALK, -36)
+				fighter_views[e.fighter].flash(Color("8fc6ea"))
+				await get_tree().create_timer(0.3).timeout
 			"status":
 				if STATUS_TEXT.has(e.status):
 					var st: Array = STATUS_TEXT[e.status]
@@ -918,6 +939,8 @@ func _use_item_anim(e: Dictionary, events: Array, i: int) -> void:
 	if atk.type == "spill":
 		await v.lunge(e.dir).finished
 		return
+	if atk.type == "self_guard":
+		return  # the "guard" status event shows it
 	var from: Vector2 = v.position + Vector2(0, -16)
 	var to: Vector2 = from + Vector2(e.dir) * TILE * atk["range"]
 	for j in range(i + 1, events.size()):
@@ -944,6 +967,18 @@ func _use_item_anim(e: Dictionary, events: Array, i: int) -> void:
 		tw.chain().tween_callback(sp.queue_free)
 		last = tw
 	await last.finished
+
+
+func _add_box(t: Vector2i, drop := false) -> void:
+	box_node = Sprite2D.new()
+	box_node.texture = PixelArt.mystery_box()
+	box_node.centered = false
+	box_node.position = Vector2(t.x * TILE, t.y * TILE)
+	box_node.z_index = t.y * 10 - 4
+	board.add_child(box_node)
+	if drop:
+		box_node.position.y -= 40
+		create_tween().tween_property(box_node, "position:y", t.y * TILE, 0.3).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
 
 
 func _add_puddle(t: Vector2i, grow := false) -> void:
@@ -1477,7 +1512,13 @@ func _refresh() -> void:
 		var it: Dictionary = Battle.ITEMS[bf.item]
 		item_icon.texture = PixelArt.item_icon(bf.item)
 		item_name.text = "5 " + it.name.to_upper()
-		item_info.text = "PUDDLE: SLIP + DIZZY" if it.type == "spill" else FighterInfo.attack_info(it)
+		match it.type:
+			"spill":
+				item_info.text = "PUDDLE: SLIP + DIZZY"
+			"self_guard":
+				item_info.text = "-20-45% DMG"
+			_:
+				item_info.text = FighterInfo.attack_info(it)
 		item_button.disabled = busy or not in_turn or battle.attack_blocked_reason(bf.id, Battle.ITEM_SLOT) != ""
 		item_button.modulate = Color(1.4, 1.4, 1.2) if mode == "aim" and aim_slot == Battle.ITEM_SLOT else Color.WHITE
 	undo_button.disabled = busy or not in_turn or (mode == "move" and battle.path.is_empty())
@@ -1513,7 +1554,7 @@ func _refresh() -> void:
 		hint_label.text = "%s IS THINKING..." % _name_of(f)
 	elif mode == "move":
 		var left := battle.move_budget - battle.path.size()
-		var extra := "  (DIZZY)" if battle.move_budget < f.move else ""
+		var extra := "  (DIZZY)" if f.dizzy_now else ""
 		if f.no_attack_now:
 			extra += "  SUGAR CRASH: NO ATTACK"
 		hint_label.text = "MOVES LEFT %d%s - TAP A BLUE TILE OR USE THE JOYSTICK" % [left, extra]
@@ -1556,9 +1597,11 @@ func _refresh_panels() -> void:
 			st.append("SUGAR")
 		if f.no_attack_next or f.no_attack_now:
 			st.append("CRASH")
+		if not f.guard.is_empty():
+			st.append("%s GUARD" % ("MELEE" if f.guard.kind == "melee" else "RANGED"))
 		if f.item != "":
 			st.append(Battle.ITEMS[f.item].name.to_upper())
-		if f.dizzy_next or (battle.phase == Battle.Phase.TURN and battle.current() == f and battle.move_budget < f.move):
+		if f.dizzy_next or f.dizzy_now:
 			st.append("DIZZY")
 		p.status.text = " ".join(st)
 
