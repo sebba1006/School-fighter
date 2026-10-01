@@ -40,6 +40,8 @@ const AROUND: Array[Vector2i] = [
 	Vector2i(1, 0), Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1),
 ]
 const SELF_TYPES := ["self_rage", "self_block", "self_sugar"]
+## Attacks that can't reach someone hiding in a sandbox.
+const RANGED_TYPES := ["projectile", "line", "lob"]
 
 enum Phase { WAITING, TURN, ROUND_OVER, MATCH_OVER }
 
@@ -48,6 +50,8 @@ var width := 0
 var height := 0
 ## Vector2i -> {"type": "D", "hp": 20}
 var obstacles := {}
+## Sandbox tiles (Vector2i -> true). Standing in one hides you from ranged attacks.
+var sand := {}
 ## Water puddles on the floor: Vector2i -> id of the fighter who spilled it.
 var puddles := {}
 var items_on := false
@@ -239,7 +243,7 @@ func _attack(f: Fighter, slot: int, dir, dist: int) -> Dictionary:
 		f.meter = 0
 	if slot == ITEM_SLOT:
 		f.item = ""
-	var ctx := {"attacker": f, "dir": dir, "super": is_super, "events": []}
+	var ctx := {"attacker": f, "dir": dir, "super": is_super, "ranged": RANGED_TYPES.has(atk.type), "events": []}
 	ctx.events.append({"type": "attack", "fighter": f.id, "attack": atk.id, "super": is_super, "item": slot == ITEM_SLOT, "dir": dir, "dist": dist})
 	_resolve(ctx, atk, dist)
 	_check_round_end(ctx.events)
@@ -294,7 +298,7 @@ func _resolve(ctx: Dictionary, atk: Dictionary, dist: int) -> void:
 				if not _in_bounds(t):
 					break
 				var o := _fighter_at(t)
-				if obstacles.has(t) or (o != null and o.team != f.team):
+				if obstacles.has(t) or (o != null and o.team != f.team and not sand.has(t)):
 					for h in atk.get("hits", 1):
 						_hit_tile(ctx, t, atk.damage, atk)
 					break
@@ -377,6 +381,9 @@ func _hit_tile(ctx: Dictionary, tile: Vector2i, base: int, opts := {}) -> void:
 		return
 	var t := _fighter_at(tile)
 	if t == null or t.team == f.team:
+		return
+	if ctx.get("ranged", false) and sand.has(tile):
+		ctx.events.append({"type": "hidden", "fighter": t.id})
 		return
 	if not _deal(f, t, _attack_damage(f, base), ctx):
 		return
@@ -556,11 +563,14 @@ func _load_map() -> void:
 	width = rows[0].length()
 	obstacles.clear()
 	puddles.clear()
+	sand.clear()
 	for y in height:
 		for x in width:
 			var ch: String = rows[y][x]
 			if Maps.OBSTACLE_HP.has(ch):
 				obstacles[Vector2i(x, y)] = {"type": ch, "hp": Maps.OBSTACLE_HP[ch]}
+			elif ch == "s":
+				sand[Vector2i(x, y)] = true
 
 
 func _place_fighters() -> void:
@@ -768,7 +778,7 @@ func preview(fighter_id: int, slot: int, dir, dist := 0) -> Array:
 				if not _in_bounds(t):
 					break
 				var o := _fighter_at(t)
-				if obstacles.has(t) or (o != null and o.team != f.team):
+				if obstacles.has(t) or (o != null and o.team != f.team and not sand.has(t)):
 					add.call(t, hit_kind)
 					break
 				add.call(t, "path")

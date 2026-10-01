@@ -69,6 +69,7 @@ const PAL := {
 	"pencilWood": ["e8c79a", "c9a272", "f5dfbf"],
 	"eraser": ["e88aa0", "c46a80", "f5b3c3"],
 	"puddle": ["7fbbe6", "5d9cd0", "b8def5"],
+	"slide": ["f2c64a", "c99a26", "f8de86"],
 	"eye": "ffffff",
 	"pupil": "1a1420",
 	"mouth": "7a2e2e",
@@ -397,6 +398,10 @@ static func floor_tile(alt := false, style := "lino") -> Texture2D:
 						col = Color("4f8a37")
 					elif n == 11:
 						col = Color("86c262")
+				elif style == "sand":
+					col = Color("e6cf8f") if (x * 5 + y * 11 + (3 if alt else 0)) % 17 != 0 else Color("c9ae68")
+					if (x * 13 + y * 7) % 29 == 0:
+						col = Color("f3e2b0")
 				elif style == "lab":
 					var check := (int(x / 16.0) + int(y / 16.0) + (1 if alt else 0)) % 2 == 0
 					col = a if check else b
@@ -563,6 +568,27 @@ static func _obstacle_image(kind: String, damaged: bool, tall: bool) -> Image:
 			p.rect(10, o + 29, 21, o + 29, "metal")
 			if damaged:
 				p.rect(21, o + 7, 22, o + 15, "")
+		"H":  # slide ladder with the platform on top
+			p.rect(2, o - 6, 29, o - 3, "ballRed")
+			p.rect(6, o - 2, 7, o + 29, "metal")
+			p.rect(24, o - 2, 25, o + 29, "metal")
+			for y in range(o + 2, o + 28, 5):
+				p.rect(8, y, 23, y, "metal")
+			if damaged:
+				for c in [[10, o - 5], [11, o - 4], [20, o + 12], [21, o + 13]]:
+					p.px(c[0], c[1], "crack")
+		"Z", "W":  # the slide itself, going down to the right (Z) or left (W)
+			for x in TILE:
+				var sx := x if kind == "Z" else TILE - 1 - x
+				var y := o - 4 + int(x * 24.0 / 31.0)
+				p.rect(sx, y - 1, sx, y - 1, "ballRed")
+				p.rect(sx, y, sx, y + 4, "slide")
+			var leg := 25 if kind == "Z" else 5
+			p.rect(leg, o + 19, leg + 1, o + 29, "metal")
+			if damaged:
+				for c in [[12, o + 6], [13, o + 7], [14, o + 8], [15, o + 8]]:
+					var cx: int = c[0] if kind == "Z" else TILE - 1 - c[0]
+					p.px(cx, c[1], "crack")
 		"C":  # ball cart
 			p.rect(3, o + 12, 28, o + 24, "metal")
 			p.rect(5, o + 14, 26, o + 22, "")

@@ -95,7 +95,7 @@ func _ready() -> void:
 		b.pressed.connect(func(): map_id = id; _refresh())
 		_map_buttons[id] = b
 		options.add_child(b)
-	options.add_child(_gap(10))
+	options = _row(col)  # rounds and items on their own row
 	options.add_child(UiTheme.label("ROUNDS", 8, UiTheme.CHALK_DIM))
 	options.add_child(_small("-", func(): rounds = maxi(1, rounds - 1); _refresh()))
 	_rounds_label = UiTheme.label("3", 16, UiTheme.CHALK)
@@ -103,6 +103,7 @@ func _ready() -> void:
 	_rounds_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	options.add_child(_rounds_label)
 	options.add_child(_small("+", func(): rounds = mini(5, rounds + 1); _refresh()))
+	options.add_child(_gap(16))
 	var it := Button.new()
 	it.custom_minimum_size = Vector2(70, 20)
 	it.text = "ITEMS ON"

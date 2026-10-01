@@ -125,6 +125,8 @@ static func _score(b: Battle, f, atk: Dictionary, dir: Vector2i, dist: int) -> f
 		var o = b._fighter_at(t.pos)
 		if o == null or o == f or o.team == f.team:
 			continue
+		if Battle.RANGED_TYPES.has(atk.type) and b.sand.has(t.pos):
+			continue  # hiding in the sandbox
 		var dmg := _damage(atk, t.kind, run)
 		if f.def.get("passive") == "last_stand" and f.hp * 100 < f.max_hp * Battle.LAST_STAND_PERCENT:
 			dmg += Battle.LAST_STAND_BONUS

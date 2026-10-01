@@ -215,6 +215,7 @@ func _build_board() -> void:
 		_add_puddle(t)
 	floor_layer.size = Vector2i(battle.width, battle.height)
 	floor_layer.style = battle.map_def.get("floor", "lino")
+	floor_layer.sand = battle.sand
 	floor_layer.queue_redraw()
 	for t in battle.obstacles:
 		var s := Sprite2D.new()
@@ -805,6 +806,9 @@ func _play(events: Array) -> void:
 				_popup(v, text, UiTheme.HIT)
 				_refresh_panels()
 				await get_tree().create_timer(0.18).timeout
+			"hidden":
+				_popup(fighter_views[e.fighter], "HIDDEN!", UiTheme.CHALK, -36)
+				await get_tree().create_timer(0.2).timeout
 			"blocked":
 				Audio.play("block")
 				_popup(fighter_views[e.fighter], "BLOCKED!", UiTheme.CHALK)
@@ -1578,11 +1582,24 @@ func _error_text(text: String) -> void:
 class FloorLayer extends Node2D:
 	var size := Vector2i.ZERO
 	var style := "lino"
+	var sand := {}  # sandbox tiles, with a wooden edge around the box
 
 	func _draw() -> void:
 		for y in size.y:
 			for x in size.x:
-				draw_texture(PixelArt.floor_tile((x + y) % 2 == 1, style), Vector2(x * 32, y * 32))
+				var t := Vector2i(x, y)
+				draw_texture(PixelArt.floor_tile((x + y) % 2 == 1, "sand" if sand.has(t) else style), Vector2(x * 32, y * 32))
+		var wood := Color("9a6a3c")
+		for t in sand:
+			var p := Vector2(t.x * 32, t.y * 32)
+			if not sand.has(t + Vector2i.UP):
+				draw_rect(Rect2(p, Vector2(32, 3)), wood)
+			if not sand.has(t + Vector2i.DOWN):
+				draw_rect(Rect2(p + Vector2(0, 29), Vector2(32, 3)), wood)
+			if not sand.has(t + Vector2i.LEFT):
+				draw_rect(Rect2(p, Vector2(3, 32)), wood)
+			if not sand.has(t + Vector2i.RIGHT):
+				draw_rect(Rect2(p + Vector2(29, 0), Vector2(3, 32)), wood)
 
 
 class HighlightLayer extends Node2D:

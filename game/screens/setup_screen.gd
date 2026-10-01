@@ -66,9 +66,11 @@ func _ready() -> void:
 		b.pressed.connect(func(): map_id = id; _refresh())
 		_map_buttons[id] = b
 		options.add_child(b)
-	var gap := Control.new()
-	gap.custom_minimum_size = Vector2(16, 0)
-	options.add_child(gap)
+	# rounds and items on a second row (all the maps fill the first one)
+	options = HBoxContainer.new()
+	options.alignment = BoxContainer.ALIGNMENT_CENTER
+	options.add_theme_constant_override("separation", 6)
+	col.add_child(options)
 	options.add_child(UiTheme.label("ROUNDS", 8, UiTheme.CHALK_DIM))
 	var minus := Button.new()
 	minus.text = "-"
@@ -84,6 +86,9 @@ func _ready() -> void:
 	plus.custom_minimum_size = Vector2(20, 20)
 	plus.pressed.connect(func(): rounds = mini(5, rounds + 1); _refresh())
 	options.add_child(plus)
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(16, 0)
+	options.add_child(gap)
 	options.add_child(_items_toggle())
 
 	var start := Button.new()

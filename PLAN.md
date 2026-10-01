@@ -208,7 +208,7 @@ simulation (Snorre can't close the distance). Watch for it in real games.
 
 ## 2c. Maps
 
-6 maps. The host picks one in the lobby. Every map follows the same rule:
+7 maps. The host picks one in the lobby. Every map follows the same rule:
 **lockers along the sides, desks (or other cover) in the middle**.
 
 - Spawns: **opposite ends**. 1v1 and 2v2 use the left edge vs. the right edge.
@@ -221,7 +221,7 @@ simulation (Snorre can't close the distance). Watch for it in real games.
 | Teacher's desk | 40 | Classroom only |
 | Bench | 30 | Gym only |
 | Ball cart | 15 | Gym only |
-| Locker | 60 | Very tough side walls |
+| Locker | 20 | Side walls (was 60; lowered so items drop more often) |
 
 Legend: `L` locker, `D` desk, `T` teacher's desk, `B` bench, `C` ball cart,
 `1`/`2` team spawns, `.` floor. All layouts are mirrored left↔right so neither side has an advantage. They're first drafts to be tuned in playtests.
@@ -296,6 +296,22 @@ L L L L L L L L L L
 ```
 `A` lab table (35 HP), `G` glass cabinet (only 10 HP, breaks easily), `S`
 skeleton (15 HP). White tiled floor.
+
+### Recess (11×8): playground with a sandbox and two slides
+```
+N N N N N N N N N N N
+1 . . . . . . . . . 2
+1 . H Z . . . W H . 2
+. . . . s s s . . . .
+. . . . s s s . . . .
+. . R . . . . . R . .
+. . . . . . . . . . .
+N N N N N N N N N N N
+```
+`H` slide ladder, `Z`/`W` slide (60 HP each), `s` **sandbox**: you can walk
+in it, and standing in it **hides you from throws and shots** (projectiles,
+lines, lobs and thrown items fly past or miss). Melee, dashes, spins, leaps
+and shockwaves still hit. Grass floor.
 
 ---
 

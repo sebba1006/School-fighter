@@ -2,12 +2,15 @@ extends RefCounted
 ## Map definitions (see PLAN.md section 2c).
 ## Legend: L locker, D desk, T teacher's desk, B bench, C ball cart,
 ## F lunch table, K food counter, N fence, R tree, Y bike rack, A lab table,
-## G glass cabinet, S skeleton, 1 / 2 team spawns (left / right), . floor.
+## G glass cabinet, S skeleton, H slide ladder, Z / W slide (going down to the
+## right / left), s sandbox (floor you can stand in: hides you from throws and
+## shots), 1 / 2 team spawns (left / right), . floor.
 ## `floor` picks the floor art (default: classroom lino).
 ## `ffa_spawns` are the three corner spawns used in a 3-player free-for-all.
 
-const OBSTACLE_HP := {"L": 60, "D": 20, "T": 40, "B": 30, "C": 15, "F": 25, "K": 50,
-	"N": 60, "R": 45, "Y": 30, "A": 35, "G": 10, "S": 15}
+const OBSTACLE_HP := {"L": 20, "D": 20, "T": 40, "B": 30, "C": 15, "F": 25, "K": 50,
+	"N": 60, "R": 45, "Y": 30, "A": 35, "G": 10, "S": 15,
+	"H": 60, "Z": 60, "W": 60}
 
 const ALL := {
 	"classroom": {
@@ -90,5 +93,20 @@ const ALL := {
 			"LLLLLLLLLL",
 		],
 		"ffa_spawns": [[0, 1], [9, 1], [0, 5]],
+	},
+	"recess": {
+		"name": "Recess",
+		"floor": "grass",
+		"rows": [
+			"NNNNNNNNNNN",
+			"1.........2",
+			"1.HZ...WH.2",
+			"....sss....",
+			"....sss....",
+			"..R.....R..",
+			"...........",
+			"NNNNNNNNNNN",
+		],
+		"ffa_spawns": [[0, 1], [10, 1], [0, 6]],
 	},
 }
