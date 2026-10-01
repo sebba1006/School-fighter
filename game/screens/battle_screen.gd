@@ -443,7 +443,7 @@ func _on_tile_tapped(t: Vector2i) -> void:
 	if mode == "move":
 		if t == f.pos:
 			return
-		var path := _path_to(t)
+		var path := battle.path_to(t)
 		if path.is_empty():
 			_error("blocked")
 			return
@@ -468,32 +468,6 @@ func _on_tile_tapped(t: Vector2i) -> void:
 	aim_dir = dir
 	aim_dist = dist
 	_refresh()
-
-
-## Shortest walk to `t` within the moves left, or [] if it can't be reached.
-func _path_to(t: Vector2i) -> Array[Vector2i]:
-	var f := battle.current()
-	var left := battle.move_budget - battle.path.size()
-	var came := {f.pos: f.pos}
-	var frontier: Array[Vector2i] = [f.pos]
-	for i in left:
-		var next: Array[Vector2i] = []
-		for p in frontier:
-			for d in Battle.DIRS:
-				var n: Vector2i = p + d
-				if came.has(n) or not battle._walkable(n):
-					continue
-				came[n] = p
-				next.append(n)
-		frontier = next
-	if not came.has(t):
-		return []
-	var out: Array[Vector2i] = []
-	var at := t
-	while at != f.pos:
-		out.push_front(at)
-		at = came[at]
-	return out
 
 
 func _on_dir(dir: Vector2i) -> void:

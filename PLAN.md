@@ -174,6 +174,22 @@ Slam damage (knocked into an obstacle, wall or player): **5**.
 | Snorre | Stab 15 | Block | Dual Spin 9 | Sugar Rush (1.3×) | Mega Sword: inner 30, outer 12 + Dizzy |
 | Mike | Shove 5, knockback 2 | Slingshot 11 | Water Gun 6 + Dizzy | Book Lob 9 | Flying Tackle 45 + Dizzy (self: −10/−15 HP, Dizzy) |
 
+### Balance pass (computer simulation)
+`tools/balance_sim.gd` lets a computer player (`ai/bot.gd`) fight every
+matchup on every map (1200 matches). Before tuning, Sebba won 99% (walk
+away, then a long-run-up Charge) and Snorre/Mike were around 20%. After:
+
+| Fighter | Overall win rate | Changes |
+|---|---|---|
+| Sebba | 55% | HP 95, Kick push 1, Charge 7 + 2/tile up to 3 tiles (max 13), Mega Barrage 32 |
+| William | 42% | (nerfed earlier: HP 100, Rage +2, Tackle 10, Punch 12, Head Slam 9) |
+| Snorre | 50% | HP 100, Stab 16, Dual Spin 10, Mega Sword 28 / 11 |
+| Mike | 49% | HP 95, Shove 7, Slingshot 12, Water Gun 7, Book Lob 10 |
+| Leon | 54% | Jab 14, Ball Throw 9 |
+
+Known lopsided matchup: Mike beats Snorre almost every time in the
+simulation (Snorre can't close the distance). Watch for it in real games.
+
 ---
 
 ## 2c. Maps
