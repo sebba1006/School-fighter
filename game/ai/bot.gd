@@ -10,6 +10,13 @@ extends RefCounted
 const Battle = preload("res://rules/battle.gd")
 
 const KO_BONUS := 40.0
+## CPU difficulty for VS CPU fights. `noise` makes it pick worse moves more
+## often; `lazy` is the chance it only walks and skips attacking that turn.
+const LEVELS := {
+	"easy": {"noise": 25.0, "lazy": 0.3},
+	"normal": {"noise": 6.0, "lazy": 0.0},
+	"hard": {"noise": 0.0, "lazy": 0.0},
+}
 const SELF_TYPES := ["self_rage", "self_block", "self_sugar"]
 
 
@@ -148,6 +155,20 @@ static func _toward(b: Battle, enemies: Array) -> Vector2i:
 			best = t
 			best_d = d
 	return best
+
+
+## plan() for a CPU difficulty level ("easy", "normal" or "hard").
+static func plan_level(b: Battle, level: String) -> Dictionary:
+	var cfg: Dictionary = LEVELS.get(level, LEVELS.normal)
+	if randf() < cfg.lazy:
+		var f := b.current()
+		var enemies := []
+		for o in b.fighters:
+			if o.alive() and o.team != f.team:
+				enemies.append(o)
+		if not enemies.is_empty():
+			return {"path": b.path_to(_toward(b, enemies)), "intents": [{"type": "end_turn"}]}
+	return plan(b, cfg.noise)
 
 
 ## Plays one whole turn for the current fighter using plan().

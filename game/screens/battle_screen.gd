@@ -22,6 +22,7 @@ const FighterView = preload("res://screens/fighter_view.gd")
 const FighterInfo = preload("res://ui/fighter_info.gd")
 const Audio = preload("res://audio/audio.gd")
 const Stats = preload("res://stats/stats.gd")
+const Bot = preload("res://ai/bot.gd")
 
 const TILE := 32
 const TOP_H := 30
@@ -110,12 +111,17 @@ var _my_damage := 0
 var _my_kos := 0
 var _my_supers := 0
 var _stats_saved := false
+var _cpu_running := false  # a CPU fighter is playing its turn
 
 
 ## Local battle.
+## Local battle. Players with a "cpu" level ("easy", "normal", "hard") are
+## played by the computer; against CPUs you are always fighter 0.
 func setup(p_config: Dictionary) -> void:
 	config = p_config
 	battle = Battle.new(config)
+	if vs_cpu():
+		my_fighter = 0
 
 
 ## Online battle. `past_ops` are replayed silently (rejoining a running match).
@@ -135,6 +141,15 @@ func online() -> bool:
 	return net != null
 
 
+## Local match against the computer.
+func vs_cpu() -> bool:
+	return not online() and config.players.any(func(p): return p.has("cpu"))
+
+
+func _is_cpu(id: int) -> bool:
+	return not online() and config.players[id].has("cpu")
+
+
 func set_host(v: bool) -> void:
 	if v == is_host:
 		return
@@ -146,11 +161,19 @@ func set_host(v: bool) -> void:
 func _name_of(f) -> String:
 	if online():
 		return "%s (%s)" % [str(config.players[f.id].get("name", "?")).to_upper(), f.def.name.to_upper()]
+	if _is_cpu(f.id):
+		return "CPU %s" % f.def.name.to_upper()
+	if vs_cpu():
+		return "YOU (%s)" % f.def.name.to_upper()
 	return "P%d %s" % [f.id + 1, f.def.name.to_upper()]
 
 
 func _my_turn() -> bool:
-	return battle.phase == Battle.Phase.TURN and (not online() or battle.current().id == my_fighter)
+	if battle.phase != Battle.Phase.TURN or battle.order.is_empty():
+		return false
+	if online():
+		return battle.current().id == my_fighter
+	return not _is_cpu(battle.current().id)
 
 
 func _ready() -> void:
@@ -305,7 +328,7 @@ func _build_hud() -> void:
 
 ## Saves this match to your stats once (online: your result; local: who won).
 func _record_stats(winner_team: int) -> void:
-	if _stats_saved:
+	if _stats_saved or vs_cpu():
 		return
 	_stats_saved = true
 	if online():
@@ -648,18 +671,20 @@ func _start_round() -> void:
 	_refresh()
 
 
-func _send(intent: Dictionary) -> void:
+## Returns false if the move was refused.
+func _send(intent: Dictionary) -> bool:
 	if online():
 		if not net.send({"t": "intent", "intent": intent}):
 			_error("offline")
-			return
+			return false
 		_waiting = true
 		_refresh()
-		return
+		return true
 	var r := battle.apply(battle.current().id, intent)
 	if not r.ok:
-		_error(r.error)
-		return
+		if not _is_cpu(battle.current().id):
+			_error(r.error)
+		return false
 	if intent.type == "attack":
 		mode = "move"
 	busy = true
@@ -667,6 +692,30 @@ func _send(intent: Dictionary) -> void:
 	await _play(r.events)
 	busy = false
 	_refresh()
+	return true
+
+
+## Plays the current CPU fighter's whole turn through the normal animations.
+func _cpu_turn() -> void:
+	_cpu_running = true
+	var f := battle.current()
+	await get_tree().create_timer(0.35).timeout
+	var p := Bot.plan_level(battle, config.players[f.id].cpu)
+	for t in p.path:
+		if not _cpu_still_on(f) or not await _send({"type": "move", "dir": t - f.pos}):
+			break
+	if _cpu_still_on(f) and not p.intents.is_empty() and p.intents[0].type == "attack":
+		await get_tree().create_timer(0.25).timeout
+	for intent in p.intents:
+		if not _cpu_still_on(f) or not await _send(intent):
+			break
+	if _cpu_still_on(f):
+		await _send({"type": "end_turn"})
+	_cpu_running = false
+
+
+func _cpu_still_on(f) -> bool:
+	return is_inside_tree() and battle.phase == Battle.Phase.TURN and battle.current() == f
 
 
 func _play(events: Array) -> void:
@@ -1020,7 +1069,7 @@ func _super_flash() -> void:
 func _turn_banner(f) -> void:
 	var color: Color = UiTheme.TEAM[battle.teams.find(f.team)]
 	var text := "%s'S TURN" % _name_of(f)
-	if online() and f.id == my_fighter:
+	if (online() or vs_cpu()) and f.id == my_fighter:
 		text = "YOUR TURN!"
 	var l := UiTheme.label(text, 16, color, true)
 	l.add_theme_constant_override("outline_size", 4)
@@ -1219,6 +1268,10 @@ func _rebuild_from_state() -> void:
 
 
 func _process(_delta: float) -> void:
+	if not online() and not busy and not _cpu_running and mode != "over" and overlay == null \
+			and _confirm_box == null and battle.phase == Battle.Phase.TURN and not battle.order.is_empty() \
+			and _is_cpu(battle.current().id):
+		_cpu_turn()
 	if online() and round_label != null and battle.round_number > 0:
 		_update_round_label()
 	if not _auto_path.is_empty() and not busy and not _waiting:
@@ -1269,7 +1322,7 @@ func _refresh() -> void:
 
 	var in_turn := _my_turn() and mode != "over" and not _waiting
 	# Online, the buttons always show your own fighter's moves.
-	var bf = battle.fighters[my_fighter] if online() else f
+	var bf = battle.fighters[my_fighter] if my_fighter >= 0 else f
 	for slot in 5:
 		var b := attack_buttons[slot]
 		var atk: Dictionary = bf.def["super"] if slot == Battle.SUPER_SLOT else bf.def.attacks[slot]
@@ -1317,6 +1370,8 @@ func _refresh() -> void:
 		hint_label.text = ""
 	elif online() and not _my_turn():
 		hint_label.text = "WAITING FOR %s..." % _name_of(f)
+	elif _is_cpu(f.id):
+		hint_label.text = "%s IS THINKING..." % _name_of(f)
 	elif mode == "move":
 		var left := battle.move_budget - battle.path.size()
 		var extra := "  (DIZZY)" if battle.move_budget < f.move else ""

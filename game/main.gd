@@ -5,6 +5,7 @@ extends Node
 const UiTheme = preload("res://ui/ui_theme.gd")
 const MenuScreen = preload("res://screens/menu_screen.gd")
 const SetupScreen = preload("res://screens/setup_screen.gd")
+const CpuScreen = preload("res://screens/cpu_screen.gd")
 const OnlineScreen = preload("res://screens/online_screen.gd")
 const BattleScreen = preload("res://screens/battle_screen.gd")
 const Server = preload("res://net/server.gd")
@@ -92,6 +93,7 @@ func show_menu() -> void:
 	var m := MenuScreen.new()
 	m.online_pressed.connect(func(): show_online(_lobby if client.status == "online" else {}))
 	m.local_pressed.connect(show_setup)
+	m.cpu_pressed.connect(show_cpu)
 	m.stats_pressed.connect(func():
 		var st := StatsScreen.new()
 		st.back_requested.connect(show_menu)
@@ -105,6 +107,13 @@ func show_menu() -> void:
 
 func show_setup() -> void:
 	var s := SetupScreen.new()
+	s.start_requested.connect(show_battle)
+	s.back_requested.connect(show_menu)
+	_swap(s)
+
+
+func show_cpu() -> void:
+	var s := CpuScreen.new()
 	s.start_requested.connect(show_battle)
 	s.back_requested.connect(show_menu)
 	_swap(s)

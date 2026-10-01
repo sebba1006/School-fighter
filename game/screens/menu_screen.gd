@@ -3,6 +3,7 @@ extends Control
 
 signal online_pressed
 signal local_pressed
+signal cpu_pressed
 signal howto_pressed
 signal stats_pressed
 
@@ -36,7 +37,7 @@ func _ready() -> void:
 		row.add_child(t)
 	col.add_child(row)
 
-	for item in [["PLAY ONLINE", online_pressed], ["LOCAL BATTLE", local_pressed]]:
+	for item in [["PLAY ONLINE", online_pressed], ["VS CPU", cpu_pressed], ["LOCAL BATTLE", local_pressed]]:
 		var b := Button.new()
 		b.text = item[0]
 		b.add_theme_font_override("font", UiTheme.title_font())

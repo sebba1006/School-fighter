@@ -25,3 +25,25 @@ func test_bot_attacks_an_enemy_in_reach() -> void:
 	var p := Bot.plan(b)
 	check(not p.intents.is_empty() and p.intents.back().type == "attack", "attacks instead of walking away")
 	done()
+
+
+func test_every_cpu_level_plays_legal_turns() -> void:
+	for level in Bot.LEVELS:
+		var b := Battle.new({"map": "classroom", "rounds": 1, "seed": 4, "characters": Fixture.ALL,
+			"players": [{"char": "sebba", "team": 0}, {"char": "mike", "team": 1}, {"char": "leon", "team": 2}]})
+		b.start_round()
+		var turns := 0
+		while b.phase == Battle.Phase.TURN and turns < 300:
+			var f := b.current()
+			var p := Bot.plan_level(b, level)
+			for t in p.path:
+				check(b.apply(f.id, {"type": "move", "dir": t - b.current().pos}).ok, "%s: legal step" % level)
+			for intent in p.intents:
+				if b.phase != Battle.Phase.TURN or b.current().id != f.id:
+					break
+				b.apply(f.id, intent)
+			if b.phase == Battle.Phase.TURN and b.current().id == f.id:
+				b.apply(f.id, {"type": "end_turn"})
+			turns += 1
+		check(b.phase == Battle.Phase.MATCH_OVER, "%s: 1v1v1 finished" % level)
+	done()

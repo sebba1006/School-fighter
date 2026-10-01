@@ -10,6 +10,8 @@ See [PLAN.md](PLAN.md) for the full design: characters, maps, rules and mileston
 - **M0 Project setup:** done
 - **M1 Rules engine:** done. All the fighting rules, with no graphics yet
 - **M2 Local battle:** done. Two players on one device, touch or keyboard
+- **VS CPU:** done. 1v1, 1v1v1 or 2v2 (with a CPU teammate) against the
+  computer player (`ai/bot.gd`), with EASY / NORMAL / HARD
 - **M3–M5 Online:** done. Lobbies with codes, 2–4 players (1v1, free-for-all,
   2v2), host settings, turn timer, reconnecting, back to lobby
 - **M6+ Content and polish:** next

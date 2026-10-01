@@ -16,6 +16,7 @@ const SECTIONS := [
 	["DESKS AND LOCKERS", "They block walking and most throws. Push an enemy into one for +5 SLAM damage. Hit them enough and they break. Book Lob flies over them."],
 	["STATUS", "DIZZY: 1 less move next turn. RAGE (William): more damage for 1-2 turns. BLOCK (Snorre): stops the next hit. SUGAR RUSH (Snorre): 1.3x damage now, but no attack next turn."],
 	["ONLINE", "Create a lobby and send the 5-letter code to your friends (up to 4 players). 2 players = 1v1, 3 = free for all, 4 = 2v2. The host picks the map, rounds and turn timer."],
+	["VS CPU", "Fight the computer: 1v1, 1v1v1, or 2v2 with a CPU teammate. Pick each CPU's fighter (or RANDOM) and EASY, NORMAL or HARD."],
 	["PC KEYS", "WASD move/aim - 1 2 3 4 attacks - Q super - SPACE use - Z undo - E end turn - ESC cancel aiming."],
 ]
 
