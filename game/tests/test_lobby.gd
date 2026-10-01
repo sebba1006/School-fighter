@@ -230,3 +230,23 @@ func test_leaving_mid_match_forfeits() -> void:
 	eq(lobby.battle.match_winner, 0, "the player who stayed wins")
 	check(_take(lobby, "a").any(func(m): return m.t == "op" and m.op == "forfeit"), "forfeit relayed")
 	done()
+
+
+func test_emotes_are_relayed_with_a_cooldown() -> void:
+	var lobby := _lobby(["sebba", "mike"])
+	lobby.handle("a", {"t": "emote", "id": 0}, 0)
+	check(_take(lobby, "b").is_empty(), "no emotes outside a match")
+	lobby.handle("a", {"t": "start"}, 0)
+	lobby.outbox.clear()
+	lobby.handle("a", {"t": "emote", "id": 2}, 10000)
+	var got := _last(_take(lobby, "b"), "emote")
+	eq(got.get("id"), 2, "relayed to the other player")
+	eq(got.get("fighter"), 0, "with the sender's fighter")
+	lobby.outbox.clear()
+	lobby.handle("a", {"t": "emote", "id": 3}, 10500)
+	check(_take(lobby, "b").is_empty(), "too soon: ignored")
+	lobby.handle("a", {"t": "emote", "id": 99}, 20000)
+	check(_take(lobby, "b").is_empty(), "unknown emote ignored")
+	lobby.handle("a", {"t": "emote", "id": 1}, 20000)
+	eq(_last(_take(lobby, "b"), "emote").get("id"), 1, "after the cooldown it works again")
+	done()

@@ -45,6 +45,8 @@ const ERRORS := {
 	"not_in_turn": "WAIT FOR THE NEXT TURN",
 	"offline": "NOT CONNECTED - RECONNECTING...",
 }
+## Quick-chat emotes (online). The server only relays the number.
+const EMOTES := ["GG", "NICE!", "HAHA", "OOPS", "NOOO", "GOOD LUCK"]
 const STATUS_TEXT := {
 	"dizzy": ["DIZZY", UiTheme.DIZZY],
 	"rage": ["RAGE!", UiTheme.HIT],
@@ -80,6 +82,8 @@ var end_button: Button
 var joystick: Control
 var leave_button: Button
 var sound_button: Button
+var chat_button: Button
+var _emote_panel: HBoxContainer
 var _confirm_box: PanelContainer
 ## Tiles still to walk after tapping a blue tile.
 var _auto_path: Array[Vector2i] = []
@@ -238,6 +242,21 @@ func _build_hud() -> void:
 	add_child(round_label)
 	leave_button = _top_button("LEAVE", _ask_leave)
 	sound_button = _top_button("SOUND ON" if Audio.is_enabled() else "SOUND OFF", _toggle_sound)
+	if online():
+		chat_button = _top_button("CHAT", _toggle_emotes)
+		_emote_panel = HBoxContainer.new()
+		_emote_panel.add_theme_constant_override("separation", 3)
+		_emote_panel.z_index = 4080
+		_emote_panel.visible = false
+		for i in EMOTES.size():
+			var b := Button.new()
+			b.text = EMOTES[i]
+			b.focus_mode = Control.FOCUS_NONE
+			b.pressed.connect(func():
+				net.send({"t": "emote", "id": i})
+				_emote_panel.visible = false)
+			_emote_panel.add_child(b)
+		add_child(_emote_panel)
 
 	joystick = Joystick.new()
 	joystick.radius = JOY_RADIUS
@@ -319,6 +338,36 @@ func _top_button(text: String, callback: Callable) -> Button:
 	b.pressed.connect(callback)
 	add_child(b)
 	return b
+
+
+func _toggle_emotes() -> void:
+	Audio.play("click")
+	_emote_panel.visible = not _emote_panel.visible
+	_layout()
+
+
+## A speech bubble over a fighter for a couple of seconds.
+func _show_emote(fighter_id: int, id: int) -> void:
+	if id < 0 or id >= EMOTES.size() or fighter_id < 0 or fighter_id >= fighter_views.size():
+		return
+	Audio.play("turn")
+	var v: Node2D = fighter_views[fighter_id]
+	var bubble := PanelContainer.new()
+	var box := StyleBoxFlat.new()
+	box.bg_color = UiTheme.CHALK
+	box.border_color = Color("17121c")
+	box.set_border_width_all(1)
+	box.set_content_margin_all(3)
+	bubble.add_theme_stylebox_override("panel", box)
+	bubble.add_child(UiTheme.label(EMOTES[id], 8, Color("17121c")))
+	bubble.z_index = 4050
+	board.add_child(bubble)
+	bubble.size = bubble.get_combined_minimum_size()
+	bubble.position = v.position + Vector2(16 - bubble.size.x / 2.0, -40)
+	var tw := create_tween()
+	tw.tween_interval(2.0)
+	tw.tween_property(bubble, "modulate:a", 0.0, 0.3)
+	tw.tween_callback(bubble.queue_free)
 
 
 func _toggle_sound() -> void:
@@ -406,10 +455,19 @@ func _layout() -> void:
 		box.position = Vector2(floorf(x), 3)
 	round_label.position = Vector2(floorf(vs.x / 2.0 - 60), 2)
 	round_label.size = Vector2(120, 10)
-	for tb in [leave_button, sound_button]:
+	# small buttons in a centred row under the round label
+	var tops := [leave_button, chat_button, sound_button] if chat_button != null else [leave_button, sound_button]
+	var row_w := 0.0
+	for tb in tops:
 		tb.size = tb.get_combined_minimum_size()
-	leave_button.position = Vector2(floorf(vs.x / 2.0) - leave_button.size.x - 2, 13)
-	sound_button.position = Vector2(floorf(vs.x / 2.0) + 2, 13)
+		row_w += tb.size.x + 4
+	var tx := floorf((vs.x - row_w + 4) / 2.0)
+	for tb in tops:
+		tb.position = Vector2(tx, 13)
+		tx += tb.size.x + 4
+	if _emote_panel != null:
+		_emote_panel.size = _emote_panel.get_combined_minimum_size()
+		_emote_panel.position = Vector2(floorf((vs.x - _emote_panel.size.x) / 2.0), 30)
 
 	# joystick: big, bottom-left
 	joystick.position = Vector2(8, vs.y - joystick.custom_minimum_size.y - 8)
@@ -1062,6 +1120,8 @@ func _next_round() -> void:
 
 func _on_net_message(msg: Dictionary) -> void:
 	match msg.get("t"):
+		"emote":
+			_show_emote(int(msg.get("fighter", -1)), int(msg.get("id", -1)))
 		"op":
 			_ops.append(msg)
 			if not _playing_ops:

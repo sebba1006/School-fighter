@@ -17,6 +17,9 @@ const Maps = preload("res://rules/maps.gd")
 const MAX_PLAYERS := 4
 const TIMER_CHOICES := [0, 15, 30, 45, 60]
 const DISCONNECT_GRACE_MS := 60000
+## Quick-chat emotes (texts live in the game); at most one per player per 1.5 s.
+const EMOTE_COUNT := 6
+const EMOTE_COOLDOWN_MS := 1500
 
 var code: String
 var host := ""  # token of the host
@@ -202,6 +205,14 @@ func handle(token: String, msg: Dictionary, now: int) -> void:
 		"sync":
 			if in_match():
 				_send(token, _match_sync(token))
+		"emote":
+			var id = msg.get("id")
+			if not in_match() or not fighter_of.has(token) or not id is int or id < 0 or id >= EMOTE_COUNT:
+				return
+			if now - int(m.get("last_emote", -EMOTE_COOLDOWN_MS)) < EMOTE_COOLDOWN_MS:
+				return
+			m.last_emote = now
+			_send("*", {"t": "emote", "fighter": fighter_of[token], "id": id})
 
 
 ## Called regularly by the server: turn timer and disconnect grace.

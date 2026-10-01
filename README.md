@@ -60,7 +60,9 @@ Book Lob: push the same direction again to throw further.
 Also in the game: **HOW TO PLAY** on the menu (rules and every fighter's
 moves), fighter info on the character select screens, a **LEAVE** button
 during a match (online this counts as forfeiting), and a **SOUND** on/off
-button. All sounds and the chiptune music are generated in code
+button, **STATS** (your online record, damage, KOs, supers and wins per
+fighter, saved on the device) and **CHAT** emotes during online matches
+(GG, NICE!, HAHA, OOPS, NOOO, GOOD LUCK). All sounds and the chiptune music are generated in code
 (`game/audio/audio.gd`), no audio files.
 
 ## Online play
@@ -85,6 +87,15 @@ each move. Accepted moves are sent to every player, whose game applies the
 same move to its own copy. The rules are deterministic, so all copies stay
 identical, and each move carries a fingerprint of the battle so a game that
 ever drifts asks the server for a fresh copy.
+
+## Balance check
+
+A computer player (`game/ai/bot.gd`) can play every matchup on every map
+and print win rates:
+
+```
+godot --headless --path game -s res://tools/balance_sim.gd -- 30
+```
 
 ## Running the tests
 
