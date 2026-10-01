@@ -234,7 +234,7 @@ func _show_lobby() -> void:
 			b.set_pressed_no_signal(settings.map == id)
 			b.pressed.connect(func(): net.send({"t": "settings", "map": id}))
 			srow.add_child(b)
-		srow.add_child(_fixed(Control.new(), 8))
+		srow = _row(_lobby_view)  # rounds and timer go on their own row
 		srow.add_child(UiTheme.label("ROUNDS", 8, UiTheme.CHALK_DIM))
 		srow.add_child(_small("-", func(): net.send({"t": "settings", "rounds": maxi(1, settings.rounds - 1)})))
 		srow.add_child(UiTheme.label(str(settings.rounds), 16, UiTheme.CHALK))

@@ -56,6 +56,15 @@ const PAL := {
 	"beagleWhite": ["f2efe8", "cdc8be", "ffffff"],
 	"beagleEar": ["a8703c", "7e5129", "c08550"],
 	"oldMuzzle": ["dcd8cf", "b9b4aa", "f0eee8"],
+	"fence": ["9aa3ad", "6f7884", "c3cad2"],
+	"leaf": ["4f9a45", "36702f", "74bf63"],
+	"trunk": ["7a5232", "573821", "9a6c45"],
+	"bikeRed": ["c8423a", "92281f", "e56a5f"],
+	"labTop": ["3a3f48", "272b32", "565c67"],
+	"labCab": ["e4e8ec", "b9c0c8", "f7f9fb"],
+	"glass": ["a9d4ec", "7fb2d1", "d6eef9"],
+	"flask": ["7fd36b", "58a848", "a8e898"],
+	"bone": ["ece6d2", "c4bca4", "fffaea"],
 	"eye": "ffffff",
 	"pupil": "1a1420",
 	"mouth": "7a2e2e",
@@ -329,12 +338,30 @@ static func floor_tile(alt := false, style := "lino") -> Texture2D:
 		if style == "cafeteria":
 			a = Color("e9eef3")
 			b = Color("b9cde6")
+		elif style == "lab":
+			a = Color("e3e6ea")
+			b = Color("d3d8de")
 		for y in TILE:
 			for x in TILE:
-				var check := (int(x / 8.0) + int(y / 8.0) + (1 if alt else 0)) % 2 == 0
-				var col := a if check else b
-				if x == 0 or y == 0:
-					col = col.darkened(0.08)
+				var col: Color
+				if style == "grass":
+					# mown stripes plus scattered blades (same pattern every time)
+					col = Color("6fae4f") if (int(y / 16.0) + (1 if alt else 0)) % 2 == 0 else Color("64a246")
+					var n := (x * 7 + y * 13 + (5 if alt else 0)) % 23
+					if n == 0:
+						col = Color("4f8a37")
+					elif n == 11:
+						col = Color("86c262")
+				elif style == "lab":
+					var check := (int(x / 16.0) + int(y / 16.0) + (1 if alt else 0)) % 2 == 0
+					col = a if check else b
+					if x % 16 == 0 or y % 16 == 0:
+						col = col.darkened(0.12)
+				else:
+					var check := (int(x / 8.0) + int(y / 8.0) + (1 if alt else 0)) % 2 == 0
+					col = a if check else b
+					if x == 0 or y == 0:
+						col = col.darkened(0.08)
 				img.set_pixel(x, y, col)
 		_cache[key] = ImageTexture.create_from_image(img)
 	return _cache[key]
@@ -415,6 +442,82 @@ static func _obstacle_image(kind: String, damaged: bool, tall: bool) -> Image:
 			if damaged:
 				for c in [[9, o + 22], [10, o + 23], [10, o + 24], [11, o + 25], [21, o + 12], [22, o + 13]]:
 					p.px(c[0], c[1], "crack")
+		"N":  # chain-link fence
+			var top := 2 if tall else o + 4
+			p.rect(1, top, 2, o + 29, "fence")
+			p.rect(29, top, 30, o + 29, "fence")
+			p.rect(0, top, 31, top + 1, "fence")
+			for y in range(top + 3, o + 28, 4):
+				for x in range(3, 29, 4):
+					p.px(x + ((y >> 2) % 2) * 2, y, "fence")
+			p.rect(0, o + 28, 31, o + 29, "fence")
+			if damaged:
+				p.rect(12, o + 10, 18, o + 16, "")
+		"R":  # tree: round crown, may poke a little above its tile
+			p.rect(13, o + 18, 18, o + 29, "trunk")
+			p.ell(15.5, o + 8, 13, 11, "leaf")
+			p.ell(9, o + 13, 6, 5, "leaf")
+			p.ell(22, o + 13, 6, 5, "leaf")
+			if damaged:
+				for c in [[14, o + 21], [15, o + 22], [15, o + 23], [16, o + 24]]:
+					p.px(c[0], c[1], "crack")
+		"Y":  # bike rack (a steel hoop) with a red bike in it, side view
+			p.rect(3, o + 12, 28, o + 13, "metal")
+			p.rect(3, o + 12, 4, o + 29, "metal")
+			p.rect(27, o + 12, 28, o + 29, "metal")
+			for wx in [9, 23]:
+				p.ell(wx, o + 23, 6, 6, "shoeBlack")
+				p.ell(wx, o + 23, 4.5, 4.5, "")
+				p.px(wx, o + 23, "metal")
+			for i in 8:  # frame: rear wheel -> pedals -> front wheel, and up to the seat
+				p.px(9 + i, o + 23 - i / 2, "bikeRed")
+				p.px(9 + i, o + 22 - i / 2, "bikeRed")
+			p.rect(16, o + 18, 22, o + 19, "bikeRed")
+			p.rect(21, o + 15, 22, o + 23, "bikeRed")
+			p.rect(13, o + 16, 14, o + 20, "bikeRed")
+			p.rect(11, o + 15, 15, o + 15, "pupil")  # seat
+			p.rect(20, o + 14, 24, o + 14, "pupil")  # handlebar
+			if damaged:
+				p.rect(15, o + 18, 17, o + 19, "crack")
+		"A":  # lab table: black top, white cupboards, a flask
+			p.rect(1, o + 8, 30, o + 12, "labTop")
+			p.rect(2, o + 13, 29, o + 29, "labCab")
+			p.rect(15, o + 14, 16, o + 28, "seam")
+			p.rect(12, o + 20, 12, o + 22, "handle")
+			p.rect(19, o + 20, 19, o + 22, "handle")
+			p.rect(7, o + 2, 8, o + 4, "glass")
+			p.ell(7.5, o + 6, 3, 2.5, "flask")
+			if damaged:
+				for c in [[6, o + 15], [7, o + 16], [7, o + 17], [8, o + 18], [24, o + 22], [25, o + 23]]:
+					p.px(c[0], c[1], "crack")
+		"G":  # glass cabinet: breaks easily
+			var top := 2 if tall else o + 2
+			p.rect(3, top, 28, o + 29, "wood")
+			p.rect(5, top + 2, 26, o + 27, "glass")
+			p.rect(15, top + 2, 16, o + 27, "wood")
+			var shelf := top + int((o + 27 - top) / 2.0)
+			p.rect(5, shelf, 26, shelf, "wood")
+			p.ell(9, shelf - 3, 2, 2.5, "flask")
+			p.ell(21, shelf - 3, 2, 2.5, "ballRed")
+			p.rect(9, o + 24, 12, o + 26, "bone")
+			if damaged:
+				for c in [[6, top + 4], [7, top + 5], [8, top + 6], [8, top + 7], [20, o + 20], [21, o + 19], [22, o + 18], [23, o + 18]]:
+					p.px(c[0], c[1], "crack")
+		"S":  # classroom skeleton on a stand
+			p.ell(16, o + 1, 4, 4, "bone")
+			p.px(14, o + 1, "pupil")
+			p.px(17, o + 1, "pupil")
+			p.rect(15, o + 5, 16, o + 18, "bone")
+			for y in [8, 10, 12]:
+				p.rect(11, o + y, 20, o + y, "bone")
+			p.rect(9, o + 7, 10, o + 15, "bone")
+			p.rect(21, o + 7, 22, o + 15, "bone")
+			p.rect(13, o + 18, 14, o + 25, "bone")
+			p.rect(17, o + 18, 18, o + 25, "bone")
+			p.rect(15, o + 25, 16, o + 28, "metal")
+			p.rect(10, o + 29, 21, o + 29, "metal")
+			if damaged:
+				p.rect(21, o + 7, 22, o + 15, "")
 		"C":  # ball cart
 			p.rect(3, o + 12, 28, o + 24, "metal")
 			p.rect(5, o + 14, 26, o + 22, "")

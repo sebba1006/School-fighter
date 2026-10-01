@@ -208,7 +208,7 @@ simulation (Snorre can't close the distance). Watch for it in real games.
 
 ## 2c. Maps
 
-4 maps. The host picks one in the lobby. Every map follows the same rule:
+6 maps. The host picks one in the lobby. Every map follows the same rule:
 **lockers along the sides, desks (or other cover) in the middle**.
 
 - Spawns: **opposite ends**. 1v1 and 2v2 use the left edge vs. the right edge.
@@ -269,6 +269,33 @@ K K K K K K K K K K K K
 L L L L L L L L L L L L
 ```
 `F` lunch table (25 HP), `K` food counter (50 HP). Blue and white tiled floor.
+
+### Schoolyard (11×8): outside, big and open, good for long range
+```
+N N N N N N N N N N N
+1 . . . . . . . . . 2
+1 . R . . . . . R . 2
+. . . . B . B . . . .
+. . . . . . . . . . .
+. . R . Y Y Y . R . .
+. . . . . . . . . . .
+N N N N N N N N N N N
+```
+`N` fence (60 HP), `R` tree (45 HP), `Y` bike rack (30 HP), `B` bench. Grass floor.
+11 wide (not 12) so it fits next to the joystick.
+
+### Science Lab (10×7): tight, with fragile glass cabinets
+```
+L L G G L L G G L L
+1 . . . . . . . . 2
+1 . A A . . A A . 2
+S . . . G G . . . S
+. . A A . . A A . .
+. . . . . . . . . .
+L L L L L L L L L L
+```
+`A` lab table (35 HP), `G` glass cabinet (only 10 HP, breaks easily), `S`
+skeleton (15 HP). White tiled floor.
 
 ---
 
