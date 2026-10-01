@@ -109,7 +109,7 @@ func test_real_maps_place_everyone_on_free_tiles() -> void:
 
 ## Plays many random matches and checks nothing ever breaks the rules.
 func test_random_matches_keep_invariants() -> void:
-	var chars := ["sebba", "william", "snorre", "mike"]
+	var chars := ["sebba", "william", "snorre", "mike", "leon"]
 	var rng := RandomNumberGenerator.new()
 	for s in 60:
 		rng.seed = s
@@ -117,7 +117,7 @@ func test_random_matches_keep_invariants() -> void:
 		var players := []
 		for i in count:
 			var team := i if count == 3 else i % 2
-			players.append({"char": chars[i], "team": team})
+			players.append({"char": chars[(i + s) % chars.size()], "team": team})
 		var b := Battle.new({"map": Maps.ALL.keys()[s % 3], "players": players, "rounds": 3, "seed": s})
 		b.start_round()
 		var actions := 0

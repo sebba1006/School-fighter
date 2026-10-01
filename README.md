@@ -49,9 +49,9 @@ press Play.
 
 | | PC | Touch |
 |---|---|---|
-| Move / aim | WASD or arrows | joystick |
-| Pick attack | 1 2 3 4, Q for super | attack buttons |
-| Use attack | Space, or the same key again | USE, or the same button again |
+| Move / aim | WASD or arrows | joystick, or tap a blue tile to walk there |
+| Pick attack | 1 2 3 4, Q for super | attack cards on the right (damage shown) |
+| Use attack | Space, or the same key again | USE, the same card again, or tap the aimed tile twice |
 | Undo a step / back | Z | UNDO / BACK |
 | End turn | E | END TURN |
 

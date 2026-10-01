@@ -22,7 +22,11 @@ const FighterView = preload("res://screens/fighter_view.gd")
 
 const TILE := 32
 const TOP_H := 30
-const BOTTOM_H := 56
+## Right column (attacks, UNDO, END TURN, USE) and the joystick's corner on the left.
+const SIDE_W := 124
+const JOY_COL := 128
+const JOY_RADIUS := 50.0
+const HINT_H := 18
 
 const ERRORS := {
 	"blocked": "CAN'T WALK THERE",
@@ -64,11 +68,17 @@ var panels: Array = []  # per fighter: {"hp": Bar, "meter": Bar, "hp_text": Labe
 var round_label: Label
 var hint_label: Label
 var attack_buttons: Array[Button] = []
+var attack_names: Array[Label] = []
+var attack_infos: Array[Label] = []
+var super_bar: Bar
 var undo_button: Button
 var ok_button: Button
 var end_button: Button
 var joystick: Control
-var bottom_bar: VBoxContainer
+## Tiles still to walk after tapping a blue tile.
+var _auto_path: Array[Vector2i] = []
+## Last tile tapped while aiming; tapping it again uses the attack.
+var _aim_tap := Vector2i(-99, -99)
 var overlay: PanelContainer
 var _overlay_event := {}
 var _overlay_is_match := false
@@ -128,6 +138,7 @@ func _my_turn() -> bool:
 func _ready() -> void:
 	theme = UiTheme.theme()
 	set_anchors_preset(Control.PRESET_FULL_RECT)
+	mouse_filter = Control.MOUSE_FILTER_IGNORE  # taps on the board reach _unhandled_input
 	add_child(board)
 	floor_layer.z_index = -1000
 	highlight.z_index = -900
@@ -211,51 +222,114 @@ func _build_hud() -> void:
 	add_child(round_label)
 
 	joystick = Joystick.new()
+	joystick.radius = JOY_RADIUS
 	joystick.flicked.connect(_on_dir)
 	add_child(joystick)
 
-	bottom_bar = VBoxContainer.new()
-	bottom_bar.add_theme_constant_override("separation", 4)
-	add_child(bottom_bar)
-	var attacks_row := HBoxContainer.new()
-	attacks_row.add_theme_constant_override("separation", 4)
-	bottom_bar.add_child(attacks_row)
+	# attack cards: name on top, damage underneath
 	for slot in 5:
 		var b := Button.new()
-		b.clip_text = true
-		b.custom_minimum_size = Vector2(92, 22)
+		b.custom_minimum_size = Vector2(SIDE_W, 32)
+		b.size = b.custom_minimum_size
 		b.pressed.connect(_on_attack_pressed.bind(slot))
 		b.focus_mode = Control.FOCUS_NONE
-		attacks_row.add_child(b)
+		var col := VBoxContainer.new()
+		col.add_theme_constant_override("separation", 1)
+		col.position = Vector2(6, 4)
+		col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var name := UiTheme.label("", 8, UiTheme.CHALK)
+		var info := UiTheme.label("", 8, UiTheme.GOLD)
+		for l in [name, info]:
+			l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			l.clip_text = true
+			l.custom_minimum_size.x = SIDE_W - 12
+			col.add_child(l)
+		b.add_child(col)
+		if slot == Battle.SUPER_SLOT:
+			# how full the super meter is, along the bottom of the card
+			super_bar = Bar.new()
+			super_bar.color = UiTheme.GOLD
+			super_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			super_bar.position = Vector2(3, 27)
+			super_bar.size = Vector2(SIDE_W - 6, 3)
+			b.add_child(super_bar)
+		add_child(b)
 		attack_buttons.append(b)
-	var action_row := HBoxContainer.new()
-	action_row.add_theme_constant_override("separation", 4)
-	bottom_bar.add_child(action_row)
+		attack_names.append(name)
+		attack_infos.append(info)
+	undo_button = _side_button("UNDO", _on_undo, 22, 8)
+	end_button = _side_button("END TURN", _on_end_turn, 26, 8)
+	ok_button = _side_button("USE", _confirm, 44, 16)
+
 	hint_label = UiTheme.label("", 8, UiTheme.CHALK_DIM)
-	hint_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hint_label.clip_text = true
-	action_row.add_child(hint_label)
-	undo_button = _small_button(action_row, "UNDO", _on_undo)
-	ok_button = _small_button(action_row, "USE", _confirm)
-	end_button = _small_button(action_row, "END TURN", _on_end_turn)
+	add_child(hint_label)
 
 
-func _small_button(parent: Control, text: String, callback: Callable) -> Button:
+func _side_button(text: String, callback: Callable, h: float, font_size: int) -> Button:
 	var b := Button.new()
 	b.text = text
-	b.custom_minimum_size = Vector2(64 if text == "END TURN" else 44, 20)
+	b.custom_minimum_size = Vector2(SIDE_W, h)
+	b.size = b.custom_minimum_size
 	b.focus_mode = Control.FOCUS_NONE
+	if font_size > 8:
+		b.add_theme_font_size_override("font_size", font_size)
 	b.pressed.connect(callback)
-	parent.add_child(b)
+	add_child(b)
 	return b
+
+
+## Short damage summary shown under an attack's name.
+static func attack_info(atk: Dictionary) -> String:
+	var parts := []
+	match atk.type:
+		"self_rage":
+			return "+%d DMG, 1-%d TURNS" % [atk.bonus, atk.turns_max]
+		"self_block":
+			return "BLOCKS NEXT HIT"
+		"self_sugar":
+			return "X%s DMG THIS TURN" % str(atk.multiplier)
+		"shockwave":
+			parts.append("%d / %d DMG" % [atk.inner_damage, atk.outer_damage])
+		"dash":
+			var most: int = atk.damage + atk.get("damage_per_tile", 0) * atk["range"]
+			parts.append(("%d-%d DMG" % [atk.damage, most]) if most != atk.damage else ("%d DMG" % atk.damage))
+		"leap":
+			parts.append("%d DMG" % atk.damage)
+			parts.append("-%d HP" % atk.self_damage)
+		_:
+			if atk.has("damage"):
+				parts.append("%d DMG" % atk.damage)
+			else:
+				parts.append("%d-%d DMG" % [atk.damage_min, atk.damage_max])
+	if atk.has("range") and atk.type in ["projectile", "line"]:
+		parts.append("%d TILES" % atk["range"])
+	if atk.type == "lob":
+		parts.append("%d-%d AWAY" % [atk.min_range, atk.max_range])
+	if atk.get("knockback", 0) > 0:
+		parts.append("PUSH %d" % atk.knockback)
+	if atk.get("status", "") == "dizzy" or atk.get("outer_status", "") == "dizzy":
+		parts.append("DIZZY")
+	return ", ".join(parts)
 
 
 func _layout() -> void:
 	var vs := get_viewport_rect().size
 	var bw := battle.width * TILE
 	var bh := battle.height * TILE
-	var avail := vs.y - TOP_H - BOTTOM_H - 16
-	board.position = Vector2(floorf((vs.x - bw) / 2.0), TOP_H + 16 + floorf(maxf(0.0, avail - bh) / 2.0))
+	var right_x := vs.x - SIDE_W - 6
+	# The board sits between the joystick corner and the right column. A board
+	# too wide for that (the Hallway) moves left and to the top instead, above
+	# the joystick.
+	var area_l := float(JOY_COL)
+	var area_r := right_x - 6
+	var top := TOP_H + 16.0
+	var avail := vs.y - top - HINT_H
+	var y := top + floorf(maxf(0.0, avail - bh) / 2.0)
+	if bw > area_r - area_l:
+		area_l = 4.0
+		y = top
+	board.position = Vector2(floorf(area_l + maxf(0.0, area_r - area_l - bw) / 2.0), y)
 
 	# top bar: fighters spread across, round info in the middle
 	# first half of the fighters on the left, the rest on the right
@@ -269,16 +343,29 @@ func _layout() -> void:
 	round_label.position = Vector2(floorf(vs.x / 2.0 - 60), 4)
 	round_label.size = Vector2(120, 10)
 
-	# bottom bar: joystick on the left, attack buttons + actions to its right
-	joystick.position = Vector2(4, vs.y - joystick.custom_minimum_size.y - 2)
-	var bar_w := minf(vs.x - 76, 5 * 92 + 4 * 4)
-	bottom_bar.position = Vector2(72, vs.y - BOTTOM_H + 4)
-	bottom_bar.size = Vector2(bar_w, BOTTOM_H - 8)
+	# joystick: big, bottom-left
+	joystick.position = Vector2(8, vs.y - joystick.custom_minimum_size.y - 8)
+	# right column: attacks from the top, actions at the bottom (USE lowest, easy to reach)
+	var y2 := TOP_H + 4.0
+	for b in attack_buttons:
+		b.position = Vector2(right_x, y2)
+		y2 += b.size.y + 3
+	ok_button.position = Vector2(right_x, vs.y - 6 - ok_button.size.y)
+	end_button.position = Vector2(right_x, ok_button.position.y - 4 - end_button.size.y)
+	undo_button.position = Vector2(right_x, end_button.position.y - 4 - undo_button.size.y)
+	hint_label.position = Vector2(JOY_COL, vs.y - HINT_H + 4)
+	hint_label.size = Vector2(right_x - JOY_COL - 6, 10)
 
 
 # ---------------------------------------------------------------- input
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		var local: Vector2 = board.get_global_transform_with_canvas().affine_inverse() * event.position
+		var t := Vector2i(floori(local.x / TILE), floori(local.y / TILE))
+		if battle._in_bounds(t):
+			_on_tile_tapped(t)
+		return
 	if not event is InputEventKey or not event.pressed:
 		return
 	var dirs := {"move_up": Vector2i.UP, "move_down": Vector2i.DOWN, "move_left": Vector2i.LEFT, "move_right": Vector2i.RIGHT}
@@ -302,6 +389,70 @@ func _unhandled_input(event: InputEvent) -> void:
 		_cancel_aim()
 	elif event.is_action_pressed("end_turn"):
 		_on_end_turn()
+
+
+## Tapping the board: walk to a blue tile, or aim at a tile (tap it again to use).
+func _on_tile_tapped(t: Vector2i) -> void:
+	if busy or mode == "over" or _waiting or battle.order.is_empty():
+		return
+	if not _my_turn():
+		_error("not_your_turn")
+		return
+	var f := battle.current()
+	if mode == "move":
+		if t == f.pos:
+			return
+		var path := _path_to(t)
+		if path.is_empty():
+			_error("blocked")
+			return
+		_auto_path = path
+		return
+	var atk := _atk(aim_slot)
+	if atk.type.begins_with("self"):
+		if t == f.pos:
+			_confirm()
+		return
+	var d := t - f.pos
+	if d == Vector2i.ZERO:
+		return
+	var dir := Vector2i(signi(d.x), 0) if absi(d.x) >= absi(d.y) else Vector2i(0, signi(d.y))
+	var dist := aim_dist
+	if atk.type == "lob":
+		dist = clampi(maxi(absi(d.x), absi(d.y)), atk.min_range, atk.max_range)
+	if t == _aim_tap and dir == aim_dir and dist == aim_dist:
+		_confirm()
+		return
+	_aim_tap = t
+	aim_dir = dir
+	aim_dist = dist
+	_refresh()
+
+
+## Shortest walk to `t` within the moves left, or [] if it can't be reached.
+func _path_to(t: Vector2i) -> Array[Vector2i]:
+	var f := battle.current()
+	var left := battle.move_budget - battle.path.size()
+	var came := {f.pos: f.pos}
+	var frontier: Array[Vector2i] = [f.pos]
+	for i in left:
+		var next: Array[Vector2i] = []
+		for p in frontier:
+			for d in Battle.DIRS:
+				var n: Vector2i = p + d
+				if came.has(n) or not battle._walkable(n):
+					continue
+				came[n] = p
+				next.append(n)
+		frontier = next
+	if not came.has(t):
+		return []
+	var out: Array[Vector2i] = []
+	var at := t
+	while at != f.pos:
+		out.push_front(at)
+		at = came[at]
+	return out
 
 
 func _on_dir(dir: Vector2i) -> void:
@@ -333,6 +484,7 @@ func _on_attack_pressed(slot: int) -> void:
 		return
 	mode = "aim"
 	aim_slot = slot
+	_aim_tap = Vector2i(-99, -99)
 	aim_dir = battle.current().facing
 	var atk := _atk(slot)
 	if atk.type == "lob":
@@ -741,6 +893,12 @@ func _rebuild_from_state() -> void:
 func _process(_delta: float) -> void:
 	if online() and round_label != null and battle.round_number > 0:
 		_update_round_label()
+	if not _auto_path.is_empty() and not busy and not _waiting:
+		if mode != "move" or not _my_turn():
+			_auto_path.clear()
+		else:
+			var next: Vector2i = _auto_path.pop_front()
+			_send({"type": "move", "dir": next - battle.current().pos})
 
 
 func _update_round_label() -> void:
@@ -786,10 +944,16 @@ func _refresh() -> void:
 		var b := attack_buttons[slot]
 		var atk: Dictionary = bf.def["super"] if slot == Battle.SUPER_SLOT else bf.def.attacks[slot]
 		var key := "Q" if slot == Battle.SUPER_SLOT else str(slot + 1)
-		b.text = "%s %s" % [key, atk.name.to_upper()]
-		if slot == Battle.SUPER_SLOT and bf.meter < Battle.METER_MAX:
-			b.text = "Q SUPER %d%%" % bf.meter
+		attack_names[slot].text = "%s %s" % [key, atk.name.to_upper()]
+		attack_infos[slot].text = attack_info(atk)
+		if slot == Battle.SUPER_SLOT:
+			super_bar.value = float(bf.meter) / Battle.METER_MAX
+			super_bar.queue_redraw()
+			if bf.meter < Battle.METER_MAX:
+				attack_names[slot].text = "Q SUPER %d%%" % bf.meter
 		b.disabled = busy or not in_turn or battle.attack_blocked_reason(bf.id, slot) != ""
+		attack_names[slot].modulate = Color(1, 1, 1, 0.45) if b.disabled else Color.WHITE
+		attack_infos[slot].modulate = attack_names[slot].modulate
 		b.button_pressed = false
 		b.modulate = UiTheme.GOLD if (slot == Battle.SUPER_SLOT and bf.meter >= Battle.METER_MAX) else Color.WHITE
 		if mode == "aim" and slot == aim_slot:
@@ -815,7 +979,9 @@ func _refresh() -> void:
 	if Time.get_ticks_msec() < _hint_error_until:
 		return
 	hint_label.add_theme_color_override("font_color", UiTheme.CHALK_DIM)
-	if _waiting:
+	if not _auto_path.is_empty():
+		hint_label.text = "WALKING..."
+	elif _waiting:
 		hint_label.text = "..."
 	elif battle.phase != Battle.Phase.TURN or mode == "over":
 		hint_label.text = ""
@@ -826,12 +992,12 @@ func _refresh() -> void:
 		var extra := "  (DIZZY)" if battle.move_budget < f.move else ""
 		if f.no_attack_now:
 			extra += "  SUGAR CRASH: NO ATTACK"
-		hint_label.text = "MOVES LEFT %d%s - MOVE, PICK AN ATTACK OR END TURN" % [left, extra]
+		hint_label.text = "MOVES LEFT %d%s - TAP A BLUE TILE OR USE THE JOYSTICK" % [left, extra]
 	else:
 		var atk := _atk(aim_slot)
-		var txt := "%s: AIM WITH JOYSTICK / WASD, PRESS AGAIN OR USE" % atk.name.to_upper()
+		var txt := "%s: AIM WITH THE JOYSTICK OR TAP A TILE (TAP AGAIN = USE)" % atk.name.to_upper()
 		if atk.type == "lob":
-			txt = "%s: PUSH THE SAME WAY AGAIN FOR DISTANCE (%d)" % [atk.name.to_upper(), aim_dist]
+			txt = "%s: TAP WHERE TO THROW (DISTANCE %d), THEN USE" % [atk.name.to_upper(), aim_dist]
 		elif atk.type.begins_with("self"):
 			txt = "%s: PRESS AGAIN OR USE" % atk.name.to_upper()
 		hint_label.text = txt
@@ -869,6 +1035,7 @@ func _error(code: String) -> void:
 
 
 func _error_text(text: String) -> void:
+	_auto_path.clear()
 	hint_label.text = text
 	hint_label.add_theme_color_override("font_color", UiTheme.HIT)
 	_hint_error_until = Time.get_ticks_msec() + 1500
@@ -890,7 +1057,7 @@ class FloorLayer extends Node2D:
 
 class HighlightLayer extends Node2D:
 	const COLORS := {
-		"reach": Color(1, 1, 1, 0.16),
+		"reach": Color("5b9bf0"),
 		"path": Color("f2c14e"),
 		"hit": Color("e8575e"),
 		"dizzy": Color("b08cf0"),
@@ -905,7 +1072,10 @@ class HighlightLayer extends Node2D:
 				draw_rect(r, Color("f2c14e"), false, 1.0)
 				continue
 			var c: Color = COLORS[t.kind]
-			if t.kind == "path":
+			if t.kind == "reach":
+				draw_rect(r, Color(c, 0.38))
+				draw_rect(r, Color(c, 0.95), false, 1.0)
+			elif t.kind == "path":
 				draw_rect(r, Color(c, 0.18))
 				draw_rect(r.grow(-10), Color(c, 0.7))
 			elif t.kind in ["hit", "dizzy", "self"]:

@@ -252,3 +252,35 @@ func test_obstacles_break() -> void:
 	check(has_event(r, "obstacle_broken"), "desk broken after 28 damage")
 	check(not b.obstacles.has(Vector2i(2, 2)), "tile is free")
 	done()
+
+
+func test_triple_uppercut_rolls_30_to_38() -> void:
+	for roll in [30, 38]:
+		var b := make(open_rows(), [["leon", 0], ["sebba", 1]])
+		put(b, 0, 1, 2)
+		put(b, 1, 2, 2)
+		b.fighters[0].meter = 100
+		b.forced_rolls = [roll]
+		check(attack(b, 0, 4, R).ok, "triple uppercut")
+		eq(hp(b, 1), 100 - roll, "rolled %d" % roll)
+	var b2 := make(open_rows(), [["leon", 0], ["sebba", 1]])
+	put(b2, 0, 1, 2)
+	put(b2, 1, 2, 2)
+	b2.fighters[0].meter = 100
+	attack(b2, 0, 4, R)
+	check(hp(b2, 1) >= 62 and hp(b2, 1) <= 70, "random roll stays in 30-38 (got %d damage)" % (100 - hp(b2, 1)))
+	done()
+
+
+func test_leon_ranged_attacks_are_short() -> void:
+	var b := make(open_rows(), [["leon", 0], ["sebba", 1]])
+	put(b, 0, 0, 2)
+	put(b, 1, 5, 2)
+	attack(b, 0, 2, R)
+	eq(hp(b, 1), 100, "ball throw can't reach 5 tiles")
+	var b2 := make(open_rows(), [["leon", 0], ["sebba", 1]])
+	put(b2, 0, 0, 2)
+	put(b2, 1, 4, 2)
+	attack(b2, 0, 2, R)
+	eq(hp(b2, 1), 92, "ball throw at 4 tiles: 8")
+	done()

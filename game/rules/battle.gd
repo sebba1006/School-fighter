@@ -211,7 +211,8 @@ func _resolve(ctx: Dictionary, atk: Dictionary, dist: int) -> void:
 	var dir = ctx.dir
 	match atk.type:
 		"melee":
-			_hit_tile(ctx, f.pos + dir, atk.damage, atk)
+			var dmg: int = atk.damage if atk.has("damage") else _roll(atk.damage_min, atk.damage_max)
+			_hit_tile(ctx, f.pos + dir, dmg, atk)
 		"around":
 			for d in AROUND:
 				_hit_tile(ctx, f.pos + d, atk.damage)

@@ -8,6 +8,9 @@ func _init() -> void:
 	var main: Node = load("res://main.tscn").instantiate()
 	root.add_child(main)
 	await _frames(10)
+	await _snap(out + "/0_menu.png")
+	main.show_setup()
+	await _frames(10)
 	await _snap(out + "/1_setup.png")
 
 	main.show_battle({"map": "classroom", "rounds": 3, "seed": 5, "first_team": 0,

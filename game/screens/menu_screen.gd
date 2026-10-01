@@ -4,6 +4,7 @@ extends Control
 signal online_pressed
 signal local_pressed
 
+const Characters = preload("res://rules/characters.gd")
 const PixelArt = preload("res://art/pixel_art.gd")
 const UiTheme = preload("res://ui/ui_theme.gd")
 
@@ -25,7 +26,7 @@ func _ready() -> void:
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 6)
-	for id in ["sebba", "william", "snorre", "mike"]:
+	for id in Characters.ALL:
 		var t := TextureRect.new()
 		t.texture = PixelArt.character(id)
 		t.custom_minimum_size = Vector2(32, 48)

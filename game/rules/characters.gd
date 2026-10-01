@@ -3,7 +3,8 @@ extends RefCounted
 ## Numbers are the first-pass values from PLAN.md, to be tuned in playtests.
 ##
 ## Attack types (resolved in battle.gd):
-##   melee       hits the tile in front
+##   melee       hits the tile in front (fixed `damage`, or a random roll
+##               between `damage_min` and `damage_max`)
 ##   around      hits all 8 tiles around the user
 ##   dash        runs up to `range` tiles, then hits whatever is directly ahead
 ##   projectile  hits the first enemy or obstacle within `range` tiles
@@ -62,5 +63,17 @@ const ALL := {
 			{"id": "book_lob", "name": "Book Lob", "type": "lob", "min_range": 2, "max_range": 4, "damage": 9},
 		],
 		"super": {"id": "flying_tackle", "name": "Flying Tackle", "type": "leap", "range": 3, "damage": 45, "status": "dizzy", "self_damage": 10, "self_damage_over_obstacle": 15, "self_status": "dizzy"},
+	},
+	"leon": {
+		"name": "Leon",
+		"hp": 95,
+		"move": 3,
+		"attacks": [
+			{"id": "jab", "name": "Jab", "type": "melee", "damage": 13},
+			{"id": "hook", "name": "Hook", "type": "melee", "damage": 10, "knockback": 1},
+			{"id": "ball_throw", "name": "Ball Throw", "type": "projectile", "range": 4, "damage": 8},
+			{"id": "eraser_flick", "name": "Eraser Flick", "type": "projectile", "range": 3, "damage": 6, "status": "dizzy"},
+		],
+		"super": {"id": "triple_uppercut", "name": "Triple Uppercut", "type": "melee", "damage_min": 30, "damage_max": 38},
 	},
 }

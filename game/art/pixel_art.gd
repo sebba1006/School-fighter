@@ -16,14 +16,17 @@ const PAL := {
 	"hairChestnut": ["94602f", "6a401c", "b98049"],
 	"hairDark": ["5a3a22", "3b2514", "7a5432"],
 	"hairBlond": ["e8c25a", "bf922f", "f7df8e"],
+	"hairLightBrown": ["a87a4a", "805a32", "c89a66"],
 	"teeGray": ["9a9ba3", "72737c", "babbc2"],
 	"teeWhite": ["eceef1", "c3c7cf", "ffffff"],
 	"teeBlack": ["393943", "26262d", "50505c"],
+	"teeBlue": ["3f78c9", "2b5595", "6b9be0"],
 	"red": ["c8323a", "912029", "e3585d"],
 	"hoodie": ["3b3b46", "26262e", "53535f"],
 	"pocket": ["2e2e37", "22222a", "3b3b46"],
 	"pantsBlack": ["2c2c34", "1d1d23", "3d3d47"],
 	"pantsGray": ["6f7079", "54555d", "8a8b94"],
+	"pantsLightGray": ["a4a6ae", "82848c", "c0c2c9"],
 	"shoeBlack": ["1f1f25", "141418", "34343d"],
 	"shoeRed": ["b62c33", "7f1c22", "d64b50"],
 	"shoeBrown": ["5b3a26", "3f2718", "77513a"],
@@ -56,6 +59,7 @@ const LOOKS := {
 	"sebba": {"legs": 10, "hair": "hairBrown", "hair_style": "neat", "shirt": "teeGray", "sleeve": "teeGray", "pants": "pantsBlack", "shoes": "shoeBlack", "glasses": true, "mouth": "flat", "pupil": 1},
 	"william": {"legs": 13, "hair": "hairBlond", "hair_style": "swept", "shirt": "teeBlack", "sleeve": "red", "stripe": "red", "pants": "pantsBlack", "shoes": "shoeRed", "glasses": true, "mouth": "smile", "pupil": 0},
 	"snorre": {"legs": 9, "hair": "hairChestnut", "hair_style": "messy", "shirt": "teeWhite", "sleeve": "teeWhite", "pants": "pantsGray", "shoes": "shoeBrown", "sword": true, "mouth": "smile", "pupil": 0},
+	"leon": {"legs": 11, "hair": "hairLightBrown", "hair_style": "swoop", "shirt": "teeBlue", "sleeve": "teeBlue", "pants": "pantsLightGray", "shoes": "shoeBlack", "mouth": "smile", "pupil": 1},
 	"mike": {"legs": 11, "hair": "hairDark", "hair_style": "short", "shirt": "hoodie", "sleeve": "hoodie", "hoodie": true, "pants": "pantsBlack", "shoes": "shoeBlack", "slingshot": true, "mouth": "smirk", "pupil": 1},
 }
 
@@ -218,6 +222,13 @@ static func _character_image(c: Dictionary, bob: bool) -> Image:
 		"short":
 			p.rect(17, hcy - 3, 21, hcy - 3, h)
 			p.px(21, hcy - 2, h)
+		"swoop":
+			# fringe swept to one side with a little flick on top
+			p.rect(10, hcy - 3, 16, hcy - 3, h)
+			p.rect(10, hcy - 2, 12, hcy - 2, h)
+			p.px(14, top - 3, h)
+			p.px(15, top - 3, h)
+			p.px(16, top - 2, h)
 
 	p.rect(11, hcy - 1, 13, hcy + 1, "eye")
 	p.rect(18, hcy - 1, 20, hcy + 1, "eye")

@@ -29,11 +29,11 @@ short code and fight on pixel-art school maps.
 | Turn timer | Host picks 15 / 30 / 45 / 60 s / off (default 30 s) |
 | Disconnect | Match pauses, 60 s to rejoin, otherwise that player loses/is KO'd |
 | Controls – PC | WASD move/aim, 1–4 attacks, Q super, Space confirm, Esc cancel |
-| Controls – mobile | Virtual joystick (move/aim) + 5 on-screen buttons + confirm |
+| Controls – mobile | Big joystick bottom-left; right column with attack cards (name + damage), UNDO, END TURN, USE. Reachable tiles are blue: tap one to walk there. Tap a tile to aim, tap it again to attack |
 | Platforms | **Android first**, **website** too, iOS later (maybe PC) |
 | Engine | **Godot 4** (GDScript). One project exports Android, Web, iOS, PC |
 | Art | **Real pixel art, all made by Claude**. References can be anything: photos, sketches, screenshots or just a description |
-| Characters | **4 at launch**, based on the owner and friends. **Unique picks** (no duplicates in a lobby). See section 2b |
+| Characters | **5**, based on the owner and friends. **Unique picks** (no duplicates in a lobby). See section 2b |
 
 ---
 
@@ -144,6 +144,19 @@ A lobby holds max 4 players, so unique picks always work.
 | 3 | Water Gun | Line of 3 tiles | Low damage + **Dizzy**. Stopped by obstacles |
 | 4 | Book Lob | Target tile 2–4 tiles away, plus-shape (5 tiles) | **Arcs over obstacles**. Medium damage |
 | Super | Flying Tackle | Closest enemy in a straight line, **up to 3 tiles** | Leaps onto the enemy, tackles them to the ground and punches them: big fixed damage + **Dizzy**. Mike then **jumps back to where he started**. **Cost**: Mike loses **10 HP** (**15 HP** if he leaped over an obstacle) and becomes **Dizzy** himself. The self-damage can't KO him (minimum 1 HP) |
+
+### Leon (5/5): half close range, half (weaker) long range
+- **Look**: light brown hair, light skin, blue t-shirt, light gray pants
+  (black shoes are a guess).
+- **Stats**: HP 95, move 3.
+
+| Slot | Attack | Shape | Effect |
+|---|---|---|---|
+| 1 | Jab | 1 tile in front | 13 damage |
+| 2 | Hook | 1 tile in front | 10 damage, knockback 1 |
+| 3 | Ball Throw | First enemy within 4 tiles | 8 damage (weaker and shorter than Mike's Slingshot) |
+| 4 | Eraser Flick | First enemy within 3 tiles | 6 damage + Dizzy |
+| Super | Triple Uppercut | 1 adjacent enemy | **30–38 damage** (random roll) |
 
 ### Shared status effects
 | Effect | Meaning |

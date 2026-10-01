@@ -77,7 +77,7 @@ func _swap(screen: Node) -> void:
 func _fit_screen() -> void:
 	if _screen is Control:
 		_screen.position = Vector2.ZERO
-		_screen.size = get_viewport().get_visible_rect().size
+		_screen.set_deferred("size", get_viewport().get_visible_rect().size)
 
 
 func show_menu() -> void:

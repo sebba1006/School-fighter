@@ -5,8 +5,9 @@ extends Control
 
 signal flicked(dir: Vector2i)
 
-const RADIUS := 26.0
-const FIRE_AT := 0.55   # fraction of RADIUS that counts as a push
+## Size of the stick area (the knob scales with it).
+var radius := 26.0
+const FIRE_AT := 0.55   # fraction of radius that counts as a push
 const REARM_AT := 0.3   # fraction the knob must come back to before the next push
 const REPEAT_DELAY := 0.4
 const REPEAT_EVERY := 0.22
@@ -20,7 +21,7 @@ var _next_repeat := 0.0
 
 
 func _ready() -> void:
-	custom_minimum_size = Vector2(RADIUS * 2 + 8, RADIUS * 2 + 8)
+	custom_minimum_size = Vector2(radius * 2 + 8, radius * 2 + 8)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 
 
@@ -50,8 +51,8 @@ func _release() -> void:
 
 
 func _update_knob(pos: Vector2) -> void:
-	_knob = (pos - _center()).limit_length(RADIUS)
-	var strength := _knob.length() / RADIUS
+	_knob = (pos - _center()).limit_length(radius)
+	var strength := _knob.length() / radius
 	if strength < REARM_AT:
 		_armed = true
 		_held_dir = Vector2i.ZERO
@@ -83,11 +84,13 @@ static func _dominant(v: Vector2) -> Vector2i:
 
 func _draw() -> void:
 	var c := _center()
-	draw_circle(c, RADIUS + 2, Color("152a22"))
-	draw_arc(c, RADIUS + 2, 0, TAU, 32, Color("3e6555"), 1.0)
+	draw_circle(c, radius + 2, Color("152a22"))
+	draw_arc(c, radius + 2, 0, TAU, 32, Color("3e6555"), 1.0)
 	for d in [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT]:
-		var tip: Vector2 = c + d * (RADIUS - 4)
-		var side: Vector2 = Vector2(-d.y, d.x) * 3
-		draw_colored_polygon(PackedVector2Array([tip, tip - d * 4 + side, tip - d * 4 - side]), Color("b5c4b2"))
-	draw_circle(c + _knob, 11, Color("3e6555"))
-	draw_circle(c + _knob, 9, Color("eef2e6") if _dragging else Color("b5c4b2"))
+		var a := maxf(4.0, radius * 0.14)
+		var tip: Vector2 = c + d * (radius - 4)
+		var side: Vector2 = Vector2(-d.y, d.x) * a * 0.8
+		draw_colored_polygon(PackedVector2Array([tip, tip - d * a + side, tip - d * a - side]), Color("b5c4b2"))
+	var k := radius * 0.4
+	draw_circle(c + _knob, k + 2, Color("3e6555"))
+	draw_circle(c + _knob, k, Color("eef2e6") if _dragging else Color("b5c4b2"))
