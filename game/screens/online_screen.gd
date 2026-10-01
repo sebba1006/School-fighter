@@ -11,6 +11,7 @@ const PixelArt = preload("res://art/pixel_art.gd")
 const UiTheme = preload("res://ui/ui_theme.gd")
 const Config = preload("res://net/config.gd")
 const FighterInfo = preload("res://ui/fighter_info.gd")
+const Battle = preload("res://rules/battle.gd")
 
 const TIMERS := [15, 30, 45, 60, 0]
 const ERRORS := {
@@ -295,6 +296,16 @@ func _show_lobby() -> void:
 		it.pressed.connect(func(): net.send({"t": "settings", "items": not items_on}))
 		srow.add_child(it)
 		srow.add_child(_fixed(Control.new(), 8))
+		srow.add_child(_fixed(Control.new(), 8))
+		var bonus: int = settings.get("bonus_hp", 0)
+		var hpb := Button.new()
+		hpb.text = _bonus_text(bonus)
+		hpb.custom_minimum_size = Vector2(76, 20)
+		hpb.pressed.connect(func():
+			var choices: Array = Battle.BONUS_HP_CHOICES
+			net.send({"t": "settings", "bonus_hp": choices[(choices.find(bonus) + 1) % choices.size()]}))
+		srow.add_child(hpb)
+		srow.add_child(_fixed(Control.new(), 8))
 		var is_public: bool = settings.get("public", true)
 		var pub := Button.new()
 		pub.text = "PUBLIC" if is_public else "PRIVATE"
@@ -302,9 +313,9 @@ func _show_lobby() -> void:
 		pub.pressed.connect(func(): net.send({"t": "settings", "public": not is_public}))
 		srow.add_child(pub)
 	else:
-		srow.add_child(UiTheme.label("MAP %s   ROUNDS %d   TURN TIMER %s   ITEMS %s" % [
+		srow.add_child(UiTheme.label("MAP %s   ROUNDS %d   TURN TIMER %s   ITEMS %s   %s" % [
 			Maps.ALL[settings.map].name.to_upper(), settings.rounds, _timer_text(settings.timer),
-			"ON" if settings.get("items", true) else "OFF"], 8, UiTheme.CHALK_DIM))
+			"ON" if settings.get("items", true) else "OFF", _bonus_text(settings.get("bonus_hp", 0))], 8, UiTheme.CHALK_DIM))
 
 	var brow := _row(_lobby_view)
 	if host:
@@ -352,6 +363,10 @@ func _me() -> Dictionary:
 		if m.pid == lobby.you_pid:
 			return m
 	return {}
+
+
+func _bonus_text(bonus: int) -> String:
+	return "HP: ORIGINAL" if bonus == 0 else "HP: +%d" % bonus
 
 
 func _timer_text(secs: int) -> String:

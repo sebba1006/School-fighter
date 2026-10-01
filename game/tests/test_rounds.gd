@@ -189,3 +189,17 @@ func test_random_matches_keep_invariants() -> void:
 				return
 		check(b.phase == Battle.Phase.MATCH_OVER, "seed %d: match finished" % s)
 	done()
+
+
+func test_bonus_hp_setting() -> void:
+	for bonus in Battle.BONUS_HP_CHOICES:
+		var b := Battle.new({"map": "classroom", "rounds": 2, "bonus_hp": bonus, "characters": Fixture.ALL,
+			"players": [{"char": "sebba", "team": 0}, {"char": "mike", "team": 1}]})
+		b.start_round()
+		var base: int = Fixture.ALL.sebba.hp
+		eq(b.fighters[0].max_hp, base + bonus, "max hp +%d" % bonus)
+		eq(b.fighters[0].hp, base + bonus, "starts full")
+	var silly := Battle.new({"map": "classroom", "bonus_hp": 9999, "characters": Fixture.ALL,
+		"players": [{"char": "sebba", "team": 0}, {"char": "mike", "team": 1}]})
+	eq(silly.fighters[0].max_hp, Fixture.ALL.sebba.hp + Battle.MAX_BONUS_HP, "capped")
+	done()

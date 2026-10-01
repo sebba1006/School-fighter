@@ -11,6 +11,7 @@ const Maps = preload("res://rules/maps.gd")
 const PixelArt = preload("res://art/pixel_art.gd")
 const UiTheme = preload("res://ui/ui_theme.gd")
 const FighterInfo = preload("res://ui/fighter_info.gd")
+const Battle = preload("res://rules/battle.gd")
 const Audio = preload("res://audio/audio.gd")
 
 const MODES := {"1v1": "1V1", "ffa": "1V1V1", "2v2": "2V2"}
@@ -24,6 +25,7 @@ var slot := 0  # which slot the fighter row is choosing for
 var map_id := "classroom"
 var rounds := 3
 var items := true
+var bonus_hp := 0
 
 var _mode_buttons := {}
 var _level_buttons := {}
@@ -111,6 +113,14 @@ func _ready() -> void:
 		items = not items
 		it.text = "ITEMS ON" if items else "ITEMS OFF")
 	options.add_child(it)
+	var hpb := Button.new()
+	hpb.custom_minimum_size = Vector2(80, 20)
+	hpb.text = "HP: ORIGINAL"
+	hpb.pressed.connect(func():
+		var choices: Array = Battle.BONUS_HP_CHOICES
+		bonus_hp = choices[(choices.find(bonus_hp) + 1) % choices.size()]
+		hpb.text = "HP: ORIGINAL" if bonus_hp == 0 else "HP: +%d" % bonus_hp)
+	options.add_child(hpb)
 
 	var buttons := _row(col)
 	buttons.add_theme_constant_override("separation", 8)
@@ -216,7 +226,7 @@ func _start() -> void:
 		if i > 0:
 			p["cpu"] = level
 		players.append(p)
-	start_requested.emit({"map": map_id, "rounds": rounds, "items": items, "players": players, "seed": randi()})
+	start_requested.emit({"map": map_id, "rounds": rounds, "items": items, "bonus_hp": bonus_hp, "players": players, "seed": randi()})
 
 
 func _row(parent: Control) -> HBoxContainer:

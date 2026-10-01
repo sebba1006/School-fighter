@@ -450,6 +450,7 @@ animate the events.
 | M1 ✅ | Rules engine | Grid, move, 4 attacks, super, meter, knockback, obstacles, rounds. All unit-tested |
 | M2 ✅ | Local battle | Playable hot-seat 1v1 on one device with placeholder sprites + one test map |
 | ✅ | VS CPU | 1v1, 1v1v1 or 2v2 with a CPU teammate vs the computer player; you pick each CPU's fighter (or random) and EASY / NORMAL / HARD. In a 1-round sim, Hard beats Easy 97%, Hard beats Normal 66%, Normal beats Easy 92%. VS CPU matches don't count in stats |
+| ✅ | Extra HP setting | Host (and local / VS CPU setup) picks HP: ORIGINAL, +50, +100 or +150 for every fighter, for longer fights |
 | ✅ | Open lobbies | Public/private lobby (public by default). The join screen lists open lobbies (public, waiting, not full: code + player count only) with JOIN. Host can KICK; kicked players can't rejoin that lobby |
 | M3 ✅ | Online 1v1 | Headless server, nicknames, create/join by code, synced battle |
 | M4 ✅ | 3–4 players | FFA + 2v2, host settings (map/rounds/timer/teams), turn order |

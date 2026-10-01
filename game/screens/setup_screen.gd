@@ -10,11 +10,13 @@ const Maps = preload("res://rules/maps.gd")
 const PixelArt = preload("res://art/pixel_art.gd")
 const UiTheme = preload("res://ui/ui_theme.gd")
 const FighterInfo = preload("res://ui/fighter_info.gd")
+const Battle = preload("res://rules/battle.gd")
 
 var picks := ["sebba", "william"]
 var map_id := "classroom"
 var rounds := 3
 var items := true
+var bonus_hp := 0
 
 var _char_buttons := [{}, {}]  # per player: char_id -> Button
 var _map_buttons := {}
@@ -90,6 +92,7 @@ func _ready() -> void:
 	gap.custom_minimum_size = Vector2(16, 0)
 	options.add_child(gap)
 	options.add_child(_items_toggle())
+	options.add_child(_bonus_button())
 
 	var start := Button.new()
 	start.text = "START FIGHT"
@@ -131,6 +134,18 @@ func _player_picker(p: int) -> Control:
 	return box
 
 
+## Extra HP for everyone (longer fights): ORIGINAL, +50, +100, +150.
+func _bonus_button() -> Button:
+	var b := Button.new()
+	b.custom_minimum_size = Vector2(80, 20)
+	b.text = "HP: ORIGINAL"
+	b.pressed.connect(func():
+		var choices: Array = Battle.BONUS_HP_CHOICES
+		bonus_hp = choices[(choices.find(bonus_hp) + 1) % choices.size()]
+		b.text = "HP: ORIGINAL" if bonus_hp == 0 else "HP: +%d" % bonus_hp)
+	return b
+
+
 ## "ITEMS ON/OFF": broken lockers can drop items.
 func _items_toggle() -> Button:
 	var b := Button.new()
@@ -165,7 +180,7 @@ func _start() -> void:
 	start_requested.emit({
 		"map": map_id,
 		"rounds": rounds,
-		"items": items,
+		"items": items, "bonus_hp": bonus_hp,
 		"players": [{"char": picks[0], "team": 0}, {"char": picks[1], "team": 1}],
 		"seed": randi(),
 	})

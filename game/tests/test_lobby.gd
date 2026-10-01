@@ -280,3 +280,13 @@ func test_host_can_kick_and_they_cannot_return() -> void:
 	lobby.handle("a", {"t": "kick", "pid": lobby.member("a").pid}, 0)
 	eq(lobby.members.size(), 1, "the host can't kick themself")
 	done()
+
+
+func test_bonus_hp_goes_into_the_match() -> void:
+	var lobby := _lobby(["sebba", "mike"])
+	lobby.handle("a", {"t": "settings", "bonus_hp": 77}, 0)
+	eq(lobby.settings.bonus_hp, 0, "only the listed choices")
+	lobby.handle("a", {"t": "settings", "bonus_hp": 100}, 0)
+	lobby.handle("a", {"t": "start"}, 0)
+	eq(lobby.battle.fighters[0].max_hp, lobby.battle.fighters[0].def.hp + 100, "+100 HP in the match")
+	done()

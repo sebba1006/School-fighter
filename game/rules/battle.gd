@@ -42,6 +42,9 @@ const GUARD_PCT := [20, 45]
 const GUARD_TURNS := [1, 2]
 ## Stepping in an enemy's puddle: this much damage, the walk stops, Dizzy next turn.
 const PUDDLE_DAMAGE := 5
+## Host setting: everyone gets this much extra HP (0 = original).
+const BONUS_HP_CHOICES := [0, 50, 100, 150]
+const MAX_BONUS_HP := 150
 const DIRS: Array[Vector2i] = [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]
 const AROUND: Array[Vector2i] = [
 	Vector2i(-1, -1), Vector2i(0, -1), Vector2i(1, -1), Vector2i(-1, 0),
@@ -103,6 +106,7 @@ var _last_team := -1
 ##   seed: RNG seed (default 0)
 ##   first_team: optional, forces which team starts every round
 ##   items: true = broken lockers can drop items (default off)
+##   bonus_hp: extra HP for every fighter (0, 50, 100 or 150) for longer fights
 func _init(config: Dictionary) -> void:
 	items_on = config.get("items", false) == true
 	map_def = config.map if config.map is Dictionary else Maps.ALL[config.map]
@@ -114,7 +118,10 @@ func _init(config: Dictionary) -> void:
 	var players: Array = config.players
 	for i in players.size():
 		var p: Dictionary = players[i]
-		fighters.append(Fighter.new(i, p["char"], p.team, roster[p["char"]]))
+		var fighter := Fighter.new(i, p["char"], p.team, roster[p["char"]])
+		fighter.max_hp += clampi(int(config.get("bonus_hp", 0)), 0, MAX_BONUS_HP)
+		fighter.hp = fighter.max_hp
+		fighters.append(fighter)
 		if not teams.has(p.team):
 			teams.append(p.team)
 	teams.sort()
