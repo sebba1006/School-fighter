@@ -4,6 +4,7 @@ extends Control
 signal online_pressed
 signal local_pressed
 signal howto_pressed
+signal stats_pressed
 
 const Characters = preload("res://rules/characters.gd")
 const PixelArt = preload("res://art/pixel_art.gd")
@@ -35,7 +36,7 @@ func _ready() -> void:
 		row.add_child(t)
 	col.add_child(row)
 
-	for item in [["PLAY ONLINE", online_pressed], ["LOCAL BATTLE", local_pressed], ["HOW TO PLAY", howto_pressed]]:
+	for item in [["PLAY ONLINE", online_pressed], ["LOCAL BATTLE", local_pressed]]:
 		var b := Button.new()
 		b.text = item[0]
 		b.add_theme_font_override("font", UiTheme.title_font())
@@ -47,6 +48,20 @@ func _ready() -> void:
 			Audio.play("click")
 			sig.emit())
 		col.add_child(b)
+
+	var small := HBoxContainer.new()
+	small.alignment = BoxContainer.ALIGNMENT_CENTER
+	small.add_theme_constant_override("separation", 6)
+	for item in [["HOW TO PLAY", howto_pressed], ["STATS", stats_pressed]]:
+		var b := Button.new()
+		b.text = item[0]
+		b.custom_minimum_size = Vector2(87, 24)
+		var sig: Signal = item[1]
+		b.pressed.connect(func():
+			Audio.play("click")
+			sig.emit())
+		small.add_child(b)
+	col.add_child(small)
 
 	var sub := UiTheme.label("online: 2-4 players, each on their own device", 8, UiTheme.CHALK_DIM)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

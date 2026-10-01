@@ -12,6 +12,8 @@ const Client = preload("res://net/client.gd")
 const Config = preload("res://net/config.gd")
 const Audio = preload("res://audio/audio.gd")
 const HowtoScreen = preload("res://screens/howto_screen.gd")
+const StatsScreen = preload("res://screens/stats_screen.gd")
+const Stats = preload("res://stats/stats.gd")
 
 const KEYS := {
 	"move_up": [KEY_W, KEY_UP],
@@ -50,6 +52,8 @@ func _ready() -> void:
 			InputMap.action_add_event(action, ev)
 	RenderingServer.set_default_clear_color(UiTheme.BOARD)
 	get_viewport().size_changed.connect(_fit_screen)
+	if not persist_online:
+		Stats.enabled = false  # test runs don't touch the real stats
 	if Audio.instance == null:
 		add_child(Audio.new())
 	client = Client.new()
@@ -88,6 +92,10 @@ func show_menu() -> void:
 	var m := MenuScreen.new()
 	m.online_pressed.connect(func(): show_online(_lobby if client.status == "online" else {}))
 	m.local_pressed.connect(show_setup)
+	m.stats_pressed.connect(func():
+		var st := StatsScreen.new()
+		st.back_requested.connect(show_menu)
+		_swap(st))
 	m.howto_pressed.connect(func():
 		var h := HowtoScreen.new()
 		h.back_requested.connect(show_menu)

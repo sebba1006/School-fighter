@@ -21,6 +21,7 @@ const Joystick = preload("res://ui/joystick.gd")
 const FighterView = preload("res://screens/fighter_view.gd")
 const FighterInfo = preload("res://ui/fighter_info.gd")
 const Audio = preload("res://audio/audio.gd")
+const Stats = preload("res://stats/stats.gd")
 
 const TILE := 32
 const TOP_H := 30
@@ -99,6 +100,12 @@ var _playing_ops := false
 var _turn_end_at := 0  # msec, 0 = no timer
 ## fighter id -> HP currently shown in the top bars
 var _hp_shown := {}
+# for your stats
+var _last_attacker := -1
+var _my_damage := 0
+var _my_kos := 0
+var _my_supers := 0
+var _stats_saved := false
 
 
 ## Local battle.
@@ -277,6 +284,24 @@ func _build_hud() -> void:
 	add_child(hint_label)
 
 
+## Saves this match to your stats once (online: your result; local: who won).
+func _record_stats(winner_team: int) -> void:
+	if _stats_saved:
+		return
+	_stats_saved = true
+	if online():
+		var me = battle.fighters[my_fighter]
+		Stats.record_online(me.char_id, me.team == winner_team, _my_damage, _my_kos, _my_supers)
+	else:
+		var played := []
+		var winners := []
+		for f in battle.fighters:
+			played.append(f.char_id)
+			if f.team == winner_team:
+				winners.append(f.char_id)
+		Stats.record_local(played, winners)
+
+
 func _top_button(text: String, callback: Callable) -> Button:
 	var b := Button.new()
 	b.text = text
@@ -324,6 +349,8 @@ func _ask_leave() -> void:
 	col.add_child(row)
 	row.add_child(_overlay_button("LEAVE", func():
 		if online():
+			if battle.phase != Battle.Phase.MATCH_OVER:
+				_record_stats(-1)  # leaving early counts as a loss
 			leave_requested.emit()
 		else:
 			menu_requested.emit()))
@@ -596,6 +623,9 @@ func _play(events: Array) -> void:
 			"knockback":
 				await fighter_views[e.fighter].move_to(e.to, 0.07).finished
 			"attack":
+				_last_attacker = e.fighter
+				if e["super"] and e.fighter == my_fighter:
+					_my_supers += 1
 				var f = battle.fighters[e.fighter]
 				var atk: Dictionary = f.def["super"] if e["super"] else f.def.attacks[_slot_of(f, e.attack)]
 				if e["super"]:
@@ -620,6 +650,8 @@ func _play(events: Array) -> void:
 				Audio.play("hit")
 				v.flash(UiTheme.HIT)
 				_hp_shown[e.fighter] = e.hp
+				if _last_attacker == my_fighter and e.fighter != my_fighter:
+					_my_damage += e.amount - e.absorbed
 				var text := "-%d" % (e.amount - e.absorbed)
 				if e.absorbed > 0:
 					text += " (SHIELD %d)" % e.absorbed
@@ -653,6 +685,8 @@ func _play(events: Array) -> void:
 					tw.tween_property(s, "position:y", s.position.y + 6, 0.25)
 					tw.chain().tween_callback(s.queue_free)
 			"ko":
+				if _last_attacker == my_fighter and e.fighter != my_fighter:
+					_my_kos += 1
 				Audio.play("ko")
 				_popup(fighter_views[e.fighter], "KO!", UiTheme.HIT, -40)
 				await fighter_views[e.fighter].knock_out().finished
@@ -682,6 +716,7 @@ func _play(events: Array) -> void:
 				round_end = e
 			"match_end":
 				match_end = e
+				_record_stats(e.winner_team)
 	if not match_end.is_empty() or not round_end.is_empty():
 		Audio.play("win")
 	if not match_end.is_empty():
