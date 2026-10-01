@@ -9,6 +9,7 @@ const Maps = preload("res://rules/maps.gd")
 const PixelArt = preload("res://art/pixel_art.gd")
 const UiTheme = preload("res://ui/ui_theme.gd")
 const Config = preload("res://net/config.gd")
+const FighterInfo = preload("res://ui/fighter_info.gd")
 
 const TIMERS := [15, 30, 45, 60, 0]
 const ERRORS := {
@@ -216,6 +217,11 @@ func _show_lobby() -> void:
 		b.disabled = members.any(func(m): return m.char == id and m.pid != lobby.you_pid)
 		b.pressed.connect(func(): net.send({"t": "pick", "char": id}))
 		picks.add_child(b)
+
+	if me.get("char", "") != "":
+		var info := UiTheme.label(FighterInfo.summary(me.char), 8, UiTheme.CHALK_DIM)
+		info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_lobby_view.add_child(info)
 
 	var settings: Dictionary = lobby.settings
 	var srow := _row(_lobby_view)

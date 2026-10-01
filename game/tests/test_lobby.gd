@@ -219,3 +219,14 @@ func test_wire_round_trip() -> void:
 	eq(back.list[0], Vector2i(2, 3), "vector in array")
 	eq(Wire.decode("not json"), null, "garbage")
 	done()
+
+
+func test_leaving_mid_match_forfeits() -> void:
+	var lobby := _lobby(["sebba", "mike"])
+	lobby.handle("a", {"t": "start"}, 0)
+	lobby.outbox.clear()
+	lobby.remove_member("b", 0)
+	eq(lobby.battle.phase, Battle.Phase.MATCH_OVER, "1v1 ends when one player leaves")
+	eq(lobby.battle.match_winner, 0, "the player who stayed wins")
+	check(_take(lobby, "a").any(func(m): return m.t == "op" and m.op == "forfeit"), "forfeit relayed")
+	done()

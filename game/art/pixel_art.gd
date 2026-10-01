@@ -44,6 +44,13 @@ const PAL := {
 	"ballRed": ["d9463b", "a32d25", "f0776c"],
 	"ballBlue": ["3f78c9", "2b5595", "6b9be0"],
 	"ballOrange": ["e8893a", "b9651f", "f5ab69"],
+	"tableTop": ["dfe3e8", "b9bec7", "f3f5f8"],
+	"tableEdge": ["9aa2ad", "7a828d", "b4bbc4"],
+	"benchBlue": ["4f7fc4", "3a5f96", "6f9be0"],
+	"steel": ["b8bfc9", "8f96a3", "d8dde4"],
+	"steelDark": ["8f96a3", "6c727d", "a9b0ba"],
+	"foodYellow": ["e8c84a", "b99a2a", "f5df7f"],
+	"foodGreen": ["6cbf5a", "4c9640", "8fd77f"],
 	"eye": "ffffff",
 	"pupil": "1a1420",
 	"mouth": "7a2e2e",
@@ -270,13 +277,17 @@ static func _character_image(c: Dictionary, bob: bool) -> Image:
 
 # ---------------------------------------------------------------- tiles
 
-## Linoleum floor tile. `alt` shifts the checker so tiles don't repeat identically.
-static func floor_tile(alt := false) -> Texture2D:
-	var key := "floor_%s" % alt
+## Floor tile. `alt` shifts the checker so tiles don't repeat identically.
+## Styles: "lino" (classroom beige) or "cafeteria" (blue and white).
+static func floor_tile(alt := false, style := "lino") -> Texture2D:
+	var key := "floor_%s_%s" % [alt, style]
 	if not _cache.has(key):
 		var img := Image.create(TILE, TILE, false, Image.FORMAT_RGBA8)
 		var a := Color("d8cdb4")
 		var b := Color("c9bc9f")
+		if style == "cafeteria":
+			a = Color("e9eef3")
+			b = Color("b9cde6")
 		for y in TILE:
 			for x in TILE:
 				var check := (int(x / 8.0) + int(y / 8.0) + (1 if alt else 0)) % 2 == 0
@@ -341,6 +352,27 @@ static func _obstacle_image(kind: String, damaged: bool, tall: bool) -> Image:
 			p.rect(25, o + 18, 27, o + 27, "metal")
 			if damaged:
 				for c in [[12, o + 13], [13, o + 14], [13, o + 15], [14, o + 16]]:
+					p.px(c[0], c[1], "crack")
+		"F":  # lunch table: segments join up into long tables, with a bench in front
+			p.rect(0, o + 6, 31, o + 14, "tableTop")
+			p.rect(0, o + 15, 31, o + 17, "tableEdge")
+			p.rect(14, o + 18, 17, o + 22, "steelDark")
+			p.rect(0, o + 24, 31, o + 27, "benchBlue")
+			p.rect(3, o + 28, 4, o + 30, "steelDark")
+			p.rect(27, o + 28, 28, o + 30, "steelDark")
+			if damaged:
+				for c in [[8, o + 7], [9, o + 8], [9, o + 9], [10, o + 10], [22, o + 12], [23, o + 13]]:
+					p.px(c[0], c[1], "crack")
+		"K":  # food counter: steel front, food along the top
+			var top := 2 if tall else o + 1
+			p.rect(0, top + 6, 31, o + 29, "steel")
+			p.rect(0, top + 6, 31, top + 8, "steelDark")
+			p.rect(2, o + 18, 29, o + 18, "seam")
+			p.ell(6, top + 4, 3, 3, "ballRed")
+			p.ell(15.5, top + 4, 4, 2.5, "foodYellow")
+			p.ell(25, top + 4, 3, 3, "foodGreen")
+			if damaged:
+				for c in [[9, o + 22], [10, o + 23], [10, o + 24], [11, o + 25], [21, o + 12], [22, o + 13]]:
 					p.px(c[0], c[1], "crack")
 		"C":  # ball cart
 			p.rect(3, o + 12, 28, o + 24, "metal")

@@ -118,7 +118,7 @@ func test_random_matches_keep_invariants() -> void:
 		for i in count:
 			var team := i if count == 3 else i % 2
 			players.append({"char": chars[(i + s) % chars.size()], "team": team})
-		var b := Battle.new({"map": Maps.ALL.keys()[s % 3], "players": players, "rounds": 3, "seed": s})
+		var b := Battle.new({"map": Maps.ALL.keys()[s % Maps.ALL.size()], "players": players, "rounds": 3, "seed": s})
 		b.start_round()
 		var actions := 0
 		while b.phase != Battle.Phase.MATCH_OVER and actions < 20000:

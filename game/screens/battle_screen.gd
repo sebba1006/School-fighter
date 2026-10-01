@@ -19,6 +19,8 @@ const PixelArt = preload("res://art/pixel_art.gd")
 const UiTheme = preload("res://ui/ui_theme.gd")
 const Joystick = preload("res://ui/joystick.gd")
 const FighterView = preload("res://screens/fighter_view.gd")
+const FighterInfo = preload("res://ui/fighter_info.gd")
+const Audio = preload("res://audio/audio.gd")
 
 const TILE := 32
 const TOP_H := 30
@@ -75,6 +77,9 @@ var undo_button: Button
 var ok_button: Button
 var end_button: Button
 var joystick: Control
+var leave_button: Button
+var sound_button: Button
+var _confirm_box: PanelContainer
 ## Tiles still to walk after tapping a blue tile.
 var _auto_path: Array[Vector2i] = []
 ## Last tile tapped while aiming; tapping it again uses the attack.
@@ -146,6 +151,7 @@ func _ready() -> void:
 	board.add_child(highlight)
 	_build_hud()
 	get_viewport().size_changed.connect(_layout)
+	Audio.start_music()
 	if not online():
 		_start_round()
 	elif battle.round_number > 0:
@@ -162,6 +168,7 @@ func _build_board() -> void:
 		n.queue_free()
 	obstacle_nodes.clear()
 	floor_layer.size = Vector2i(battle.width, battle.height)
+	floor_layer.style = battle.map_def.get("floor", "lino")
 	floor_layer.queue_redraw()
 	for t in battle.obstacles:
 		var s := Sprite2D.new()
@@ -220,6 +227,8 @@ func _build_hud() -> void:
 	round_label = UiTheme.label("", 8, UiTheme.CHALK_DIM)
 	round_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(round_label)
+	leave_button = _top_button("LEAVE", _ask_leave)
+	sound_button = _top_button("SOUND ON" if Audio.is_enabled() else "SOUND OFF", _toggle_sound)
 
 	joystick = Joystick.new()
 	joystick.radius = JOY_RADIUS
@@ -266,6 +275,66 @@ func _build_hud() -> void:
 	add_child(hint_label)
 
 
+func _top_button(text: String, callback: Callable) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.focus_mode = Control.FOCUS_NONE
+	# slim buttons: same look as the theme, much less padding
+	for state in ["normal", "hover", "pressed", "hover_pressed"]:
+		var box: StyleBoxFlat = UiTheme.theme().get_stylebox(state, "Button").duplicate()
+		box.content_margin_top = 1
+		box.content_margin_bottom = 1
+		box.content_margin_left = 4
+		box.content_margin_right = 4
+		b.add_theme_stylebox_override(state, box)
+	b.custom_minimum_size = Vector2(56, 0)
+	b.size = Vector2(56, 12)
+	b.pressed.connect(callback)
+	add_child(b)
+	return b
+
+
+func _toggle_sound() -> void:
+	Audio.set_enabled(not Audio.is_enabled())
+	Audio.play("click")
+	_refresh()
+
+
+## LEAVE asks first; online, leaving in the middle of a match counts as a loss.
+func _ask_leave() -> void:
+	if _confirm_box != null:
+		return
+	Audio.play("click")
+	_confirm_box = PanelContainer.new()
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 6)
+	_confirm_box.add_child(col)
+	var title := UiTheme.label("LEAVE THE MATCH?", 16, UiTheme.GOLD, true)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(title)
+	var note := "YOU LOSE THIS MATCH (FORFEIT)" if online() and battle.phase != Battle.Phase.MATCH_OVER else "THE MATCH WILL END"
+	var l := UiTheme.label(note, 8, UiTheme.CHALK_DIM)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(l)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 8)
+	col.add_child(row)
+	row.add_child(_overlay_button("LEAVE", func():
+		if online():
+			leave_requested.emit()
+		else:
+			menu_requested.emit()))
+	row.add_child(_overlay_button("KEEP PLAYING", func():
+		_confirm_box.queue_free()
+		_confirm_box = null))
+	_confirm_box.z_index = 4095
+	add_child(_confirm_box)
+	var vs := get_viewport_rect().size
+	_confirm_box.custom_minimum_size = Vector2(260, 70)
+	_confirm_box.position = Vector2(floorf((vs.x - 260) / 2.0), floorf((vs.y - 70) / 2.0))
+
+
 func _side_button(text: String, callback: Callable, h: float, font_size: int) -> Button:
 	var b := Button.new()
 	b.text = text
@@ -277,40 +346,6 @@ func _side_button(text: String, callback: Callable, h: float, font_size: int) ->
 	b.pressed.connect(callback)
 	add_child(b)
 	return b
-
-
-## Short damage summary shown under an attack's name.
-static func attack_info(atk: Dictionary) -> String:
-	var parts := []
-	match atk.type:
-		"self_rage":
-			return "+%d DMG, 1-%d TURNS" % [atk.bonus, atk.turns_max]
-		"self_block":
-			return "BLOCKS NEXT HIT"
-		"self_sugar":
-			return "X%s DMG THIS TURN" % str(atk.multiplier)
-		"shockwave":
-			parts.append("%d / %d DMG" % [atk.inner_damage, atk.outer_damage])
-		"dash":
-			var most: int = atk.damage + atk.get("damage_per_tile", 0) * atk["range"]
-			parts.append(("%d-%d DMG" % [atk.damage, most]) if most != atk.damage else ("%d DMG" % atk.damage))
-		"leap":
-			parts.append("%d DMG" % atk.damage)
-			parts.append("-%d HP" % atk.self_damage)
-		_:
-			if atk.has("damage"):
-				parts.append("%d DMG" % atk.damage)
-			else:
-				parts.append("%d-%d DMG" % [atk.damage_min, atk.damage_max])
-	if atk.has("range") and atk.type in ["projectile", "line"]:
-		parts.append("%d TILES" % atk["range"])
-	if atk.type == "lob":
-		parts.append("%d-%d AWAY" % [atk.min_range, atk.max_range])
-	if atk.get("knockback", 0) > 0:
-		parts.append("PUSH %d" % atk.knockback)
-	if atk.get("status", "") == "dizzy" or atk.get("outer_status", "") == "dizzy":
-		parts.append("DIZZY")
-	return ", ".join(parts)
 
 
 func _layout() -> void:
@@ -340,8 +375,12 @@ func _layout() -> void:
 		var box: Control = panels[i].box
 		var x := 6.0 + i * (w + 6) if i < left else vs.x - 6 - w - (n - 1 - i) * (w + 6)
 		box.position = Vector2(floorf(x), 3)
-	round_label.position = Vector2(floorf(vs.x / 2.0 - 60), 4)
+	round_label.position = Vector2(floorf(vs.x / 2.0 - 60), 2)
 	round_label.size = Vector2(120, 10)
+	for tb in [leave_button, sound_button]:
+		tb.size = tb.get_combined_minimum_size()
+	leave_button.position = Vector2(floorf(vs.x / 2.0) - leave_button.size.x - 2, 13)
+	sound_button.position = Vector2(floorf(vs.x / 2.0) + 2, 13)
 
 	# joystick: big, bottom-left
 	joystick.position = Vector2(8, vs.y - joystick.custom_minimum_size.y - 8)
@@ -475,6 +514,7 @@ func _on_dir(dir: Vector2i) -> void:
 func _on_attack_pressed(slot: int) -> void:
 	if busy or mode == "over" or _waiting or not _my_turn():
 		return
+	Audio.play("click")
 	if mode == "aim" and aim_slot == slot:
 		_confirm()
 		return
@@ -521,6 +561,7 @@ func _on_undo() -> void:
 func _on_end_turn() -> void:
 	if busy or mode == "over" or _waiting or not _my_turn():
 		return
+	Audio.play("click")
 	mode = "move"
 	_send({"type": "end_turn"})
 
@@ -573,6 +614,7 @@ func _play(events: Array) -> void:
 	for e in events:
 		match e.type:
 			"move":
+				Audio.play("step")
 				await fighter_views[e.fighter].move_to(e.to, 0.06 if e.get("dash", false) else 0.09).finished
 			"knockback":
 				await fighter_views[e.fighter].move_to(e.to, 0.07).finished
@@ -580,6 +622,7 @@ func _play(events: Array) -> void:
 				var f = battle.fighters[e.fighter]
 				var atk: Dictionary = f.def["super"] if e["super"] else f.def.attacks[_slot_of(f, e.attack)]
 				_popup(fighter_views[e.fighter], atk.name.to_upper() + ("!!" if e["super"] else "!"), UiTheme.GOLD if e["super"] else UiTheme.CHALK, -30)
+				Audio.play("super" if e["super"] else "whoosh")
 				if e["super"]:
 					await _super_flash()
 				if e.dir is Vector2i and atk.type != "leap" and atk.type != "dash":
@@ -589,6 +632,7 @@ func _play(events: Array) -> void:
 				await fighter_views[e.fighter].leap_to(e.to, 0.28).finished
 			"damage":
 				var v = fighter_views[e.fighter]
+				Audio.play("hit")
 				v.flash(UiTheme.HIT)
 				var text := "-%d" % (e.amount - e.absorbed)
 				if e.absorbed > 0:
@@ -597,9 +641,11 @@ func _play(events: Array) -> void:
 				_refresh_panels()
 				await get_tree().create_timer(0.18).timeout
 			"blocked":
+				Audio.play("block")
 				_popup(fighter_views[e.fighter], "BLOCKED!", UiTheme.CHALK)
 				await get_tree().create_timer(0.25).timeout
 			"slam":
+				Audio.play("slam")
 				_popup(fighter_views[e.fighter], "SLAM!", UiTheme.GOLD, -44)
 				await _shake()
 			"obstacle_damage":
@@ -615,16 +661,19 @@ func _play(events: Array) -> void:
 				var s: Sprite2D = obstacle_nodes.get(e.at)
 				if s != null:
 					obstacle_nodes.erase(e.at)
+					Audio.play("break")
 					var tw := create_tween().set_parallel()
 					tw.tween_property(s, "modulate:a", 0.0, 0.25)
 					tw.tween_property(s, "position:y", s.position.y + 6, 0.25)
 					tw.chain().tween_callback(s.queue_free)
 			"ko":
+				Audio.play("ko")
 				_popup(fighter_views[e.fighter], "KO!", UiTheme.HIT, -40)
 				await fighter_views[e.fighter].knock_out().finished
 			"status":
 				if STATUS_TEXT.has(e.status):
 					var st: Array = STATUS_TEXT[e.status]
+					Audio.play("dizzy" if e.status == "dizzy" else "turn")
 					_popup(fighter_views[e.fighter], st[0], st[1], -36)
 					await get_tree().create_timer(0.2).timeout
 			"self_damage":
@@ -637,12 +686,16 @@ func _play(events: Array) -> void:
 				if not fighter_views[e.fighter].knocked_out:
 					await fighter_views[e.fighter].knock_out().finished
 			"turn_start":
+				if not online() or e.fighter == my_fighter:
+					Audio.play("turn")
 				_refresh()
 				await _turn_banner(battle.fighters[e.fighter])
 			"round_end":
 				round_end = e
 			"match_end":
 				match_end = e
+	if not match_end.is_empty() or not round_end.is_empty():
+		Audio.play("win")
 	if not match_end.is_empty():
 		_show_overlay(match_end, true)
 	elif not round_end.is_empty():
@@ -936,6 +989,8 @@ func _refresh() -> void:
 		fighter_views[f.id].active = true
 
 	_update_round_label()
+	sound_button.text = "SOUND ON" if Audio.is_enabled() else "SOUND OFF"
+	sound_button.size = sound_button.get_combined_minimum_size()
 
 	var in_turn := _my_turn() and mode != "over" and not _waiting
 	# Online, the buttons always show your own fighter's moves.
@@ -945,7 +1000,7 @@ func _refresh() -> void:
 		var atk: Dictionary = bf.def["super"] if slot == Battle.SUPER_SLOT else bf.def.attacks[slot]
 		var key := "Q" if slot == Battle.SUPER_SLOT else str(slot + 1)
 		attack_names[slot].text = "%s %s" % [key, atk.name.to_upper()]
-		attack_infos[slot].text = attack_info(atk)
+		attack_infos[slot].text = FighterInfo.attack_info(atk)
 		if slot == Battle.SUPER_SLOT:
 			super_bar.value = float(bf.meter) / Battle.METER_MAX
 			super_bar.queue_redraw()
@@ -1048,11 +1103,12 @@ func _error_text(text: String) -> void:
 
 class FloorLayer extends Node2D:
 	var size := Vector2i.ZERO
+	var style := "lino"
 
 	func _draw() -> void:
 		for y in size.y:
 			for x in size.x:
-				draw_texture(PixelArt.floor_tile((x + y) % 2 == 1), Vector2(x * 32, y * 32))
+				draw_texture(PixelArt.floor_tile((x + y) % 2 == 1, style), Vector2(x * 32, y * 32))
 
 
 class HighlightLayer extends Node2D:

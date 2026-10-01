@@ -57,6 +57,12 @@ press Play.
 
 Book Lob: push the same direction again to throw further.
 
+Also in the game: **HOW TO PLAY** on the menu (rules and every fighter's
+moves), fighter info on the character select screens, a **LEAVE** button
+during a match (online this counts as forfeiting), and a **SOUND** on/off
+button. All sounds and the chiptune music are generated in code
+(`game/audio/audio.gd`), no audio files.
+
 ## Online play
 
 The browser version and the apps connect to the online server

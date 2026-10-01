@@ -9,6 +9,9 @@ func _init() -> void:
 	root.add_child(main)
 	await _frames(10)
 	await _snap(out + "/0_menu.png")
+	main._screen.howto_pressed.emit()
+	await _frames(10)
+	await _snap(out + "/0b_howto.png")
 	main.show_setup()
 	await _frames(10)
 	await _snap(out + "/1_setup.png")
@@ -48,6 +51,14 @@ func _init() -> void:
 	screen._on_dir(Vector2i.RIGHT)
 	await _frames(5)
 	await _snap(out + "/6_hallway_lob.png")
+
+	main.show_battle({"map": "cafeteria", "rounds": 1, "seed": 5, "first_team": 0,
+		"players": [{"char": "leon", "team": 0}, {"char": "snorre", "team": 1}]})
+	await create_timer(1.2).timeout
+	await _snap(out + "/7_cafeteria.png")
+	main._screen._ask_leave()
+	await _frames(5)
+	await _snap(out + "/8_leave_confirm.png")
 	quit()
 
 

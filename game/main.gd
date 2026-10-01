@@ -10,6 +10,8 @@ const BattleScreen = preload("res://screens/battle_screen.gd")
 const Server = preload("res://net/server.gd")
 const Client = preload("res://net/client.gd")
 const Config = preload("res://net/config.gd")
+const Audio = preload("res://audio/audio.gd")
+const HowtoScreen = preload("res://screens/howto_screen.gd")
 
 const KEYS := {
 	"move_up": [KEY_W, KEY_UP],
@@ -48,6 +50,8 @@ func _ready() -> void:
 			InputMap.action_add_event(action, ev)
 	RenderingServer.set_default_clear_color(UiTheme.BOARD)
 	get_viewport().size_changed.connect(_fit_screen)
+	if Audio.instance == null:
+		add_child(Audio.new())
 	client = Client.new()
 	client.persist = persist_online
 	add_child(client)
@@ -84,6 +88,10 @@ func show_menu() -> void:
 	var m := MenuScreen.new()
 	m.online_pressed.connect(func(): show_online(_lobby if client.status == "online" else {}))
 	m.local_pressed.connect(show_setup)
+	m.howto_pressed.connect(func():
+		var h := HowtoScreen.new()
+		h.back_requested.connect(show_menu)
+		_swap(h))
 	_swap(m)
 
 

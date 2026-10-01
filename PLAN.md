@@ -178,7 +178,7 @@ Slam damage (knocked into an obstacle, wall or player): **5**.
 
 ## 2c. Maps
 
-3 maps at launch. The host picks one in the lobby. Every map follows the same rule:
+4 maps. The host picks one in the lobby. Every map follows the same rule:
 **lockers along the sides, desks (or other cover) in the middle**.
 
 - Spawns: **opposite ends**. 1v1 and 2v2 use the left edge vs. the right edge.
@@ -227,6 +227,18 @@ L L L L L L L L L L
 . . . . . . . . . .
 L L L L L L L L L L
 ```
+
+### Cafeteria (12×7): long lunch tables, food counter along the top wall
+```
+K K K K K K K K K K K K
+1 . . . . . . . . . . 2
+1 . F F F . . F F F . 2
+. . . . . . . . . . . .
+. . F F F . . F F F . .
+. . . . . . . . . . . .
+L L L L L L L L L L L L
+```
+`F` lunch table (25 HP), `K` food counter (50 HP). Blue and white tiled floor.
 
 ---
 
