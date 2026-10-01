@@ -22,12 +22,37 @@ const METER_PER_HP_TAKEN := 1
 const LAST_STAND_PERCENT := 35
 const LAST_STAND_BONUS := 3
 const SUPER_SLOT := 4
+## The held item (if any) is used like a 5th attack, in place of attacking.
+const ITEM_SLOT := 5
+## Breaking a locker (with items on) gives the breaker an item 30% of the time.
+const ITEM_CHANCE := 30
+const ITEM_IDS := ["book", "pencils", "water"]
+const ITEMS := {
+	"book": {"id": "book", "name": "Book", "type": "projectile", "range": 4, "damage": 12, "knockback": 1},
+	"pencils": {"id": "pencils", "name": "Pencils", "type": "projectile", "range": 4, "damage": 3, "hits": 3},
+	"water": {"id": "water", "name": "Water Bottle", "type": "spill"},
+	"shield": {"id": "shield", "name": "Shield", "type": "self_guard"},
+}
+## With items on, a mystery box appears every few turns (one at a time) on a
+## free tile near the middle. Walking onto it gives a Shield: when used it is
+## randomly a melee or a ranged guard, cutting that kind of damage by
+## 20-45% for 1-2 of your turns.
+const BOX_EVERY_TURNS := 4
+const GUARD_PCT := [20, 45]
+const GUARD_TURNS := [1, 2]
+## Stepping in an enemy's puddle: this much damage, the walk stops, Dizzy next turn.
+const PUDDLE_DAMAGE := 5
+## Host setting: everyone gets this much extra HP (0 = original).
+const BONUS_HP_CHOICES := [0, 50, 100, 150]
+const MAX_BONUS_HP := 150
 const DIRS: Array[Vector2i] = [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]
 const AROUND: Array[Vector2i] = [
 	Vector2i(-1, -1), Vector2i(0, -1), Vector2i(1, -1), Vector2i(-1, 0),
 	Vector2i(1, 0), Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1),
 ]
-const SELF_TYPES := ["self_rage", "self_block", "self_sugar"]
+const SELF_TYPES := ["self_rage", "self_block", "self_sugar", "self_guard"]
+## Attacks that can't reach someone hiding in a sandbox.
+const RANGED_TYPES := ["projectile", "line", "lob"]
 
 enum Phase { WAITING, TURN, ROUND_OVER, MATCH_OVER }
 
@@ -36,6 +61,15 @@ var width := 0
 var height := 0
 ## Vector2i -> {"type": "D", "hp": 20}
 var obstacles := {}
+## Sandbox tiles (Vector2i -> true). Standing in one hides you from ranged attacks.
+var sand := {}
+## Water puddles on the floor: Vector2i -> id of the fighter who spilled it.
+var puddles := {}
+var items_on := false
+## The mystery box's tile, or NO_BOX.
+const NO_BOX := Vector2i(-1, -1)
+var box := NO_BOX
+var _turn_count := 0
 var fighters: Array[Fighter] = []
 ## Team ids in ascending order. 1v1 and 2v2 have two teams, a free-for-all has one per player.
 var teams: Array[int] = []
@@ -58,6 +92,11 @@ var move_budget := 0
 
 var _rng := RandomNumberGenerator.new()
 var _first_team := -1
+## Who acted last on each team this round (team -> fighter id), and the team
+## that acted last overall. Turns always pass to the next team, and inside a
+## team they rotate, so a 2v2 goes red, blue, red, blue even after a KO.
+var _team_last := {}
+var _last_team := -1
 
 
 ## config:
@@ -66,7 +105,10 @@ var _first_team := -1
 ##   rounds: 1-5 (default 1)
 ##   seed: RNG seed (default 0)
 ##   first_team: optional, forces which team starts every round
+##   items: true = broken lockers can drop items (default off)
+##   bonus_hp: extra HP for every fighter (0, 50, 100 or 150) for longer fights
 func _init(config: Dictionary) -> void:
+	items_on = config.get("items", false) == true
 	map_def = config.map if config.map is Dictionary else Maps.ALL[config.map]
 	rounds_total = config.get("rounds", 1)
 	_rng.seed = config.get("seed", 0)
@@ -76,7 +118,10 @@ func _init(config: Dictionary) -> void:
 	var players: Array = config.players
 	for i in players.size():
 		var p: Dictionary = players[i]
-		fighters.append(Fighter.new(i, p["char"], p.team, roster[p["char"]]))
+		var fighter := Fighter.new(i, p["char"], p.team, roster[p["char"]])
+		fighter.max_hp += clampi(int(config.get("bonus_hp", 0)), 0, MAX_BONUS_HP)
+		fighter.hp = fighter.max_hp
+		fighters.append(fighter)
 		if not teams.has(p.team):
 			teams.append(p.team)
 	teams.sort()
@@ -96,6 +141,7 @@ func start_round() -> Array:
 		f.reset_for_round()
 	_place_fighters()
 	order = _build_order()
+	_team_last.clear()
 	turn_index = 0
 	while not current().alive() and turn_index < order.size() - 1:
 		turn_index += 1
@@ -149,7 +195,35 @@ func _move(f: Fighter, dir) -> Dictionary:
 	f.pos = to
 	f.facing = dir
 	path.append(to)
-	return _ok([{"type": "move", "fighter": f.id, "from": from, "to": to}])
+	var events: Array = [{"type": "move", "fighter": f.id, "from": from, "to": to}]
+	if to == box:
+		# Picked up: the steps so far can't be undone (no walking back off it).
+		box = NO_BOX
+		f.item = "shield"
+		events.append({"type": "item", "fighter": f.id, "item": "shield", "at": to})
+		move_budget -= path.size()
+		path.clear()
+		turn_start_pos = f.pos
+	if puddles.has(to) and fighters[puddles[to]].team != f.team:
+		_slip(f, to, events)
+	return _ok(events)
+
+
+## Walking into an enemy's puddle: the puddle is used up, the fighter takes a
+## little damage, can't walk (or undo) any further this turn and is Dizzy next turn.
+func _slip(f: Fighter, tile: Vector2i, events: Array) -> void:
+	var owner: Fighter = fighters[puddles[tile]]
+	puddles.erase(tile)
+	events.append({"type": "slip", "fighter": f.id, "at": tile})
+	var ctx := {"attacker": owner, "dir": f.facing, "super": false, "events": events}
+	_deal(owner, f, PUDDLE_DAMAGE, ctx)
+	path.clear()
+	turn_start_pos = f.pos
+	move_budget = 0
+	_apply_status(ctx, f, "dizzy")
+	_check_round_end(events)
+	if phase == Phase.TURN and not f.alive():
+		events.append_array(_end_turn())
 
 
 func _undo(f: Fighter) -> Dictionary:
@@ -161,11 +235,24 @@ func _undo(f: Fighter) -> Dictionary:
 	return _ok([{"type": "move", "fighter": f.id, "from": from, "to": f.pos, "undo": true}])
 
 
+## The attack in a slot: 0-3 attacks, 4 super, 5 the held item ({} if none).
+func slot_attack(f: Fighter, slot: int) -> Dictionary:
+	if slot == ITEM_SLOT:
+		return ITEMS.get(f.item, {})
+	if slot == SUPER_SLOT:
+		return f.def["super"]
+	if slot >= 0 and slot < SUPER_SLOT:
+		return f.def.attacks[slot]
+	return {}
+
+
 func _attack(f: Fighter, slot: int, dir, dist: int) -> Dictionary:
-	if slot < 0 or slot > SUPER_SLOT:
+	if slot < 0 or slot > ITEM_SLOT:
 		return _fail("bad_slot")
 	var is_super := slot == SUPER_SLOT
-	var atk: Dictionary = f.def["super"] if is_super else f.def.attacks[slot]
+	if slot == ITEM_SLOT and f.item == "":
+		return _fail("no_item")
+	var atk: Dictionary = slot_attack(f, slot)
 	var is_self: bool = SELF_TYPES.has(atk.type)
 	if not is_self and not _valid_dir(dir):
 		return _fail("bad_dir")
@@ -181,8 +268,10 @@ func _attack(f: Fighter, slot: int, dir, dist: int) -> Dictionary:
 		f.facing = dir
 	if is_super:
 		f.meter = 0
-	var ctx := {"attacker": f, "dir": dir, "super": is_super, "events": []}
-	ctx.events.append({"type": "attack", "fighter": f.id, "attack": atk.id, "super": is_super, "dir": dir, "dist": dist})
+	if slot == ITEM_SLOT:
+		f.item = ""
+	var ctx := {"attacker": f, "dir": dir, "super": is_super, "ranged": RANGED_TYPES.has(atk.type), "events": []}
+	ctx.events.append({"type": "attack", "fighter": f.id, "attack": atk.id, "super": is_super, "item": slot == ITEM_SLOT, "dir": dir, "dist": dist})
 	_resolve(ctx, atk, dist)
 	_check_round_end(ctx.events)
 	if phase == Phase.TURN and not atk.get("free", false):
@@ -203,6 +292,10 @@ func _validate(f: Fighter, atk: Dictionary, dir, dist: int) -> String:
 		"self_sugar":
 			if f.sugar_active:
 				return "already_active"
+		"spill":
+			var t: Vector2i = f.pos + dir
+			if not _walkable(t) or puddles.has(t):
+				return "no_room"
 	return ""
 
 
@@ -232,9 +325,14 @@ func _resolve(ctx: Dictionary, atk: Dictionary, dist: int) -> void:
 				if not _in_bounds(t):
 					break
 				var o := _fighter_at(t)
-				if obstacles.has(t) or (o != null and o.team != f.team):
-					_hit_tile(ctx, t, atk.damage, atk)
+				if obstacles.has(t) or (o != null and o.team != f.team and not sand.has(t)):
+					for h in atk.get("hits", 1):
+						_hit_tile(ctx, t, atk.damage, atk)
 					break
+		"spill":
+			var t: Vector2i = f.pos + dir
+			puddles[t] = f.id
+			ctx.events.append({"type": "puddle", "fighter": f.id, "at": t})
 		"line":
 			for d in range(1, atk["range"] + 1):
 				var t: Vector2i = f.pos + dir * d
@@ -279,6 +377,10 @@ func _resolve(ctx: Dictionary, atk: Dictionary, dist: int) -> void:
 		"self_block":
 			f.shield = {"kind": "block"}
 			ctx.events.append({"type": "status", "fighter": f.id, "status": "block"})
+		"self_guard":
+			var kind := "melee" if _roll(0, 1) == 0 else "ranged"
+			f.guard = {"kind": kind, "pct": _roll(GUARD_PCT[0], GUARD_PCT[1]), "turns": _roll(GUARD_TURNS[0], GUARD_TURNS[1])}
+			ctx.events.append({"type": "status", "fighter": f.id, "status": "guard", "kind": kind, "pct": f.guard.pct, "turns": f.guard.turns})
 		"self_sugar":
 			f.sugar_active = true
 			f.sugar_multiplier = atk.multiplier
@@ -311,6 +413,9 @@ func _hit_tile(ctx: Dictionary, tile: Vector2i, base: int, opts := {}) -> void:
 	var t := _fighter_at(tile)
 	if t == null or t.team == f.team:
 		return
+	if ctx.get("ranged", false) and sand.has(tile):
+		ctx.events.append({"type": "hidden", "fighter": t.id})
+		return
 	if not _deal(f, t, _attack_damage(f, base), ctx):
 		return
 	if not t.alive():
@@ -336,6 +441,10 @@ func _attack_damage(f: Fighter, base: int) -> int:
 
 ## Returns false when the hit was stopped by a Block.
 func _deal(src: Fighter, target: Fighter, amount: int, ctx: Dictionary) -> bool:
+	var guarded := 0
+	if not target.guard.is_empty() and (target.guard.kind == "ranged") == ctx.get("ranged", false):
+		guarded = amount - int(round(amount * (100 - target.guard.pct) / 100.0))
+		amount -= guarded
 	if target.shield.get("kind") == "block":
 		target.shield = {}
 		ctx.events.append({"type": "blocked", "fighter": target.id})
@@ -348,7 +457,7 @@ func _deal(src: Fighter, target: Fighter, amount: int, ctx: Dictionary) -> bool:
 			target.shield = {}
 	var lost := mini(amount - absorbed, target.hp)
 	target.hp -= lost
-	ctx.events.append({"type": "damage", "fighter": target.id, "amount": amount, "absorbed": absorbed, "hp": target.hp})
+	ctx.events.append({"type": "damage", "fighter": target.id, "amount": amount, "absorbed": absorbed, "guarded": guarded, "hp": target.hp})
 	# A super's own damage doesn't charge the attacker's meter.
 	if not ctx.super:
 		_gain_meter(ctx, src, lost * METER_PER_HP_DEALT)
@@ -398,6 +507,10 @@ func _damage_obstacle(ctx: Dictionary, tile: Vector2i, amount: int) -> void:
 	if o.hp <= 0:
 		obstacles.erase(tile)
 		ctx.events.append({"type": "obstacle_broken", "at": tile, "obstacle": o.type})
+		var f: Fighter = ctx.attacker
+		if items_on and o.type == "L" and f.alive() and _roll(1, 100) <= ITEM_CHANCE:
+			f.item = ITEM_IDS[_roll(0, ITEM_IDS.size() - 1)]
+			ctx.events.append({"type": "item", "fighter": f.id, "item": f.item, "at": tile})
 
 
 # ---------------------------------------------------------------- turns
@@ -408,7 +521,18 @@ func _begin_turn() -> Array:
 	if f.shield.get("kind") == "block":
 		f.shield = {}
 		events.append({"type": "status_end", "fighter": f.id, "status": "block"})
+	if not f.guard.is_empty():
+		f.guard.turns -= 1
+		if f.guard.turns <= 0:
+			f.guard = {}
+			events.append({"type": "status_end", "fighter": f.id, "status": "guard"})
+	_turn_count += 1
+	if items_on and box == NO_BOX and _turn_count % BOX_EVERY_TURNS == 0:
+		_spawn_box(events)
 	move_budget = maxi(0, f.move - (1 if f.dizzy_next else 0))
+	for o in fighters:
+		o.dizzy_now = false
+	f.dizzy_now = f.dizzy_next
 	f.dizzy_next = false
 	f.no_attack_now = f.no_attack_next
 	f.no_attack_next = false
@@ -416,6 +540,25 @@ func _begin_turn() -> Array:
 	turn_start_pos = f.pos
 	events.append({"type": "turn_start", "fighter": f.id, "move_budget": move_budget, "can_attack": not f.no_attack_now})
 	return events
+
+
+## Drops the mystery box on a free tile, preferring the middle of the map.
+func _spawn_box(events: Array) -> void:
+	var middle: Array[Vector2i] = []
+	var any: Array[Vector2i] = []
+	for y in height:
+		for x in width:
+			var t := Vector2i(x, y)
+			if not _walkable(t) or puddles.has(t):
+				continue
+			any.append(t)
+			if absi(x * 2 - (width - 1)) <= width / 2:
+				middle.append(t)
+	var pool := middle if not middle.is_empty() else any
+	if pool.is_empty():
+		return
+	box = pool[_roll(0, pool.size() - 1)]
+	events.append({"type": "box", "at": box})
 
 
 func _end_turn() -> Array:
@@ -434,10 +577,7 @@ func _end_turn() -> Array:
 	f.sugar_active = false
 	f.no_attack_now = false
 	events.append({"type": "turn_end", "fighter": f.id})
-	for i in order.size():
-		turn_index = (turn_index + 1) % order.size()
-		if current().alive():
-			break
+	_advance_turn()
 	events.append_array(_begin_turn())
 	return events
 
@@ -452,6 +592,8 @@ func _check_round_end(events: Array) -> void:
 	var winner: int = alive_teams[0] if alive_teams.size() == 1 else -1
 	if winner != -1:
 		round_wins[winner] += 1
+	if phase == Phase.TURN:
+		_last_team = current().team  # the next round starts with the other team
 	phase = Phase.ROUND_OVER
 	events.append({"type": "round_end", "round": round_number, "winner_team": winner, "wins": round_wins.duplicate()})
 	var mw := _decided_winner()
@@ -485,11 +627,17 @@ func _load_map() -> void:
 	height = rows.size()
 	width = rows[0].length()
 	obstacles.clear()
+	puddles.clear()
+	sand.clear()
+	box = NO_BOX
+	_turn_count = 0
 	for y in height:
 		for x in width:
 			var ch: String = rows[y][x]
 			if Maps.OBSTACLE_HP.has(ch):
 				obstacles[Vector2i(x, y)] = {"type": ch, "hp": Maps.OBSTACLE_HP[ch]}
+			elif ch == "s":
+				sand[Vector2i(x, y)] = true
 
 
 func _place_fighters() -> void:
@@ -518,13 +666,40 @@ func _spawn_tiles(ch: String) -> Array[Vector2i]:
 	return out
 
 
+## Hands the turn to the next team that still has someone standing, and to
+## that team's next living fighter after the one who acted last.
+func _advance_turn() -> void:
+	var cur := current()
+	_team_last[cur.team] = cur.id
+	_last_team = cur.team
+	var ti := teams.find(cur.team)
+	for k in range(1, teams.size() + 1):
+		var t: int = teams[(ti + k) % teams.size()]
+		var members: Array[int] = []
+		for id in order:
+			if fighters[id].team == t:
+				members.append(id)
+		var start := members.find(_team_last.get(t, -1)) + 1
+		for j in members.size():
+			var id := members[(start + j) % members.size()]
+			if fighters[id].alive():
+				turn_index = order.find(id)
+				return
+
+
 func _build_order() -> Array[int]:
 	var by_team := {}
 	for t in teams:
 		by_team[t] = []
 	for f in fighters:
 		by_team[f.team].append(f.id)
-	var start: int = _first_team if _first_team != -1 else teams[_roll(0, teams.size() - 1)]
+	# Round 1 starts with a random team; later rounds carry on the
+	# alternation from where the last round stopped.
+	var start: int = _first_team
+	if start == -1 and _last_team != -1:
+		start = teams[(teams.find(_last_team) + 1) % teams.size()]
+	elif start == -1:
+		start = teams[_roll(0, teams.size() - 1)]
 	var rotated := teams.duplicate()
 	while rotated[0] != start:
 		rotated.push_back(rotated.pop_front())
@@ -569,14 +744,18 @@ func forfeit(fighter_id: int) -> Array:
 ## A fingerprint of everything that matters in the battle. The server sends it
 ## with every move so clients can tell if their copy got out of sync.
 func state_hash() -> int:
-	var parts := [phase, round_number, turn_index, move_budget, path.size(), _rng.state]
+	var parts := [phase, round_number, turn_index, move_budget, path.size(), _rng.state, _last_team, _team_last, box, _turn_count]
 	for f in fighters:
 		parts.append_array([f.hp, f.pos.x, f.pos.y, f.meter, f.shield.get("kind", ""), f.shield.get("amount", 0),
-			f.dizzy_next, f.rage_turns, f.sugar_active, f.no_attack_next, f.no_attack_now, f.forfeited])
+			f.dizzy_next, f.rage_turns, f.sugar_active, f.no_attack_next, f.no_attack_now, f.forfeited, f.item, f.guard])
 	var tiles := obstacles.keys()
 	tiles.sort()
 	for t in tiles:
 		parts.append_array([t.x, t.y, obstacles[t].hp])
+	var wet := puddles.keys()
+	wet.sort()
+	for t in wet:
+		parts.append_array([t.x, t.y, puddles[t]])
 	return hash(str(parts))
 
 
@@ -633,9 +812,9 @@ func path_to(t: Vector2i) -> Array[Vector2i]:
 ## Returns [{"pos": Vector2i, "kind": "hit" | "dizzy" | "path" | "self"}, ...]
 func preview(fighter_id: int, slot: int, dir, dist := 0) -> Array:
 	var f := fighters[fighter_id]
-	if slot < 0 or slot > SUPER_SLOT:
+	var atk := slot_attack(f, slot)
+	if atk.is_empty():
 		return []
-	var atk: Dictionary = f.def["super"] if slot == SUPER_SLOT else f.def.attacks[slot]
 	var out := []
 	var add := func(t: Vector2i, kind: String) -> void:
 		if _in_bounds(t):
@@ -666,7 +845,7 @@ func preview(fighter_id: int, slot: int, dir, dist := 0) -> Array:
 				if not _in_bounds(t):
 					break
 				var o := _fighter_at(t)
-				if obstacles.has(t) or (o != null and o.team != f.team):
+				if obstacles.has(t) or (o != null and o.team != f.team and not sand.has(t)):
 					add.call(t, hit_kind)
 					break
 				add.call(t, "path")
@@ -678,6 +857,8 @@ func preview(fighter_id: int, slot: int, dir, dist := 0) -> Array:
 				add.call(t, hit_kind)
 				if obstacles.has(t):
 					break
+		"spill":
+			add.call(f.pos + dir, "dizzy")
 		"lob":
 			var center: Vector2i = f.pos + dir * clampi(dist, atk.min_range, atk.max_range)
 			for d in [Vector2i.ZERO, Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
@@ -706,6 +887,8 @@ func attack_blocked_reason(fighter_id: int, slot: int) -> String:
 	var f := fighters[fighter_id]
 	if f.no_attack_now:
 		return "cannot_attack"
+	if slot == ITEM_SLOT and f.item == "":
+		return "no_item"
 	if slot == SUPER_SLOT and f.meter < METER_MAX:
 		return "super_not_ready"
 	if slot == 3 and f.def.attacks[3].type == "self_sugar" and f.sugar_active:

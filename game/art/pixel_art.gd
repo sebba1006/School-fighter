@@ -56,6 +56,20 @@ const PAL := {
 	"beagleWhite": ["f2efe8", "cdc8be", "ffffff"],
 	"beagleEar": ["a8703c", "7e5129", "c08550"],
 	"oldMuzzle": ["dcd8cf", "b9b4aa", "f0eee8"],
+	"fence": ["9aa3ad", "6f7884", "c3cad2"],
+	"leaf": ["4f9a45", "36702f", "74bf63"],
+	"trunk": ["7a5232", "573821", "9a6c45"],
+	"bikeRed": ["c8423a", "92281f", "e56a5f"],
+	"labTop": ["3a3f48", "272b32", "565c67"],
+	"labCab": ["e4e8ec", "b9c0c8", "f7f9fb"],
+	"glass": ["a9d4ec", "7fb2d1", "d6eef9"],
+	"flask": ["7fd36b", "58a848", "a8e898"],
+	"bone": ["ece6d2", "c4bca4", "fffaea"],
+	"pencil": ["f0c330", "c4961c", "f8dc72"],
+	"pencilWood": ["e8c79a", "c9a272", "f5dfbf"],
+	"eraser": ["e88aa0", "c46a80", "f5b3c3"],
+	"puddle": ["7fbbe6", "5d9cd0", "b8def5"],
+	"slide": ["f2c64a", "c99a26", "f8de86"],
 	"eye": "ffffff",
 	"pupil": "1a1420",
 	"mouth": "7a2e2e",
@@ -316,6 +330,67 @@ static func _dogs_image(bob: bool) -> Image:
 	return p.bake()
 
 
+# ---------------------------------------------------------------- items
+
+## 16x16 icon for an item: "book", "pencils" or "water".
+static func item_icon(id: String) -> Texture2D:
+	var key := "item_" + id
+	if not _cache.has(key):
+		var p := Painter.new(16, 16)
+		match id:
+			"book":
+				p.rect(2, 3, 13, 13, "red")
+				p.rect(3, 12, 13, 13, "teeWhite")  # page edges
+				p.rect(2, 3, 3, 13, "pantsBlack")  # spine
+				p.rect(6, 6, 11, 7, "guard")
+			"pencils":
+				for i in 3:
+					var y := 3 + i * 4
+					p.rect(4, y, 12, y + 1, "pencil")
+					p.rect(13, y, 13, y + 1, "pencilWood")
+					p.px(14, y, "pupil")
+					p.rect(2, y, 3, y + 1, "eraser")
+			"shield":
+				p.ell(8, 7, 6, 6.5, "steel")
+				p.rect(2, 2, 13, 7, "steel")
+				p.rect(7, 3, 8, 12, "teeBlue")
+				p.rect(4, 6, 11, 7, "teeBlue")
+			"water":
+				p.rect(5, 4, 10, 14, "glass")
+				p.rect(6, 2, 9, 3, "glass")
+				p.rect(6, 1, 9, 1, "ballBlue")
+				p.rect(5, 8, 10, 10, "ballBlue")  # label
+		_cache[key] = ImageTexture.create_from_image(p.bake())
+	return _cache[key]
+
+
+## The mystery box (a "?" crate) sitting on a floor tile.
+static func mystery_box() -> Texture2D:
+	if not _cache.has("box"):
+		var p := Painter.new(TILE, TILE)
+		p.rect(6, 8, 25, 27, "deskTop")
+		p.rect(6, 8, 25, 10, "deskFront")
+		p.rect(6, 25, 25, 27, "deskFront")
+		# a "?" in gold
+		for c in [[13, 13], [14, 12], [15, 12], [16, 12], [17, 12], [18, 13], [18, 14], [17, 15], [16, 16], [15, 17], [15, 18], [15, 21], [15, 22]]:
+			p.px(c[0], c[1], "guard")
+			p.px(c[0] + 1, c[1], "guard")
+		_cache["box"] = ImageTexture.create_from_image(p.bake())
+	return _cache["box"]
+
+
+## A water puddle lying on a floor tile.
+static func puddle() -> Texture2D:
+	if not _cache.has("puddle"):
+		var p := Painter.new(TILE, TILE)
+		p.ell(15, 17, 12, 7, "puddle")
+		p.ell(24, 21, 5, 4, "puddle")
+		p.ell(8, 12, 4, 3, "puddle")
+		p.rect(10, 14, 13, 14, "teeWhite")  # shine
+		_cache["puddle"] = ImageTexture.create_from_image(p.bake())
+	return _cache["puddle"]
+
+
 # ---------------------------------------------------------------- tiles
 
 ## Floor tile. `alt` shifts the checker so tiles don't repeat identically.
@@ -329,12 +404,34 @@ static func floor_tile(alt := false, style := "lino") -> Texture2D:
 		if style == "cafeteria":
 			a = Color("e9eef3")
 			b = Color("b9cde6")
+		elif style == "lab":
+			a = Color("e3e6ea")
+			b = Color("d3d8de")
 		for y in TILE:
 			for x in TILE:
-				var check := (int(x / 8.0) + int(y / 8.0) + (1 if alt else 0)) % 2 == 0
-				var col := a if check else b
-				if x == 0 or y == 0:
-					col = col.darkened(0.08)
+				var col: Color
+				if style == "grass":
+					# mown stripes plus scattered blades (same pattern every time)
+					col = Color("6fae4f") if (int(y / 16.0) + (1 if alt else 0)) % 2 == 0 else Color("64a246")
+					var n := (x * 7 + y * 13 + (5 if alt else 0)) % 23
+					if n == 0:
+						col = Color("4f8a37")
+					elif n == 11:
+						col = Color("86c262")
+				elif style == "sand":
+					col = Color("e6cf8f") if (x * 5 + y * 11 + (3 if alt else 0)) % 17 != 0 else Color("c9ae68")
+					if (x * 13 + y * 7) % 29 == 0:
+						col = Color("f3e2b0")
+				elif style == "lab":
+					var check := (int(x / 16.0) + int(y / 16.0) + (1 if alt else 0)) % 2 == 0
+					col = a if check else b
+					if x % 16 == 0 or y % 16 == 0:
+						col = col.darkened(0.12)
+				else:
+					var check := (int(x / 8.0) + int(y / 8.0) + (1 if alt else 0)) % 2 == 0
+					col = a if check else b
+					if x == 0 or y == 0:
+						col = col.darkened(0.08)
 				img.set_pixel(x, y, col)
 		_cache[key] = ImageTexture.create_from_image(img)
 	return _cache[key]
@@ -415,6 +512,103 @@ static func _obstacle_image(kind: String, damaged: bool, tall: bool) -> Image:
 			if damaged:
 				for c in [[9, o + 22], [10, o + 23], [10, o + 24], [11, o + 25], [21, o + 12], [22, o + 13]]:
 					p.px(c[0], c[1], "crack")
+		"N":  # chain-link fence
+			var top := 2 if tall else o + 4
+			p.rect(1, top, 2, o + 29, "fence")
+			p.rect(29, top, 30, o + 29, "fence")
+			p.rect(0, top, 31, top + 1, "fence")
+			for y in range(top + 3, o + 28, 4):
+				for x in range(3, 29, 4):
+					p.px(x + ((y >> 2) % 2) * 2, y, "fence")
+			p.rect(0, o + 28, 31, o + 29, "fence")
+			if damaged:
+				p.rect(12, o + 10, 18, o + 16, "")
+		"R":  # tree: round crown, may poke a little above its tile
+			p.rect(13, o + 18, 18, o + 29, "trunk")
+			p.ell(15.5, o + 8, 13, 11, "leaf")
+			p.ell(9, o + 13, 6, 5, "leaf")
+			p.ell(22, o + 13, 6, 5, "leaf")
+			if damaged:
+				for c in [[14, o + 21], [15, o + 22], [15, o + 23], [16, o + 24]]:
+					p.px(c[0], c[1], "crack")
+		"Y":  # bike rack (a steel hoop) with a red bike in it, side view
+			p.rect(3, o + 12, 28, o + 13, "metal")
+			p.rect(3, o + 12, 4, o + 29, "metal")
+			p.rect(27, o + 12, 28, o + 29, "metal")
+			for wx in [9, 23]:
+				p.ell(wx, o + 23, 6, 6, "shoeBlack")
+				p.ell(wx, o + 23, 4.5, 4.5, "")
+				p.px(wx, o + 23, "metal")
+			for i in 8:  # frame: rear wheel -> pedals -> front wheel, and up to the seat
+				p.px(9 + i, o + 23 - i / 2, "bikeRed")
+				p.px(9 + i, o + 22 - i / 2, "bikeRed")
+			p.rect(16, o + 18, 22, o + 19, "bikeRed")
+			p.rect(21, o + 15, 22, o + 23, "bikeRed")
+			p.rect(13, o + 16, 14, o + 20, "bikeRed")
+			p.rect(11, o + 15, 15, o + 15, "pupil")  # seat
+			p.rect(20, o + 14, 24, o + 14, "pupil")  # handlebar
+			if damaged:
+				p.rect(15, o + 18, 17, o + 19, "crack")
+		"A":  # lab table: black top, white cupboards, a flask
+			p.rect(1, o + 8, 30, o + 12, "labTop")
+			p.rect(2, o + 13, 29, o + 29, "labCab")
+			p.rect(15, o + 14, 16, o + 28, "seam")
+			p.rect(12, o + 20, 12, o + 22, "handle")
+			p.rect(19, o + 20, 19, o + 22, "handle")
+			p.rect(7, o + 2, 8, o + 4, "glass")
+			p.ell(7.5, o + 6, 3, 2.5, "flask")
+			if damaged:
+				for c in [[6, o + 15], [7, o + 16], [7, o + 17], [8, o + 18], [24, o + 22], [25, o + 23]]:
+					p.px(c[0], c[1], "crack")
+		"G":  # glass cabinet: breaks easily
+			var top := 2 if tall else o + 2
+			p.rect(3, top, 28, o + 29, "wood")
+			p.rect(5, top + 2, 26, o + 27, "glass")
+			p.rect(15, top + 2, 16, o + 27, "wood")
+			var shelf := top + int((o + 27 - top) / 2.0)
+			p.rect(5, shelf, 26, shelf, "wood")
+			p.ell(9, shelf - 3, 2, 2.5, "flask")
+			p.ell(21, shelf - 3, 2, 2.5, "ballRed")
+			p.rect(9, o + 24, 12, o + 26, "bone")
+			if damaged:
+				for c in [[6, top + 4], [7, top + 5], [8, top + 6], [8, top + 7], [20, o + 20], [21, o + 19], [22, o + 18], [23, o + 18]]:
+					p.px(c[0], c[1], "crack")
+		"S":  # classroom skeleton on a stand
+			p.ell(16, o + 1, 4, 4, "bone")
+			p.px(14, o + 1, "pupil")
+			p.px(17, o + 1, "pupil")
+			p.rect(15, o + 5, 16, o + 18, "bone")
+			for y in [8, 10, 12]:
+				p.rect(11, o + y, 20, o + y, "bone")
+			p.rect(9, o + 7, 10, o + 15, "bone")
+			p.rect(21, o + 7, 22, o + 15, "bone")
+			p.rect(13, o + 18, 14, o + 25, "bone")
+			p.rect(17, o + 18, 18, o + 25, "bone")
+			p.rect(15, o + 25, 16, o + 28, "metal")
+			p.rect(10, o + 29, 21, o + 29, "metal")
+			if damaged:
+				p.rect(21, o + 7, 22, o + 15, "")
+		"H":  # slide ladder with the platform on top
+			p.rect(2, o - 6, 29, o - 3, "ballRed")
+			p.rect(6, o - 2, 7, o + 29, "metal")
+			p.rect(24, o - 2, 25, o + 29, "metal")
+			for y in range(o + 2, o + 28, 5):
+				p.rect(8, y, 23, y, "metal")
+			if damaged:
+				for c in [[10, o - 5], [11, o - 4], [20, o + 12], [21, o + 13]]:
+					p.px(c[0], c[1], "crack")
+		"Z", "W":  # the slide itself, going down to the right (Z) or left (W)
+			for x in TILE:
+				var sx := x if kind == "Z" else TILE - 1 - x
+				var y := o - 4 + int(x * 24.0 / 31.0)
+				p.rect(sx, y - 1, sx, y - 1, "ballRed")
+				p.rect(sx, y, sx, y + 4, "slide")
+			var leg := 25 if kind == "Z" else 5
+			p.rect(leg, o + 19, leg + 1, o + 29, "metal")
+			if damaged:
+				for c in [[12, o + 6], [13, o + 7], [14, o + 8], [15, o + 8]]:
+					var cx: int = c[0] if kind == "Z" else TILE - 1 - c[0]
+					p.px(cx, c[1], "crack")
 		"C":  # ball cart
 			p.rect(3, o + 12, 28, o + 24, "metal")
 			p.rect(5, o + 14, 26, o + 22, "")

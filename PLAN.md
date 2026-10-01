@@ -22,7 +22,7 @@ short code and fight on pixel-art school maps.
 | Super meter | Fills from damage. **Dealing damage gives more meter than taking it.** Super damage is **fixed** (not scaled by meter) |
 | Grid | Bigger boards with obstacles. **Several maps, host picks** |
 | Obstacles | Block movement, block attacks (cover), bonus damage when knocked into, **breakable** (have HP) |
-| Turn order | Alternating. 2v2: A1 → B1 → A2 → B2. FFA: P1 → P2 → P3. Random starter |
+| Turn order | Alternating teams, always. 2v2: red → blue → red → blue; inside a team the players take turns, also after a KO (A1 → B1 → A1 → B2 if A2 is out). FFA: P1 → P2 → P3. Round 1 starts with a random team; later rounds start with the team that did not act last |
 | Friendly fire | Off. Area attacks skip teammates |
 | Teams (2v2) | Host assigns |
 | Rounds | Host picks 1–5 rounds |
@@ -208,7 +208,7 @@ simulation (Snorre can't close the distance). Watch for it in real games.
 
 ## 2c. Maps
 
-4 maps. The host picks one in the lobby. Every map follows the same rule:
+7 maps. The host picks one in the lobby. Every map follows the same rule:
 **lockers along the sides, desks (or other cover) in the middle**.
 
 - Spawns: **opposite ends**. 1v1 and 2v2 use the left edge vs. the right edge.
@@ -221,7 +221,7 @@ simulation (Snorre can't close the distance). Watch for it in real games.
 | Teacher's desk | 40 | Classroom only |
 | Bench | 30 | Gym only |
 | Ball cart | 15 | Gym only |
-| Locker | 60 | Very tough side walls |
+| Locker | 20 | Side walls (was 60; lowered so items drop more often) |
 
 Legend: `L` locker, `D` desk, `T` teacher's desk, `B` bench, `C` ball cart,
 `1`/`2` team spawns, `.` floor. All layouts are mirrored left↔right so neither side has an advantage. They're first drafts to be tuned in playtests.
@@ -269,6 +269,72 @@ K K K K K K K K K K K K
 L L L L L L L L L L L L
 ```
 `F` lunch table (25 HP), `K` food counter (50 HP). Blue and white tiled floor.
+
+### Schoolyard (11×8): outside, big and open, good for long range
+```
+N N N N N N N N N N N
+1 . . . . . . . . . 2
+1 . R . . . . . R . 2
+. . . . B . B . . . .
+. . . . . . . . . . .
+. . R . Y Y Y . R . .
+. . . . . . . . . . .
+N N N N N N N N N N N
+```
+`N` fence (60 HP), `R` tree (45 HP), `Y` bike rack (30 HP), `B` bench. Grass floor.
+11 wide (not 12) so it fits next to the joystick.
+
+### Science Lab (10×7): tight, with fragile glass cabinets
+```
+L L G G L L G G L L
+1 . . . . . . . . 2
+1 . A A . . A A . 2
+S . . . G G . . . S
+. . A A . . A A . .
+. . . . . . . . . .
+L L L L L L L L L L
+```
+`A` lab table (35 HP), `G` glass cabinet (only 10 HP, breaks easily), `S`
+skeleton (15 HP). White tiled floor.
+
+### Recess (11×8): playground with a sandbox and two slides
+```
+N N N N N N N N N N N
+1 . . . . . . . . . 2
+1 . H Z . . . W H . 2
+. . . . s s s . . . .
+. . . . s s s . . . .
+. . R . . . . . R . .
+. . . . . . . . . . .
+N N N N N N N N N N N
+```
+`H` slide ladder, `Z`/`W` slide (60 HP each), `s` **sandbox**: you can walk
+in it, and standing in it **hides you from throws and shots** (projectiles,
+lines, lobs and thrown items fly past or miss). Melee, dashes, spins, leaps
+and shockwaves still hit. Grass floor.
+
+---
+
+## 2c-2. Items (Dad's idea)
+
+A setting: **ITEMS ON/OFF** (host online, or on the local / VS CPU setup; on by default).
+
+- When a **locker** breaks, the fighter who broke it (attack, or slamming
+  someone into it) gets an item **30%** of the time. Other obstacles drop nothing.
+- You hold **1 item**; a new one replaces the old. Items are lost when the round ends.
+- Using an item **is your attack for the turn** (you can still move first).
+  It's the card above the joystick, or key **5**.
+
+| Item | What it does |
+|---|---|
+| Book | Thrown: first enemy in a line up to 4 tiles, 12 damage, push 1 |
+| Pencils | Thrown: first enemy in a line up to 4 tiles, 3 hits of 3 damage |
+| Water bottle | Spill a puddle on the tile in front of you. An enemy who walks into it slips: 5 damage, stops walking (no undo), Dizzy next turn. The puddle is then gone. Your own team walks over it safely. Pushes and dashes don't trigger it |
+| Shield (mystery box only) | Using it gives a random **melee guard** or **ranged guard**: that kind of damage is cut by **20–45%** (random) for **1–2 of your turns** (random) |
+
+**Mystery box (Mom's idea):** with items on, a "?" box drops on a free tile
+near the middle every 4 turns (one at a time). Whoever walks onto it first gets
+the **Shield** (replacing any item). Steps taken before the pickup can't be undone.
 
 ---
 
@@ -383,6 +449,9 @@ animate the events.
 | M0 ✅ | Project setup | Godot project, folder layout, test runner, README |
 | M1 ✅ | Rules engine | Grid, move, 4 attacks, super, meter, knockback, obstacles, rounds. All unit-tested |
 | M2 ✅ | Local battle | Playable hot-seat 1v1 on one device with placeholder sprites + one test map |
+| ✅ | VS CPU | 1v1, 1v1v1 or 2v2 with a CPU teammate vs the computer player; you pick each CPU's fighter (or random) and EASY / NORMAL / HARD. In a 1-round sim, Hard beats Easy 97%, Hard beats Normal 66%, Normal beats Easy 92%. VS CPU matches don't count in stats |
+| ✅ | Extra HP setting | Host (and local / VS CPU setup) picks HP: ORIGINAL, +50, +100 or +150 for every fighter, for longer fights |
+| ✅ | Open lobbies | Public/private lobby (public by default). The join screen lists open lobbies (public, waiting, not full: code + player count only) with JOIN. Host can KICK; kicked players can't rejoin that lobby |
 | M3 ✅ | Online 1v1 | Headless server, nicknames, create/join by code, synced battle |
 | M4 ✅ | 3–4 players | FFA + 2v2, host settings (map/rounds/timer/teams), turn order |
 | M5 ✅ | Robustness | Turn timer, reconnect, host migration, rematch, lobby cleanup |

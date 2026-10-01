@@ -250,3 +250,43 @@ func test_emotes_are_relayed_with_a_cooldown() -> void:
 	lobby.handle("a", {"t": "emote", "id": 1}, 20000)
 	eq(_last(_take(lobby, "b"), "emote").get("id"), 1, "after the cooldown it works again")
 	done()
+
+
+func test_open_lobbies_are_public_waiting_and_not_full() -> void:
+	var lobby := Lobby.new("TEST1")
+	lobby.add_member("a", "a", 0)
+	check(lobby.is_open(), "new lobbies are public")
+	lobby.handle("a", {"t": "settings", "public": false}, 0)
+	check(not lobby.is_open(), "private: not listed")
+	lobby.handle("a", {"t": "settings", "public": true}, 0)
+	for tok in ["b", "c", "d"]:
+		lobby.add_member(tok, tok, 0)
+	check(not lobby.is_open(), "full: not listed")
+	var two := _lobby(["sebba", "mike"])
+	two.handle("a", {"t": "start"}, 0)
+	check(not two.is_open(), "playing: not listed")
+	done()
+
+
+func test_host_can_kick_and_they_cannot_return() -> void:
+	var lobby := _lobby(["sebba", "mike"])
+	var b_pid: int = lobby.member("b").pid
+	lobby.handle("b", {"t": "kick", "pid": lobby.member("a").pid}, 0)
+	eq(lobby.members.size(), 2, "only the host can kick")
+	lobby.handle("a", {"t": "kick", "pid": b_pid}, 0)
+	eq(lobby.members.size(), 1, "b is out")
+	eq(_last(_take(lobby, "b"), "kicked").get("t"), "kicked", "b is told")
+	eq(lobby.add_member("b", "b", 0), "kicked", "b can't come back")
+	lobby.handle("a", {"t": "kick", "pid": lobby.member("a").pid}, 0)
+	eq(lobby.members.size(), 1, "the host can't kick themself")
+	done()
+
+
+func test_bonus_hp_goes_into_the_match() -> void:
+	var lobby := _lobby(["sebba", "mike"])
+	lobby.handle("a", {"t": "settings", "bonus_hp": 77}, 0)
+	eq(lobby.settings.bonus_hp, 0, "only the listed choices")
+	lobby.handle("a", {"t": "settings", "bonus_hp": 100}, 0)
+	lobby.handle("a", {"t": "start"}, 0)
+	eq(lobby.battle.fighters[0].max_hp, lobby.battle.fighters[0].def.hp + 100, "+100 HP in the match")
+	done()

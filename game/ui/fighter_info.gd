@@ -24,7 +24,9 @@ static func attack_info(atk: Dictionary) -> String:
 			parts.append("%d DMG" % atk.damage)
 			parts.append("-%d HP" % atk.self_damage)
 		_:
-			if atk.has("damage"):
+			if atk.get("hits", 1) > 1:
+				parts.append("%dX%d DMG" % [atk.hits, atk.damage])
+			elif atk.has("damage"):
 				parts.append("%d DMG" % atk.damage)
 			else:
 				parts.append("%d-%d DMG" % [atk.damage_min, atk.damage_max])

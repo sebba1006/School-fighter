@@ -10,10 +10,13 @@ const Maps = preload("res://rules/maps.gd")
 const PixelArt = preload("res://art/pixel_art.gd")
 const UiTheme = preload("res://ui/ui_theme.gd")
 const FighterInfo = preload("res://ui/fighter_info.gd")
+const Battle = preload("res://rules/battle.gd")
 
 var picks := ["sebba", "william"]
 var map_id := "classroom"
 var rounds := 3
+var items := true
+var bonus_hp := 0
 
 var _char_buttons := [{}, {}]  # per player: char_id -> Button
 var _map_buttons := {}
@@ -65,9 +68,11 @@ func _ready() -> void:
 		b.pressed.connect(func(): map_id = id; _refresh())
 		_map_buttons[id] = b
 		options.add_child(b)
-	var gap := Control.new()
-	gap.custom_minimum_size = Vector2(16, 0)
-	options.add_child(gap)
+	# rounds and items on a second row (all the maps fill the first one)
+	options = HBoxContainer.new()
+	options.alignment = BoxContainer.ALIGNMENT_CENTER
+	options.add_theme_constant_override("separation", 6)
+	col.add_child(options)
 	options.add_child(UiTheme.label("ROUNDS", 8, UiTheme.CHALK_DIM))
 	var minus := Button.new()
 	minus.text = "-"
@@ -83,6 +88,11 @@ func _ready() -> void:
 	plus.custom_minimum_size = Vector2(20, 20)
 	plus.pressed.connect(func(): rounds = mini(5, rounds + 1); _refresh())
 	options.add_child(plus)
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(16, 0)
+	options.add_child(gap)
+	options.add_child(_items_toggle())
+	options.add_child(_bonus_button())
 
 	var start := Button.new()
 	start.text = "START FIGHT"
@@ -124,6 +134,29 @@ func _player_picker(p: int) -> Control:
 	return box
 
 
+## Extra HP for everyone (longer fights): ORIGINAL, +50, +100, +150.
+func _bonus_button() -> Button:
+	var b := Button.new()
+	b.custom_minimum_size = Vector2(80, 20)
+	b.text = "HP: ORIGINAL"
+	b.pressed.connect(func():
+		var choices: Array = Battle.BONUS_HP_CHOICES
+		bonus_hp = choices[(choices.find(bonus_hp) + 1) % choices.size()]
+		b.text = "HP: ORIGINAL" if bonus_hp == 0 else "HP: +%d" % bonus_hp)
+	return b
+
+
+## "ITEMS ON/OFF": broken lockers can drop items.
+func _items_toggle() -> Button:
+	var b := Button.new()
+	b.custom_minimum_size = Vector2(70, 20)
+	b.text = "ITEMS ON"
+	b.pressed.connect(func():
+		items = not items
+		b.text = "ITEMS ON" if items else "ITEMS OFF")
+	return b
+
+
 func _toggle(text: String) -> Button:
 	var b := Button.new()
 	b.text = text
@@ -147,6 +180,7 @@ func _start() -> void:
 	start_requested.emit({
 		"map": map_id,
 		"rounds": rounds,
+		"items": items, "bonus_hp": bonus_hp,
 		"players": [{"char": picks[0], "team": 0}, {"char": picks[1], "team": 1}],
 		"seed": randi(),
 	})

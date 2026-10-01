@@ -13,6 +13,8 @@ const CODE_LENGTH := 5
 const MAX_LOBBIES := 500
 const MAX_MESSAGE := 4096
 const NAME_LENGTH := 12
+## How many open lobbies the list shows at most.
+const LIST_MAX := 8
 
 var _tcp := TCPServer.new()
 var _peers := {}  # peer id -> {"ws": WebSocketPeer, "token": String}
@@ -115,6 +117,16 @@ func _on_message(peer_id: int, msg: Dictionary) -> void:
 		"leave":
 			_leave(token)
 			_send_token(token, {"t": "left"})
+		"list":
+			# Open lobbies: just the code and how many players (no names or settings).
+			var open := []
+			for code in lobbies:
+				var lobby: Lobby = lobbies[code]
+				if lobby.is_open() and code != session.lobby and not lobby.kicked.has(token):
+					open.append({"code": code, "players": lobby.members.size()})
+					if open.size() >= LIST_MAX:
+						break
+			_send_token(token, {"t": "lobbies", "list": open})
 		_:
 			if lobbies.has(session.lobby):
 				var lobby: Lobby = lobbies[session.lobby]
