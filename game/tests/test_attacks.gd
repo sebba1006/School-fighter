@@ -47,7 +47,7 @@ func test_knockback_into_enemy_hurts_both() -> void:
 	attack(b, 0, 1, R)
 	eq(b.fighters[1].pos, Vector2i(3, 2), "mike stops next to william")
 	eq(hp(b, 1), 72, "mike: kick + slam")
-	eq(hp(b, 2), 110, "william: slam")
+	eq(hp(b, 2), 95, "william: slam")
 	done()
 
 
@@ -59,7 +59,7 @@ func test_knockback_never_hurts_attackers_teammate() -> void:
 	put(b, 3, 8, 4)
 	attack(b, 0, 1, R)
 	eq(hp(b, 1), 72, "mike still slams")
-	eq(hp(b, 2), 115, "william (sebba's ally) unhurt")
+	eq(hp(b, 2), 100, "william (sebba's ally) unhurt")
 	done()
 
 
@@ -72,7 +72,7 @@ func test_sweep_hits_enemies_around_but_not_allies() -> void:
 	attack(b, 0, 2, R)
 	eq(hp(b, 1), 77, "mike")
 	eq(hp(b, 3), 87, "snorre")
-	eq(hp(b, 2), 115, "william (ally)")
+	eq(hp(b, 2), 100, "william (ally)")
 	done()
 
 
@@ -119,7 +119,7 @@ func test_slingshot_is_blocked_by_desks_and_passes_allies() -> void:
 	attack(b, 0, 1, R)
 	eq(b.obstacles[Vector2i(3, 2)].hp, 9, "desk took the shot")
 	eq(hp(b, 1), 100, "sebba behind cover")
-	eq(hp(b, 2), 115, "william (ally) not hit")
+	eq(hp(b, 2), 100, "william (ally) not hit")
 
 	var b2 := make(open_rows(), [["mike", 0], ["sebba", 1], ["william", 0], ["snorre", 1]])
 	put(b2, 0, 0, 2)
@@ -174,7 +174,7 @@ func test_mega_sword_inner_and_outer_rings() -> void:
 	eq(hp(b, 3), 88, "sebba in outer ring")
 	check(b.fighters[3].dizzy_next, "outer ring dizzy")
 	check(not b.fighters[1].dizzy_next, "inner ring not dizzy")
-	eq(hp(b, 2), 115, "ally unhurt")
+	eq(hp(b, 2), 100, "ally unhurt")
 	eq(b.fighters[0].meter, 0, "super empties meter and doesn't refill it")
 	done()
 

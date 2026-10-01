@@ -270,7 +270,8 @@ func _resolve(ctx: Dictionary, atk: Dictionary, dist: int) -> void:
 			f.rage_turns = _roll(atk.turns_min, atk.turns_max)
 			f.rage_fresh = true
 			f.rage_bonus = atk.bonus
-			f.shield = {"kind": "hp", "amount": atk.shield}
+			if atk.get("shield", 0) > 0:
+				f.shield = {"kind": "hp", "amount": atk.shield}
 			ctx.events.append({"type": "status", "fighter": f.id, "status": "rage", "turns": f.rage_turns, "shield": atk.shield})
 		"self_block":
 			f.shield = {"kind": "block"}

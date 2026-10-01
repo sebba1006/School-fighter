@@ -107,14 +107,14 @@ A lobby holds max 4 players, so unique picks always work.
 ### William (2/4): wrestler bruiser
 - **Look**: blond hair, glasses, light skin. Tallest of the three
   (about 150–168 cm). Mostly **black and red** clothes.
-- **Stats**: HP 115, move 3.
-- **Passive – Last Stand**: below 35% HP (40 HP or less), all his attacks do **+3 damage**.
+- **Stats**: HP 100, move 3. *(Nerfed after playtesting: was 115.)*
+- **Passive – Last Stand**: below 35% HP (34 HP or less), all his attacks do **+3 damage**.
 
 | Slot | Attack | Shape | Effect |
 |---|---|---|---|
 | 1 | Shoulder Tackle | Rush up to 2 tiles in a line | Hits first enemy, knockback 1 |
 | 2 | Punch | 1 tile in front | Solid damage |
-| 3 | Rage | Self | For **1–2 of his turns (random)**: **+8 damage** on attacks and a **15 HP shield**. Both end together; the shield never heals real HP. Uses his action |
+| 3 | Rage | Self | For **1–2 of his turns (random)**: **+2 damage** on attacks. No shield. Uses his action *(nerfed: was +8 and a 15 HP shield)* |
 | 4 | Head Slam | 1 tile in front | Damage + **Dizzy** |
 | Super | Body Smash | 1 adjacent enemy | Pro-wrestling body slam, big fixed damage. Rocks fly up around him (visual only) |
 
@@ -157,7 +157,7 @@ Slam damage (knocked into an obstacle, wall or player): **5**.
 | Character | 1 | 2 | 3 | 4 | Super |
 |---|---|---|---|---|---|
 | Sebba | Punch 14 | Kick 8, knockback 2 | Sweep 8 | Charge 8 + 3 per tile run (max 20), knockback 1 | Mega Barrage 35 |
-| William | Tackle 12, knockback 1 | Punch 14 | Rage (+8 dmg, 15 shield) | Head Slam 10 + Dizzy | Body Smash 35 |
+| William | Tackle 10, knockback 1 | Punch 12 | Rage (+2 dmg) | Head Slam 9 + Dizzy | Body Smash 35 |
 | Snorre | Stab 15 | Block | Dual Spin 9 | Sugar Rush (1.3×) | Mega Sword: inner 30, outer 12 + Dizzy |
 | Mike | Shove 5, knockback 2 | Slingshot 11 | Water Gun 6 + Dizzy | Book Lob 9 | Flying Tackle 45 + Dizzy (self: −10/−15 HP, Dizzy) |
 
