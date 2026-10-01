@@ -139,7 +139,7 @@ func _on_net_message(msg: Dictionary) -> void:
 					show_online(msg)  # the host took everyone back to the lobby
 				else:
 					_screen.set_host(msg.host_pid == msg.you_pid)
-		"left":
+		"left", "kicked":
 			_lobby = {}
 		"match_start":
 			_start_online_battle(msg.config, msg.you, [], -1)

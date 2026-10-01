@@ -1,6 +1,7 @@
 extends Control
-## Online: pick a nickname, create a lobby or join one with a code, then the
-## lobby itself (players, fighter picks, host settings, ready / start).
+## Online: pick a nickname, create a lobby, join one with a code or from the
+## list of open lobbies, then the lobby itself (players, fighter picks, host
+## settings, ready / start, kick).
 
 signal back_requested
 
@@ -25,7 +26,9 @@ const ERRORS := {
 	"teams_uneven": "2V2 NEEDS 2 PLAYERS ON EACH TEAM",
 	"someone_offline": "SOMEONE IS OFFLINE",
 	"server_full": "THE SERVER IS FULL, TRY AGAIN LATER",
+	"kicked": "YOU WERE REMOVED FROM THAT LOBBY",
 }
+const LIST_EVERY_MS := 4000
 
 var net: Node
 var lobby := {}
@@ -38,6 +41,8 @@ var _name_edit: LineEdit
 var _code_edit: LineEdit
 var _server_edit: LineEdit
 var _status: Label
+var _open_list: VBoxContainer
+var _next_list := 0
 
 
 func setup(p_net: Node, state := {}) -> void:
@@ -74,8 +79,9 @@ func _ready() -> void:
 		_show_lobby()
 	else:
 		_show_entry()
-		# Returning players reconnect straight away (and land back in their lobby).
-		if net.player_name != "" and net.status == "offline":
+		# Connect straight away: returning players land back in their lobby,
+		# and everyone gets the list of open lobbies.
+		if net.status == "offline":
 			net.go_online(net.url, net.player_name)
 	_on_status(net.status)
 
@@ -109,6 +115,14 @@ func _build_entry() -> VBoxContainer:
 	join_row.add_child(_code_edit)
 	join_row.add_child(_big_button("JOIN", _on_join))
 
+	box.add_child(UiTheme.label("OPEN LOBBIES", 8, UiTheme.CHALK_DIM))
+	box.get_child(box.get_child_count() - 1).horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_open_list = VBoxContainer.new()
+	_open_list.add_theme_constant_override("separation", 3)
+	_open_list.custom_minimum_size.y = 20
+	box.add_child(_open_list)
+	_show_open_lobbies([])
+
 	var server_row := _row(box)
 	server_row.add_child(UiTheme.label("SERVER", 8, UiTheme.CHALK_DIM))
 	_server_edit = LineEdit.new()
@@ -124,6 +138,28 @@ func _build_entry() -> VBoxContainer:
 	back.pressed.connect(func(): back_requested.emit())
 	box.add_child(back)
 	return box
+
+
+func _process(_delta: float) -> void:
+	if _entry.visible and net.status == "online" and Time.get_ticks_msec() >= _next_list:
+		_next_list = Time.get_ticks_msec() + LIST_EVERY_MS
+		net.send({"t": "list"})
+
+
+func _show_open_lobbies(list: Array) -> void:
+	for c in _open_list.get_children():
+		c.queue_free()
+	if list.is_empty():
+		var none := UiTheme.label("NO OPEN LOBBIES RIGHT NOW - CREATE ONE!" if net.status == "online" else "...", 8, UiTheme.CHALK_DIM)
+		none.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_open_list.add_child(none)
+		return
+	for item in list.slice(0, 3):
+		var row := _row(_open_list)
+		row.add_child(_fixed(UiTheme.label("LOBBY %s" % item.code, 8, UiTheme.GOLD), 80))
+		row.add_child(_fixed(UiTheme.label("%d/4 PLAYERS - WAITING" % item.players, 8, UiTheme.CHALK), 150))
+		var code: String = item.code
+		row.add_child(_small("JOIN", func(): _act({"t": "join", "code": code})))
 
 
 func _on_create() -> void:
@@ -164,6 +200,7 @@ func _act(msg: Dictionary) -> void:
 func _show_entry() -> void:
 	_entry.visible = true
 	_lobby_view.visible = false
+	_next_list = 0  # refresh the open-lobby list right away
 
 
 func _show_lobby() -> void:
@@ -179,7 +216,8 @@ func _show_lobby() -> void:
 	var head := _row(_lobby_view)
 	head.add_child(UiTheme.label("LOBBY CODE", 8, UiTheme.CHALK_DIM))
 	head.add_child(UiTheme.label(lobby.code, 32, UiTheme.GOLD, true))
-	head.add_child(UiTheme.label("SEND THIS CODE TO YOUR FRIENDS", 8, UiTheme.CHALK_DIM))
+	var public: bool = lobby.settings.get("public", true)
+	head.add_child(UiTheme.label("SEND THIS CODE TO YOUR FRIENDS" + (" - ANYONE CAN JOIN FROM THE LIST" if public else " - PRIVATE"), 8, UiTheme.CHALK_DIM))
 
 	var body := HBoxContainer.new()
 	body.add_theme_constant_override("separation", 16)
@@ -256,6 +294,13 @@ func _show_lobby() -> void:
 		it.custom_minimum_size = Vector2(40, 20)
 		it.pressed.connect(func(): net.send({"t": "settings", "items": not items_on}))
 		srow.add_child(it)
+		srow.add_child(_fixed(Control.new(), 8))
+		var is_public: bool = settings.get("public", true)
+		var pub := Button.new()
+		pub.text = "PUBLIC" if is_public else "PRIVATE"
+		pub.custom_minimum_size = Vector2(56, 20)
+		pub.pressed.connect(func(): net.send({"t": "settings", "public": not is_public}))
+		srow.add_child(pub)
 	else:
 		srow.add_child(UiTheme.label("MAP %s   ROUNDS %d   TURN TIMER %s   ITEMS %s" % [
 			Maps.ALL[settings.map].name.to_upper(), settings.rounds, _timer_text(settings.timer),
@@ -282,13 +327,17 @@ func _player_row(m: Dictionary, host: bool, four: bool) -> Control:
 	var color := UiTheme.CHALK if m.connected else UiTheme.CHALK_DIM.darkened(0.3)
 	var mark := "*" if m.pid == lobby.host_pid else " "
 	var who := "%s %s%s" % [mark, str(m.name).to_upper(), "  (YOU)" if m.pid == lobby.you_pid else ""]
-	row.add_child(_fixed(UiTheme.label(who, 8, color), 130))
-	var char_name: String = Characters.ALL[m.char].name.to_upper() if m.char != "" else "..."
+	row.add_child(_fixed(UiTheme.label(who, 8, color), 100))
+	var char_name: String = Characters.ALL[m.char].get("short", Characters.ALL[m.char].name).to_upper() if m.char != "" else "..."
 	row.add_child(_fixed(UiTheme.label(char_name, 8, UiTheme.GOLD if m.char != "" else UiTheme.CHALK_DIM), 64))
 	var state := "OFFLINE" if not m.connected else ("HOST" if m.pid == lobby.host_pid else ("READY" if m.ready else "NOT READY"))
-	row.add_child(_fixed(UiTheme.label(state, 8, UiTheme.HEAL if state == "READY" or state == "HOST" else UiTheme.CHALK_DIM), 64))
+	row.add_child(_fixed(UiTheme.label(state, 8, UiTheme.HEAL if state == "READY" or state == "HOST" else UiTheme.CHALK_DIM), 56))
+	if host and m.pid != lobby.you_pid:
+		row.add_child(_small("KICK", func(): net.send({"t": "kick", "pid": m.pid})))
+	elif host:
+		row.add_child(_fixed(Control.new(), 34))  # keeps the team buttons in line
 	if four:
-		var team_name := "TEAM %s" % ("BLUE" if m.team == 0 else "RED")
+		var team_name := "BLUE" if m.team == 0 else "RED"
 		if host:
 			var b := _small(team_name, func(): net.send({"t": "team", "pid": m.pid, "team": 1 - m.team}))
 			b.modulate = UiTheme.TEAM[m.team]
@@ -327,6 +376,12 @@ func _on_message(msg: Dictionary) -> void:
 			lobby = {}
 			_show_entry()
 			_set_status("", false)
+		"kicked":
+			lobby = {}
+			_show_entry()
+			_set_status("THE HOST REMOVED YOU FROM THE LOBBY", true)
+		"lobbies":
+			_show_open_lobbies(msg.list)
 		"error":
 			_set_status(ERRORS.get(msg.code, str(msg.code).to_upper()), true)
 

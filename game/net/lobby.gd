@@ -25,13 +25,16 @@ var code: String
 var host := ""  # token of the host
 ## [{"token", "pid", "name", "char", "team", "ready", "connected", "gone_since"}]
 var members: Array = []
-var settings := {"map": "classroom", "rounds": 3, "timer": 30, "items": true}
+## public: listed in the server's open-lobby list (otherwise code only)
+var settings := {"map": "classroom", "rounds": 3, "timer": 30, "items": true, "public": true}
 var battle: Battle = null
 var config := {}
 var fighter_of := {}  # token -> fighter id
 var ops: Array = []  # every op of the current match, for players who rejoin
 var turn_deadline := 0  # msec; 0 = no timer running
 var outbox: Array = []
+## Tokens the host kicked out; they can't come back to this lobby.
+var kicked := {}
 
 var _next_pid := 1
 var _turn_key := ""
@@ -57,6 +60,11 @@ func member(token: String) -> Dictionary:
 	return {}
 
 
+## Shown in the open-lobby list: public, waiting for players, not full.
+func is_open() -> bool:
+	return settings.public and not in_match() and members.size() < MAX_PLAYERS and connected_count() > 0
+
+
 func connected_count() -> int:
 	var n := 0
 	for m in members:
@@ -73,6 +81,8 @@ func add_member(token: String, name: String, now: int) -> String:
 	if not member(token).is_empty():
 		set_connected(token, true, now)
 		return ""
+	if kicked.has(token):
+		return "kicked"
 	if in_match():
 		return "in_match"
 	if members.size() >= MAX_PLAYERS:
@@ -173,7 +183,19 @@ func handle(token: String, msg: Dictionary, now: int) -> void:
 				settings.timer = msg.timer
 			if msg.get("items") is bool:
 				settings.items = msg.items
+			if msg.get("public") is bool:
+				settings.public = msg.public
 			_broadcast_state()
+		"kick":
+			if not is_host or in_match():
+				return
+			for other in members:
+				if other.pid == msg.get("pid") and other.token != token:
+					kicked[other.token] = true
+					_send(other.token, {"t": "kicked"})
+					remove_member(other.token, now)
+					print("lobby %s: host kicked a player" % code)
+					break
 		"team":
 			if not is_host or in_match():
 				return

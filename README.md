@@ -12,6 +12,9 @@ See [PLAN.md](PLAN.md) for the full design: characters, maps, rules and mileston
 - **M2 Local battle:** done. Two players on one device, touch or keyboard
 - **VS CPU:** done. 1v1, 1v1v1 or 2v2 (with a CPU teammate) against the
   computer player (`ai/bot.gd`), with EASY / NORMAL / HARD
+- **Open lobbies:** lobbies are public by default and show up in a list on
+  the join screen (just the code and player count); the host can make the
+  lobby private (code only) and kick players
 - **Items:** broken lockers can drop a book, pencils or a water bottle
   (puddle trap). ITEMS ON/OFF setting
 - **M3–M5 Online:** done. Lobbies with codes, 2–4 players (1v1, free-for-all,
