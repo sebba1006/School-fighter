@@ -104,3 +104,24 @@ func test_head_slam_dizzies() -> void:
 	eq(hp(b, 1), 91, "9 damage")
 	eq(b.move_budget, 2, "sebba dizzy on his turn")
 	done()
+
+
+func test_block_cooldown_skips_two_own_turns() -> void:
+	# real Snorre (Block has a 2-turn cooldown)
+	var b := Battle.new({"map": "classroom", "rounds": 1, "seed": 1, "first_team": 0,
+		"players": [{"char": "snorre", "team": 0}, {"char": "mike", "team": 1}]})
+	b.start_round()
+	var block_slot := 1
+	check(b.apply(0, {"type": "attack", "slot": block_slot}).ok, "block works")
+	end_turn(b, 0)
+	end_turn(b, 1)
+	eq(b.attack_blocked_reason(0, block_slot), "cooldown", "not on his next turn")
+	eq(b.turns_until_ready(b.fighters[0], block_slot), 2, "ready in 2 turns")
+	eq(b.apply(0, {"type": "attack", "slot": block_slot}).get("error"), "cooldown", "refused")
+	end_turn(b, 0)
+	end_turn(b, 1)
+	eq(b.turns_until_ready(b.fighters[0], block_slot), 1, "ready in 1 turn")
+	end_turn(b, 0)
+	end_turn(b, 1)
+	eq(b.attack_blocked_reason(0, block_slot), "", "ready again on the third turn")
+	done()

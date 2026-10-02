@@ -271,6 +271,8 @@ func _attack(f: Fighter, slot: int, dir, dist: int) -> Dictionary:
 		return _fail("bad_dir")
 	if f.no_attack_now:
 		return _fail("cannot_attack")
+	if turns_until_ready(f, slot) > 0:
+		return _fail("cooldown")
 	if is_super and f.meter < METER_MAX:
 		return _fail("super_not_ready")
 	var err := _validate(f, atk, dir, dist)
@@ -283,6 +285,9 @@ func _attack(f: Fighter, slot: int, dir, dist: int) -> Dictionary:
 		f.meter = 0
 	if slot == ITEM_SLOT:
 		f.item = ""
+	if atk.has("cooldown"):
+		# e.g. Block with cooldown 2: not on the next 2 own turns
+		f.ready_at[slot] = f.own_turns + atk.cooldown + 1
 	var ctx := {"attacker": f, "dir": dir, "super": is_super, "ranged": RANGED_TYPES.has(atk.type), "events": []}
 	ctx.events.append({"type": "attack", "fighter": f.id, "attack": atk.id, "super": is_super, "item": slot == ITEM_SLOT, "dir": dir, "dist": dist})
 	_resolve(ctx, atk, dist)
@@ -565,6 +570,7 @@ func _begin_turn() -> Array:
 			if phase == Phase.TURN:
 				events.append_array(_end_turn())
 			return events
+	f.own_turns += 1
 	move_budget = maxi(0, f.move - (1 if f.dizzy_next else 0))
 	for o in fighters:
 		o.dizzy_now = false
@@ -811,7 +817,7 @@ func state_hash() -> int:
 	var parts := [phase, round_number, turn_index, move_budget, path.size(), _rng.state, _last_team, _team_last, box, _turn_count, zone_rings]
 	for f in fighters:
 		parts.append_array([f.hp, f.pos.x, f.pos.y, f.meter, f.shield.get("kind", ""), f.shield.get("amount", 0),
-			f.dizzy_next, f.rage_turns, f.sugar_active, f.no_attack_next, f.no_attack_now, f.forfeited, f.item, f.guard])
+			f.dizzy_next, f.rage_turns, f.sugar_active, f.no_attack_next, f.no_attack_now, f.forfeited, f.item, f.guard, f.own_turns, f.ready_at])
 	var tiles := obstacles.keys()
 	tiles.sort()
 	for t in tiles:
@@ -1003,6 +1009,12 @@ func preview(fighter_id: int, slot: int, dir, dist := 0) -> Array:
 	return out
 
 
+## For attacks with a cooldown: how many more of the fighter's own turns until it
+## can be used again (0 = ready). Counts the current turn if it's theirs.
+func turns_until_ready(f: Fighter, slot: int) -> int:
+	return maxi(0, int(f.ready_at.get(slot, 0)) - f.own_turns)
+
+
 ## Short reason an attack can't be used right now, or "" if it can.
 func attack_blocked_reason(fighter_id: int, slot: int) -> String:
 	var f := fighters[fighter_id]
@@ -1010,6 +1022,8 @@ func attack_blocked_reason(fighter_id: int, slot: int) -> String:
 		return "cannot_attack"
 	if slot == ITEM_SLOT and f.item == "":
 		return "no_item"
+	if turns_until_ready(f, slot) > 0:
+		return "cooldown"
 	if slot == SUPER_SLOT and f.meter < METER_MAX:
 		return "super_not_ready"
 	if slot == 3 and f.def.attacks[3].type == "self_sugar" and f.sugar_active:

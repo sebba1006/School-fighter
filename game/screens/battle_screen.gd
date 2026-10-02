@@ -49,6 +49,7 @@ const ERRORS := {
 	"offline": "NOT CONNECTED - RECONNECTING...",
 	"no_item": "NO ITEM - BREAK A LOCKER TO FIND ONE",
 	"no_room": "NO ROOM TO SPILL THERE",
+	"cooldown": "RECHARGING - WAIT A FEW TURNS",
 }
 ## Quick-chat emotes (online). The server only relays the number.
 ## New ones go at the end: the number is what gets sent.
@@ -1635,6 +1636,9 @@ func _refresh() -> void:
 		var key := "Q" if slot == Battle.SUPER_SLOT else str(slot + 1)
 		attack_names[slot].text = "%s %s" % [key, atk.name.to_upper()]
 		attack_infos[slot].text = FighterInfo.attack_info(atk)
+		var wait := battle.turns_until_ready(bf, slot)
+		if wait > 0:
+			attack_infos[slot].text = "READY IN %d TURN%s" % [wait, "" if wait == 1 else "S"]
 		if slot == Battle.SUPER_SLOT:
 			super_bar.value = float(bf.meter) / Battle.METER_MAX
 			super_bar.queue_redraw()

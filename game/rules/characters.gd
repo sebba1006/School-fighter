@@ -46,8 +46,8 @@ const ALL := {
 		"hp": 105,
 		"move": 3,
 		"attacks": [
-			{"id": "stab", "name": "Stab", "type": "melee", "damage": 16},
-			{"id": "block", "name": "Block", "type": "self_block"},
+			{"id": "stab", "name": "Stab", "type": "melee", "damage": 15},
+			{"id": "block", "name": "Block", "type": "self_block", "cooldown": 2},
 			{"id": "dual_spin", "name": "Dual Spin", "type": "around", "damage": 12},
 			{"id": "sugar_rush", "name": "Sugar Rush", "type": "self_sugar", "multiplier": 1.3, "free": true},
 		],

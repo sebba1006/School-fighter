@@ -220,7 +220,12 @@ matchup from 10% to 90%). With all 7 maps (2100 matches):
 | Leon | 62% | 54% | Jab 14 → 13 |
 | Lucy & Charlie | 40% | 48% | Bite 11 → 10, Zoomies 7 → 8 |
 
-No more lopsided matchups: Mike vs Snorre went from 98% to 49%. The most
+No more lopsided matchups: Mike vs Snorre went from 98% to 49%.
+
+**Snorre nerf (playtest):** he still won too often in real games. Stab 16 → 15
+(about 20 with Sugar Rush instead of 21) and **Block now has a cooldown**: after
+using it he can't Block on his next 2 turns (the card shows "READY IN 2 TURNS").
+Any attack can get a `cooldown`. Sim: Snorre 52% → 47%. The most
 one-sided pair now is Lucy & Charlie vs Mike (76%).
 
 ---

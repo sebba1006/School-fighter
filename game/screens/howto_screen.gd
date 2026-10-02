@@ -14,7 +14,7 @@ const SECTIONS := [
 	["ATTACKING", "Tap an attack card on the right (the damage is written on it). Aim with the joystick or by tapping a tile, then press USE or tap the same tile again. Red tiles get hit. Purple tiles also make the enemy DIZZY."],
 	["SUPER", "The gold bar fills when you deal damage (fast) and when you take damage (slower). When it is full, your super card lights up."],
 	["DESKS AND LOCKERS", "They block walking and most throws. Push an enemy into one for +5 SLAM damage. Hit them enough and they break. Book Lob flies over them."],
-	["STATUS", "DIZZY: 1 less move next turn. RAGE (William): more damage for 1-2 turns. BLOCK (Snorre): stops the next hit. SUGAR RUSH (Snorre): 1.3x damage now, but no attack next turn."],
+	["STATUS", "DIZZY: 1 less move next turn. RAGE (William): more damage for 1-2 turns. BLOCK (Snorre): stops the next hit, then needs 2 turns to recharge. SUGAR RUSH (Snorre): 1.3x damage now, but no attack next turn."],
 	["ONLINE", "Create a lobby and send the 5-letter code to your friends (up to 4 players). 2 players = 1v1, 3 = free for all, 4 = 2v2 or 1v1v1v1 (the host chooses). The host picks the map, rounds and turn timer."],
 	["SANDBOX", "On Recess, standing in the sandbox hides you from throws and shots (slingshot, water gun, book lob, items). Punches, kicks, dashes and supers still hit."],
 	["ITEMS", "With ITEMS ON, a broken locker gives the fighter who broke it an item 30% of the time (hold 1 at a time). Use it from the card above the joystick (or key 5) instead of attacking. BOOK: throw, 12 dmg + push. PENCILS: throw 3 for 3 dmg each. WATER BOTTLE: spill a puddle next to you; an enemy who walks in slips: 5 dmg, stops walking, DIZZY."],
