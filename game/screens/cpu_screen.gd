@@ -64,13 +64,18 @@ func _ready() -> void:
 		b.pressed.connect(func(): mode = id; slot = mini(slot, _slot_count() - 1); _rebuild_slots(); _refresh())
 		_mode_buttons[id] = b
 		top.add_child(b)
-	top.add_child(_gap(16))
-	top.add_child(UiTheme.label("CPU", 8, UiTheme.CHALK_DIM))
+	# CPU difficulty (hidden in a boss fight: the CPUs there are always NORMAL)
+	var levels := HBoxContainer.new()
+	levels.add_theme_constant_override("separation", 4)
+	top.add_child(levels)
+	_normal_only.append(levels)
+	levels.add_child(_gap(12))
+	levels.add_child(UiTheme.label("CPU", 8, UiTheme.CHALK_DIM))
 	for id in LEVELS:
 		var b := _toggle(LEVELS[id])
 		b.pressed.connect(func(): level = id; _refresh())
 		_level_buttons[id] = b
-		top.add_child(b)
+		levels.add_child(b)
 
 	_slot_row = _row(col)
 	_slot_row.add_theme_constant_override("separation", 6)
@@ -84,7 +89,7 @@ func _ready() -> void:
 	_info.custom_minimum_size.y = 40
 	col.add_child(_info)
 
-	_boss_note = UiTheme.label("BOSS FIGHT: YOU + 2 CPU TEAMMATES VS THE PRINCIPAL (2250 HP)  -  EVERYONE GETS +250 HP", 8, UiTheme.HIT)
+	_boss_note = UiTheme.label("BOSS FIGHT: YOU + 2 CPU TEAMMATES VS THE PRINCIPAL (2250 HP)  -  EVERYONE GETS +250 HP  -  CPUS ON NORMAL", 8, UiTheme.HIT)
 	_boss_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(_boss_note)
 	var options := _row(col)
@@ -244,7 +249,7 @@ func _start() -> void:
 			c = pool.pop_back()
 		var p := {"char": c, "team": _team(i)}
 		if i > 0:
-			p["cpu"] = level
+			p["cpu"] = "normal" if mode == "boss" else level
 		players.append(p)
 	if mode == "boss":
 		start_requested.emit({"boss": true, "items": items, "players": players, "seed": randi()})
