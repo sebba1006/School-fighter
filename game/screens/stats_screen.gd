@@ -7,6 +7,7 @@ const Characters = preload("res://rules/characters.gd")
 const PixelArt = preload("res://art/pixel_art.gd")
 const UiTheme = preload("res://ui/ui_theme.gd")
 const Stats = preload("res://stats/stats.gd")
+const Achievements = preload("res://stats/achievements.gd")
 
 var _body: VBoxContainer
 var _confirm_reset := false
@@ -60,6 +61,9 @@ func _fill() -> void:
 	var played: int = Stats.get_value("online", "played")
 	var wins: int = Stats.get_value("online", "wins")
 	var losses: int = Stats.get_value("online", "losses")
+	var ach := Achievements.load_data()
+	_body.add_child(UiTheme.label("ACHIEVEMENTS: %d / %d UNLOCKED (SEE THE ACHIEVEMENTS SCREEN)" % [
+		Achievements.unlocked_count(ach), Achievements.LIST.size()], 8, UiTheme.GOLD))
 	_body.add_child(UiTheme.label("ONLINE", 8, UiTheme.GOLD))
 	var rate := "-" if played == 0 else "%d%%" % roundi(100.0 * wins / played)
 	_body.add_child(_line("MATCHES %d    WINS %d    LOSSES %d    WIN RATE %s" % [played, wins, losses, rate]))

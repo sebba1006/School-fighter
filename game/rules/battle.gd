@@ -227,7 +227,7 @@ func _move(f: Fighter, dir) -> Dictionary:
 func _slip(f: Fighter, tile: Vector2i, events: Array) -> void:
 	var owner: Fighter = fighters[puddles[tile]]
 	puddles.erase(tile)
-	events.append({"type": "slip", "fighter": f.id, "at": tile})
+	events.append({"type": "slip", "fighter": f.id, "at": tile, "by": owner.id})
 	var ctx := {"attacker": owner, "dir": f.facing, "super": false, "events": events}
 	_deal(owner, f, PUDDLE_DAMAGE, ctx)
 	path.clear()
