@@ -85,6 +85,8 @@ func feed(e: Dictionary) -> void:
 func _match_won(team: int) -> void:
 	var winner = null
 	for id in mine:
+		if battle.boss_mode and battle.fighters[id].team == Battle.BOSS_TEAM:
+			continue  # the Principal's side is never "yours"
 		if battle.fighters[id].team == team:
 			winner = battle.fighters[id]
 			break
