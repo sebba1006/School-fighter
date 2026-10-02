@@ -59,3 +59,43 @@ func test_dizzy_removes_one_move_for_one_turn() -> void:
 	end_turn(b, 1)
 	eq(b.move_budget, 3, "dizzy wears off")
 	done()
+
+
+func test_blue_area_stays_the_same_all_turn() -> void:
+	var b := make(open_rows(), [["sebba", 0], ["mike", 1]])
+	put(b, 0, 4, 2)
+	var before := b.turn_reachable()
+	step(b, 0, R)
+	step(b, 0, R)
+	var after := b.turn_reachable()
+	before.sort()
+	after.sort()
+	eq(after, before, "same tiles after walking")
+	done()
+
+
+func test_route_steps_back_when_needed() -> void:
+	var b := make(open_rows(), [["sebba", 0], ["mike", 1]])
+	put(b, 0, 4, 2)
+	step(b, 0, R)
+	step(b, 0, R)  # at (6, 2), 1 move left
+	var route := b.route_to(Vector2i(3, 2))  # 3 tiles left of the start: only reachable by going back
+	check(not route.is_empty(), "there is a way")
+	for t in route:
+		check(b.apply(0, {"type": "move", "dir": t - b.fighters[0].pos}).ok, "each step works")
+	eq(b.fighters[0].pos, Vector2i(3, 2), "arrived")
+	eq(b.path.size(), 1, "the steps back were undone, so it only used 1 move")
+	done()
+
+
+func test_route_back_to_the_start() -> void:
+	var b := make(open_rows(), [["sebba", 0], ["mike", 1]])
+	put(b, 0, 4, 2)
+	step(b, 0, R)
+	step(b, 0, D)
+	var route := b.route_to(Vector2i(4, 2))
+	for t in route:
+		b.apply(0, {"type": "move", "dir": t - b.fighters[0].pos})
+	eq(b.fighters[0].pos, Vector2i(4, 2), "back at the start")
+	check(b.path.is_empty(), "all steps undone")
+	done()

@@ -204,6 +204,25 @@ away, then a long-run-up Charge) and Snorre/Mike were around 20%. After:
 Known lopsided matchup: Mike beats Snorre almost every time in the
 simulation (Snorre can't close the distance). Watch for it in real games.
 
+### Balance pass 2 (after playtests)
+Playtesters found Leon's Jab (14) and Lucy & Charlie's Bite (11) too strong.
+The simulation was made fairer first: best-of-3, a mix of HP settings
+(original / +50 / +100) and a little randomness, because with short fights
+"how many hits to KO" decided whole matchups (one damage point could flip a
+matchup from 10% to 90%). With all 7 maps (2100 matches):
+
+| Fighter | Before | After | Changes |
+|---|---|---|---|
+| Sebba | 61% | 44% | Punch 14 → 13, Charge 7 → 6 (+2 per tile) |
+| William | 43% | 57% | Punch 12 → 11 (stronger mostly because others got nerfed) |
+| Snorre | 58% | 54% | HP 100 → 105, Dual Spin 10 → 12 |
+| Mike | 35% | 43% | Slingshot 12 → 11 |
+| Leon | 62% | 54% | Jab 14 → 13 |
+| Lucy & Charlie | 40% | 48% | Bite 11 → 10, Zoomies 7 → 8 |
+
+No more lopsided matchups: Mike vs Snorre went from 98% to 49%. The most
+one-sided pair now is Lucy & Charlie vs Mike (76%).
+
 ---
 
 ## 2c. Maps
@@ -330,11 +349,11 @@ A setting: **ITEMS ON/OFF** (host online, or on the local / VS CPU setup; on by 
 | Book | Thrown: first enemy in a line up to 4 tiles, 12 damage, push 1 |
 | Pencils | Thrown: first enemy in a line up to 4 tiles, 3 hits of 3 damage |
 | Water bottle | Spill a puddle on the tile in front of you. An enemy who walks into it slips: 5 damage, stops walking (no undo), Dizzy next turn. The puddle is then gone. Your own team walks over it safely. Pushes and dashes don't trigger it |
-| Shield (mystery box only) | Using it gives a random **melee guard** or **ranged guard**: that kind of damage is cut by **20–45%** (random) for **1–2 of your turns** (random) |
+| Melee Guard / Ranged Guard (mystery box only) | Two separate items; the box gives one at random and you see which. Using it cuts that kind of damage (melee, or throws/shots) by **20–45%** (random) for **1–2 of your turns** (random) |
 
 **Mystery box (Mom's idea):** with items on, a "?" box drops on a free tile
 near the middle every 4 turns (one at a time). Whoever walks onto it first gets
-the **Shield** (replacing any item). Steps taken before the pickup can't be undone.
+a **Melee Guard** or **Ranged Guard** (replacing any item). Steps taken before the pickup can't be undone.
 
 ---
 
@@ -450,6 +469,9 @@ animate the events.
 | M1 ✅ | Rules engine | Grid, move, 4 attacks, super, meter, knockback, obstacles, rounds. All unit-tested |
 | M2 ✅ | Local battle | Playable hot-seat 1v1 on one device with placeholder sprites + one test map |
 | ✅ | VS CPU | 1v1, 1v1v1 or 2v2 with a CPU teammate vs the computer player; you pick each CPU's fighter (or random) and EASY / NORMAL / HARD. In a 1-round sim, Hard beats Easy 97%, Hard beats Normal 66%, Normal beats Easy 92%. VS CPU matches don't count in stats |
+| ✅ | 1v1v1v1 | With 4 players the host can switch between 2V2 and FREE FOR ALL (everyone gets their own corner). VS CPU has a 1V1V1V1 mode too. A 1v1 or 1v1v1 never uses lobby teams |
+| ✅ | Shrinking map | Setting SHRINK ON/OFF (off by default). After 6 turns the outer ring becomes a red DETENTION zone; it grows a ring every 4 turns and stops one ring before the middle. Starting your turn in it costs 10 HP (can KO). The mystery box never lands in it. A red countdown at the top warns: "MAP STARTS SHRINKING IN 4 TURNS" / "DETENTION ZONE GROWS NEXT TURN!" |
+| ✅ | Victory screen | The match-end screen shows the MVP (most damage dealt) and Most KOs over the whole match |
 | ✅ | Extra HP setting | Host (and local / VS CPU setup) picks HP: ORIGINAL, +50, +100 or +150 for every fighter, for longer fights |
 | ✅ | Open lobbies | Public/private lobby (public by default). The join screen lists open lobbies (public, waiting, not full: code + player count only) with JOIN. Host can KICK; kicked players can't rejoin that lobby |
 | M3 ✅ | Online 1v1 | Headless server, nicknames, create/join by code, synced battle |

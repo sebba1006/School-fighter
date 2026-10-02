@@ -61,6 +61,8 @@ static func plan(b: Battle, noise := 0.0) -> Dictionary:
 						sc += 5.0
 					if slot == Battle.ITEM_SLOT and sc > 0.0:
 						sc += ITEM_BONUS
+					if sc > 0.0 and b.in_zone(p, 1):
+						sc -= Battle.ZONE_DAMAGE  # would start next turn in detention
 					best_any_attack = maxf(best_any_attack, sc)
 					if sc > best.score:
 						best = {"score": sc, "pos": p, "intents": [{"type": "attack", "slot": slot, "dir": dir, "dist": dist}]}
@@ -86,9 +88,9 @@ static func plan(b: Battle, noise := 0.0) -> Dictionary:
 				if best.score < 8.0 and _nearest(home, enemies) <= 3:
 					best = {"score": 8.0, "pos": home, "intents": [{"type": "attack", "slot": slot}]}
 
-	# Shield: put it up when enemies are close and there's no good hit.
+	# Melee / Ranged Guard: put it up when enemies are close and there's no good hit.
 	var hurt := f.hp * 2 < f.max_hp
-	if f.item == "shield" and (best.score < 14.0 or hurt) and best.score < KO_BONUS and _nearest(home, enemies) <= 4 \
+	if Battle.BOX_ITEMS.has(f.item) and (best.score < 14.0 or hurt) and best.score < KO_BONUS and _nearest(home, enemies) <= 4 \
 			and b.attack_blocked_reason(f.id, Battle.ITEM_SLOT) == "":
 		best = {"score": 14.0, "pos": home, "intents": [{"type": "attack", "slot": Battle.ITEM_SLOT}]}
 	# Mystery box in reach and nothing great to do: go get it.
@@ -188,9 +190,9 @@ static func _nearest(p: Vector2i, enemies: Array) -> int:
 static func _toward(b: Battle, enemies: Array) -> Vector2i:
 	var f := b.current()
 	var best := f.pos
-	var best_d := _nearest(f.pos, enemies)
+	var best_d := _nearest(f.pos, enemies) + (20 if b.in_zone(f.pos, 1) else 0)
 	for t in b.reachable_tiles():
-		var d := _nearest(t, enemies)
+		var d := _nearest(t, enemies) + (20 if b.in_zone(t, 1) else 0)
 		if d < best_d and d >= 1:
 			best = t
 			best_d = d

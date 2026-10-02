@@ -290,3 +290,23 @@ func test_bonus_hp_goes_into_the_match() -> void:
 	lobby.handle("a", {"t": "start"}, 0)
 	eq(lobby.battle.fighters[0].max_hp, lobby.battle.fighters[0].def.hp + 100, "+100 HP in the match")
 	done()
+
+
+func test_four_players_can_be_a_free_for_all() -> void:
+	var lobby := _lobby(["sebba", "william", "snorre", "mike"])
+	lobby.handle("a", {"t": "settings", "four": "ffa"}, 0)
+	for m in lobby.members:
+		m.team = 0  # teams don't matter in a free-for-all
+	lobby.handle("a", {"t": "start"}, 0)
+	check(lobby.in_match(), "started")
+	eq(lobby.battle.teams.size(), 4, "four teams of one")
+	done()
+
+
+func test_one_v_one_ignores_lobby_teams() -> void:
+	var lobby := _lobby(["sebba", "mike"])
+	for m in lobby.members:
+		m.team = 0
+	lobby.handle("a", {"t": "start"}, 0)
+	eq(lobby.battle.teams.size(), 2, "still two sides")
+	done()

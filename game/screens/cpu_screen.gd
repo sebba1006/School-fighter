@@ -1,5 +1,5 @@
 extends Control
-## Fight against the computer: pick the mode (1v1, 1v1v1 or 2v2 with a CPU
+## Fight against the computer: pick the mode (1v1, 1v1v1, 1v1v1v1 or 2v2 with a CPU
 ## teammate), the CPU difficulty, every fighter, the map and rounds.
 ## You are always player 1. Tap a slot (YOU / CPU) to choose its fighter below.
 
@@ -11,10 +11,11 @@ const Maps = preload("res://rules/maps.gd")
 const PixelArt = preload("res://art/pixel_art.gd")
 const UiTheme = preload("res://ui/ui_theme.gd")
 const FighterInfo = preload("res://ui/fighter_info.gd")
+const FighterPicker = preload("res://ui/fighter_picker.gd")
 const Battle = preload("res://rules/battle.gd")
 const Audio = preload("res://audio/audio.gd")
 
-const MODES := {"1v1": "1V1", "ffa": "1V1V1", "2v2": "2V2"}
+const MODES := {"1v1": "1V1", "ffa": "1V1V1", "ffa4": "1V1V1V1", "2v2": "2V2"}
 const LEVELS := {"easy": "EASY", "normal": "NORMAL", "hard": "HARD"}
 const RANDOM := "random"
 
@@ -26,11 +27,12 @@ var map_id := "classroom"
 var rounds := 3
 var items := true
 var bonus_hp := 0
+var shrink := false
 
 var _mode_buttons := {}
 var _level_buttons := {}
 var _slot_row: HBoxContainer
-var _char_buttons := {}
+var _picker: FighterPicker
 var _map_buttons := {}
 var _rounds_label: Label
 var _info: Label
@@ -71,19 +73,9 @@ func _ready() -> void:
 	_slot_row = _row(col)
 	_slot_row.add_theme_constant_override("separation", 6)
 
-	var chars := _row(col)
-	chars.add_theme_constant_override("separation", 4)
-	for id in Characters.ALL.keys() + [RANDOM]:
-		var name: String = "RANDOM" if id == RANDOM else Characters.ALL[id].name.to_upper().replace(" & ", " &\n")
-		var b := _toggle(name)
-		if id != RANDOM:
-			b.icon = PixelArt.character(id)
-			b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
-		b.custom_minimum_size = Vector2(52, 72)
-		b.pressed.connect(func(): _pick(id))
-		_char_buttons[id] = b
-		chars.add_child(b)
+	_picker = FighterPicker.new(true)
+	_picker.picked.connect(_pick)
+	col.add_child(_picker)
 
 	_info = UiTheme.label("", 8, UiTheme.CHALK_DIM)
 	_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -121,6 +113,13 @@ func _ready() -> void:
 		bonus_hp = choices[(choices.find(bonus_hp) + 1) % choices.size()]
 		hpb.text = "HP: ORIGINAL" if bonus_hp == 0 else "HP: +%d" % bonus_hp)
 	options.add_child(hpb)
+	var shb := Button.new()
+	shb.custom_minimum_size = Vector2(76, 20)
+	shb.text = "SHRINK OFF"
+	shb.pressed.connect(func():
+		shrink = not shrink
+		shb.text = "SHRINK ON" if shrink else "SHRINK OFF")
+	options.add_child(shb)
 
 	var buttons := _row(col)
 	buttons.add_theme_constant_override("separation", 8)
@@ -142,7 +141,7 @@ func _ready() -> void:
 
 
 func _slot_count() -> int:
-	return {"1v1": 2, "ffa": 3, "2v2": 4}[mode]
+	return {"1v1": 2, "ffa": 3, "ffa4": 4, "2v2": 4}[mode]
 
 
 ## Team of each slot: 2v2 = you + CPU teammate vs two CPUs; otherwise everyone alone.
@@ -200,11 +199,7 @@ func _refresh() -> void:
 		b.set_pressed_no_signal(i == slot)
 		b.add_theme_color_override("font_color", UiTheme.TEAM[_team(i)])
 		b.add_theme_color_override("font_pressed_color", UiTheme.TEAM[_team(i)])
-	var taken := _taken(slot)
-	for id in _char_buttons:
-		var b: Button = _char_buttons[id]
-		b.set_pressed_no_signal(picks[slot] == id)
-		b.disabled = taken.has(id)
+	_picker.show_state(picks[slot], _taken(slot))
 	var shown: String = picks[slot]
 	_info.text = "A RANDOM FIGHTER NOBODY ELSE PICKED" if shown == RANDOM else FighterInfo.summary(shown)
 	for id in _map_buttons:
@@ -226,7 +221,7 @@ func _start() -> void:
 		if i > 0:
 			p["cpu"] = level
 		players.append(p)
-	start_requested.emit({"map": map_id, "rounds": rounds, "items": items, "bonus_hp": bonus_hp, "players": players, "seed": randi()})
+	start_requested.emit({"map": map_id, "rounds": rounds, "items": items, "bonus_hp": bonus_hp, "shrink": shrink, "players": players, "seed": randi()})
 
 
 func _row(parent: Control) -> HBoxContainer:

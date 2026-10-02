@@ -350,11 +350,16 @@ static func item_icon(id: String) -> Texture2D:
 					p.rect(13, y, 13, y + 1, "pencilWood")
 					p.px(14, y, "pupil")
 					p.rect(2, y, 3, y + 1, "eraser")
-			"shield":
+			"melee_guard":  # shield with a red fist mark
 				p.ell(8, 7, 6, 6.5, "steel")
 				p.rect(2, 2, 13, 7, "steel")
-				p.rect(7, 3, 8, 12, "teeBlue")
-				p.rect(4, 6, 11, 7, "teeBlue")
+				p.rect(5, 5, 10, 9, "red")
+				p.rect(5, 4, 9, 4, "red")
+			"ranged_guard":  # shield with a blue target
+				p.ell(8, 7, 6, 6.5, "steel")
+				p.rect(2, 2, 13, 7, "steel")
+				p.ell(8, 7, 3.5, 3.5, "teeBlue")
+				p.ell(8, 7, 1.5, 1.5, "teeWhite")
 			"water":
 				p.rect(5, 4, 10, 14, "glass")
 				p.rect(6, 2, 9, 3, "glass")

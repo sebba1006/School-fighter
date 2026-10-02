@@ -27,10 +27,13 @@ var sugar_active := false
 var sugar_multiplier := 1.0
 var no_attack_next := false
 var no_attack_now := false
-## Shield item in use: {"kind": "melee" | "ranged", "pct": 20-45, "turns": n} or {}.
+## Melee / Ranged Guard in use: {"kind": "melee" | "ranged", "pct": 20-45, "turns": n} or {}.
 var guard := {}
 ## Item held ("" = none; see Battle.ITEMS). Lost at the end of the round.
 var item := ""
+## For the victory screen: damage dealt and KOs over the whole match.
+var match_damage := 0
+var match_kos := 0
 ## Left the match (disconnected too long). Stays knocked out for the rest of it.
 var forfeited := false
 

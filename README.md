@@ -12,11 +12,13 @@ See [PLAN.md](PLAN.md) for the full design: characters, maps, rules and mileston
 - **M2 Local battle:** done. Two players on one device, touch or keyboard
 - **VS CPU:** done. 1v1, 1v1v1 or 2v2 (with a CPU teammate) against the
   computer player (`ai/bot.gd`), with EASY / NORMAL / HARD
+- **Shrinking map:** optional detention zone that closes in from the edges
+- **Victory screen:** MVP (most damage) and most KOs
 - **Open lobbies:** lobbies are public by default and show up in a list on
   the join screen (just the code and player count); the host can make the
   lobby private (code only) and kick players
 - **Items:** broken lockers can drop a book, pencils or a water bottle
-  (puddle trap), and a mystery box drops a Shield (melee or ranged guard).
+  (puddle trap), and a mystery box drops a Melee Guard or Ranged Guard.
   ITEMS ON/OFF setting
 - **M3–M5 Online:** done. Lobbies with codes, 2–4 players (1v1, free-for-all,
   2v2), host settings, turn timer, reconnecting, back to lobby
@@ -30,7 +32,7 @@ game/                 Godot 4 project (open game/project.godot)
   screens/            setup screen, battle screen, fighter sprites
   ui/                 theme and on-screen joystick
   art/pixel_art.gd    all pixel art, drawn from code
-  fonts/              Silkscreen + Pixelify Sans (SIL Open Font License)
+  fonts/              Silkscreen pixel font (SIL Open Font License)
   tools/              dev tools (screenshots)
   net/                online play
     server.gd         WebSocket server: players, lobby codes

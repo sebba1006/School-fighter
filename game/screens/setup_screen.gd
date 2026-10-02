@@ -10,6 +10,7 @@ const Maps = preload("res://rules/maps.gd")
 const PixelArt = preload("res://art/pixel_art.gd")
 const UiTheme = preload("res://ui/ui_theme.gd")
 const FighterInfo = preload("res://ui/fighter_info.gd")
+const FighterPicker = preload("res://ui/fighter_picker.gd")
 const Battle = preload("res://rules/battle.gd")
 
 var picks := ["sebba", "william"]
@@ -17,8 +18,11 @@ var map_id := "classroom"
 var rounds := 3
 var items := true
 var bonus_hp := 0
+var shrink := false
 
-var _char_buttons := [{}, {}]  # per player: char_id -> Button
+var player := 0  # whose fighter the row below is picking
+var _player_tabs: Array[Button] = []
+var _picker: FighterPicker
 var _map_buttons := {}
 var _rounds_label: Label
 var _info: Label
@@ -46,12 +50,28 @@ func _ready() -> void:
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(sub)
 
-	var players := HBoxContainer.new()
-	players.alignment = BoxContainer.ALIGNMENT_CENTER
-	players.add_theme_constant_override("separation", 24)
-	col.add_child(players)
+	# tap PLAYER 1 / PLAYER 2, then pick that player's fighter in the row below
+	var tabs := HBoxContainer.new()
+	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
+	tabs.add_theme_constant_override("separation", 8)
+	col.add_child(tabs)
 	for p in 2:
-		players.add_child(_player_picker(p))
+		var t := _toggle("")
+		t.custom_minimum_size = Vector2(150, 24)
+		t.add_theme_color_override("font_color", UiTheme.TEAM[p])
+		t.add_theme_color_override("font_pressed_color", UiTheme.TEAM[p])
+		t.pressed.connect(func(): player = p; _info.text = FighterInfo.summary(picks[p]); _refresh())
+		_player_tabs.append(t)
+		tabs.add_child(t)
+	_picker = FighterPicker.new()
+	_picker.picked.connect(func(id):
+		picks[player] = id
+		_info.text = FighterInfo.summary(id)
+		# after player 1 picks, hand the row to player 2
+		if player == 0:
+			player = 1
+		_refresh())
+	col.add_child(_picker)
 
 	_info = UiTheme.label("", 8, UiTheme.CHALK_DIM)
 	_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -93,6 +113,13 @@ func _ready() -> void:
 	options.add_child(gap)
 	options.add_child(_items_toggle())
 	options.add_child(_bonus_button())
+	var shb := Button.new()
+	shb.custom_minimum_size = Vector2(76, 20)
+	shb.text = "SHRINK OFF"
+	shb.pressed.connect(func():
+		shrink = not shrink
+		shb.text = "SHRINK ON" if shrink else "SHRINK OFF")
+	options.add_child(shb)
 
 	var start := Button.new()
 	start.text = "START FIGHT"
@@ -113,25 +140,6 @@ func _ready() -> void:
 
 	_info.text = FighterInfo.summary(picks[0])
 	_refresh()
-
-
-func _player_picker(p: int) -> Control:
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 4)
-	box.add_child(UiTheme.label("PLAYER %d" % (p + 1), 8, UiTheme.TEAM[p]))
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 4)
-	box.add_child(row)
-	for id in Characters.ALL:
-		var b := _toggle(Characters.ALL[id].name.to_upper().replace(" & ", " &\n"))
-		b.icon = PixelArt.character(id)
-		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
-		b.custom_minimum_size = Vector2(46, 76)
-		b.pressed.connect(func(): picks[p] = id; _info.text = FighterInfo.summary(id); _refresh())
-		_char_buttons[p][id] = b
-		row.add_child(b)
-	return box
 
 
 ## Extra HP for everyone (longer fights): ORIGINAL, +50, +100, +150.
@@ -166,11 +174,9 @@ func _toggle(text: String) -> Button:
 
 func _refresh() -> void:
 	for p in 2:
-		var other: String = picks[1 - p]
-		for id in _char_buttons[p]:
-			var b: Button = _char_buttons[p][id]
-			b.set_pressed_no_signal(picks[p] == id)
-			b.disabled = id == other
+		_player_tabs[p].text = "PLAYER %d: %s" % [p + 1, Characters.ALL[picks[p]].get("short", Characters.ALL[picks[p]].name).to_upper()]
+		_player_tabs[p].set_pressed_no_signal(p == player)
+	_picker.show_state(picks[player], [picks[1 - player]])
 	for id in _map_buttons:
 		_map_buttons[id].set_pressed_no_signal(id == map_id)
 	_rounds_label.text = str(rounds)
@@ -180,7 +186,7 @@ func _start() -> void:
 	start_requested.emit({
 		"map": map_id,
 		"rounds": rounds,
-		"items": items, "bonus_hp": bonus_hp,
+		"items": items, "bonus_hp": bonus_hp, "shrink": shrink,
 		"players": [{"char": picks[0], "team": 0}, {"char": picks[1], "team": 1}],
 		"seed": randi(),
 	})

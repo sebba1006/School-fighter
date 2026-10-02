@@ -26,10 +26,14 @@ static func label_font() -> Font:
 	return _label_font
 
 
-## Pixelify Sans: headings, crisp at 16px and multiples.
+## Headings use the same Silkscreen font (the old heading font drew its H
+## with the crossbar at the top), with a little extra spacing so big text reads well.
 static func title_font() -> Font:
 	if _title_font == null:
-		_title_font = _pixel_font("res://fonts/PixelifySans.ttf")
+		var v := FontVariation.new()
+		v.base_font = label_font()
+		v.spacing_glyph = 1
+		_title_font = v
 	return _title_font
 
 

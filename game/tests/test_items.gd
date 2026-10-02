@@ -162,14 +162,14 @@ func test_mystery_box_appears_only_with_items_on() -> void:
 	done()
 
 
-func test_walking_onto_the_box_gives_a_shield() -> void:
+func test_walking_onto_the_box_gives_a_guard() -> void:
 	var b := make(open_rows(), [["sebba", 0], ["mike", 1]])
 	put(b, 0, 2, 2)
 	b.box = Vector2i(4, 2)
 	step(b, 0, R)
 	var r := step(b, 0, R)
 	check(has_event(r, "item"), "picked up")
-	eq(b.fighters[0].item, "shield", "holding a shield")
+	check(Battle.BOX_ITEMS.has(b.fighters[0].item), "holding a melee or ranged guard")
 	eq(b.box, Battle.NO_BOX, "box gone")
 	eq(b.apply(0, {"type": "undo"}).get("error"), "nothing_to_undo", "can't walk back off the box")
 	check(step(b, 0, R).ok, "the last move is still there")
@@ -180,8 +180,8 @@ func test_melee_guard_cuts_melee_damage_only() -> void:
 	var b := make(open_rows(), [["mike", 0], ["sebba", 1]])
 	put(b, 0, 3, 2)
 	put(b, 1, 4, 2)
-	b.fighters[0].item = "shield"
-	b.forced_rolls.assign([0, 50, 2])  # melee guard, 50% (above the max is fine for the test), 2 turns
+	b.fighters[0].item = "melee_guard"
+	b.forced_rolls.assign([50, 2])  # 50% (above the max is fine for the test), 2 turns
 	var r := attack(b, 0, Battle.ITEM_SLOT)
 	check(r.ok, "shield used")
 	eq(b.fighters[0].guard.kind, "melee", "melee guard")
@@ -197,8 +197,8 @@ func test_ranged_guard_ignores_melee_and_wears_off() -> void:
 	var b := make(open_rows(), [["mike", 0], ["sebba", 1]])
 	put(b, 0, 3, 2)
 	put(b, 1, 4, 2)
-	b.fighters[0].item = "shield"
-	b.forced_rolls.assign([1, 40, 1])  # ranged guard, 40%, 1 turn
+	b.fighters[0].item = "ranged_guard"
+	b.forced_rolls.assign([40, 1])  # 40%, 1 turn
 	attack(b, 0, Battle.ITEM_SLOT)
 	var punch: int = b.fighters[1].def.attacks[0].damage
 	var before := hp(b, 0)

@@ -65,6 +65,7 @@ var battle: Battle
 var board := Node2D.new()
 var floor_layer := FloorLayer.new()
 var highlight := HighlightLayer.new()
+var zone_layer := ZoneLayer.new()  # the shrinking map's detention zone
 var obstacle_nodes := {}  # Vector2i -> Sprite2D
 var puddle_nodes := {}  # Vector2i -> Sprite2D
 var box_node: Sprite2D = null  # the mystery box, when there is one
@@ -78,6 +79,7 @@ var aim_dist := 2
 
 var panels: Array = []  # per fighter: {"hp": Bar, "meter": Bar, "hp_text": Label, "status": Label}
 var round_label: Label
+var shrink_label: Label  # "MAP STARTS SHRINKING IN 4 TURNS"
 var hint_label: Label
 var attack_buttons: Array[Button] = []
 var attack_names: Array[Label] = []
@@ -193,7 +195,9 @@ func _ready() -> void:
 	add_child(board)
 	floor_layer.z_index = -1000
 	highlight.z_index = -900
+	zone_layer.z_index = -950
 	board.add_child(floor_layer)
+	board.add_child(zone_layer)
 	board.add_child(highlight)
 	_build_hud()
 	get_viewport().size_changed.connect(_layout)
@@ -225,6 +229,8 @@ func _build_board() -> void:
 	floor_layer.style = battle.map_def.get("floor", "lino")
 	floor_layer.sand = battle.sand
 	floor_layer.queue_redraw()
+	zone_layer.battle = battle
+	zone_layer.queue_redraw()
 	for t in battle.obstacles:
 		var s := Sprite2D.new()
 		s.texture = PixelArt.obstacle(battle.obstacles[t].type, false, t.y == 0)
@@ -282,6 +288,12 @@ func _build_hud() -> void:
 	round_label = UiTheme.label("", 8, UiTheme.CHALK_DIM)
 	round_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(round_label)
+	shrink_label = UiTheme.label("", 8, UiTheme.HIT)
+	shrink_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	shrink_label.add_theme_constant_override("outline_size", 3)
+	shrink_label.add_theme_color_override("font_outline_color", Color("17121c"))
+	shrink_label.z_index = 4000
+	add_child(shrink_label)
 	leave_button = _top_button("LEAVE", _ask_leave)
 	sound_button = _top_button("SOUND ON" if Audio.is_enabled() else "SOUND OFF", _toggle_sound)
 	if online():
@@ -522,6 +534,8 @@ func _layout() -> void:
 		box.position = Vector2(floorf(x), 3)
 	round_label.position = Vector2(floorf(vs.x / 2.0 - 60), 2)
 	round_label.size = Vector2(120, 10)
+	shrink_label.position = Vector2(floorf(vs.x / 2.0 - 120), TOP_H + 3)
+	shrink_label.size = Vector2(240, 10)
 	# small buttons in a centred row under the round label
 	var tops := [leave_button, chat_button, sound_button] if chat_button != null else [leave_button, sound_button]
 	var row_w := 0.0
@@ -600,7 +614,7 @@ func _on_tile_tapped(t: Vector2i) -> void:
 	if mode == "move":
 		if t == f.pos:
 			return
-		var path := battle.path_to(t)
+		var path := battle.route_to(t)  # may step back first, then walk
 		if path.is_empty():
 			_error("blocked")
 			return
@@ -813,6 +827,8 @@ func _play(events: Array) -> void:
 				if _last_attacker == my_fighter and e.fighter != my_fighter:
 					_my_damage += e.amount - e.absorbed
 				var text := "-%d" % (e.amount - e.absorbed)
+				if e.get("zone", false):
+					text += " DETENTION"
 				if e.absorbed > 0:
 					text += " (SHIELD %d)" % e.absorbed
 				if e.get("guarded", 0) > 0:
@@ -849,13 +865,24 @@ func _play(events: Array) -> void:
 					tw.tween_property(s, "modulate:a", 0.0, 0.25)
 					tw.tween_property(s, "position:y", s.position.y + 6, 0.25)
 					tw.chain().tween_callback(s.queue_free)
+			"shrink":
+				Audio.play("slam")
+				zone_layer.queue_redraw()
+				var mid := Vector2(battle.width * TILE / 2.0, battle.height * TILE / 2.0 - 10)
+				_popup_at(mid, "DETENTION ZONE GROWS!", UiTheme.HIT)
+				await _shake(3)
+				await get_tree().create_timer(0.3).timeout
+			"box_gone":
+				if box_node != null:
+					box_node.queue_free()
+					box_node = null
 			"box":
 				Audio.play("turn")
 				_add_box(e.at, true)
 				_popup_at(_tile_center(e.at) + Vector2(0, -20), "MYSTERY BOX!", UiTheme.GOLD)
 				await get_tree().create_timer(0.35).timeout
 			"item":
-				if e.item == "shield" and box_node != null:
+				if Battle.BOX_ITEMS.has(e.item) and box_node != null:
 					box_node.queue_free()
 					box_node = null
 				Audio.play("pickup")
@@ -1289,6 +1316,11 @@ func _show_overlay(e: Dictionary, is_match: bool) -> void:
 	var sc := UiTheme.label("SCORE  " + " - ".join(score), 8, UiTheme.CHALK)
 	sc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(sc)
+	if is_match:
+		for line in _mvp_lines():
+			var l := UiTheme.label(line, 8, UiTheme.GOLD)
+			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			col.add_child(l)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 8)
@@ -1325,8 +1357,26 @@ func _show_overlay(e: Dictionary, is_match: bool) -> void:
 	add_child(overlay)
 	overlay.custom_minimum_size = Vector2(300, 80)
 	var vs := get_viewport_rect().size
-	overlay.position = Vector2(floorf((vs.x - 300) / 2.0), floorf((vs.y - 80) / 2.0))
+	overlay.size = overlay.get_combined_minimum_size()
+	overlay.position = Vector2(floorf((vs.x - overlay.size.x) / 2.0), floorf((vs.y - overlay.size.y) / 2.0))
 	_refresh()
+
+
+## "MVP (MOST DAMAGE): SEBBA - 87" and "MOST KOS: MIKE - 3" for the match.
+func _mvp_lines() -> Array:
+	var top_dmg = null
+	var top_kos = null
+	for f in battle.fighters:
+		if top_dmg == null or f.match_damage > top_dmg.match_damage:
+			top_dmg = f
+		if top_kos == null or f.match_kos > top_kos.match_kos:
+			top_kos = f
+	var out := []
+	if top_dmg != null and top_dmg.match_damage > 0:
+		out.append("MVP (MOST DAMAGE): %s - %d" % [_name_of(top_dmg), top_dmg.match_damage])
+	if top_kos != null and top_kos.match_kos > 0:
+		out.append("MOST KOS: %s - %d" % [_name_of(top_kos), top_kos.match_kos])
+	return out
 
 
 func _overlay_button(text: String, callback: Callable) -> Button:
@@ -1454,6 +1504,15 @@ func _process(_delta: float) -> void:
 			_send({"type": "move", "dir": next - battle.current().pos})
 
 
+func _update_shrink_label() -> void:
+	var n := battle.turns_until_shrink()
+	shrink_label.visible = n > 0
+	if n <= 0:
+		return
+	var what := "MAP STARTS SHRINKING" if battle.zone_rings == 0 else "DETENTION ZONE GROWS"
+	shrink_label.text = "%s NEXT TURN!" % what if n == 1 else "%s IN %d TURNS" % [what, n]
+
+
 func _update_round_label() -> void:
 	var rtxt := "ROUND %d OF %d" % [battle.round_number, battle.rounds_total]
 	if battle.is_sudden_death():
@@ -1489,6 +1548,7 @@ func _refresh() -> void:
 		fighter_views[f.id].active = true
 
 	_update_round_label()
+	_update_shrink_label()
 	sound_button.text = "SOUND ON" if Audio.is_enabled() else "SOUND OFF"
 	sound_button.size = sound_button.get_combined_minimum_size()
 
@@ -1536,8 +1596,12 @@ func _refresh() -> void:
 	var tiles := []
 	if in_turn and not busy:
 		if mode == "move":
-			for t in battle.reachable_tiles():
-				tiles.append({"pos": t, "kind": "reach"})
+			# the same blue area all turn: everywhere reachable from where the turn started
+			for t in battle.turn_reachable():
+				if t != f.pos:
+					tiles.append({"pos": t, "kind": "reach"})
+			if f.pos != battle.turn_start_pos:
+				tiles.append({"pos": battle.turn_start_pos, "kind": "reach"})
 		elif mode == "aim":
 			tiles = battle.preview(f.id, aim_slot, aim_dir, aim_dist)
 	if battle.phase == Battle.Phase.TURN and not busy:
@@ -1627,6 +1691,25 @@ func _error_text(text: String) -> void:
 
 
 # ---------------------------------------------------------------- drawing helpers
+
+## Red striped tiles where the detention zone is (shrinking map).
+class ZoneLayer extends Node2D:
+	var battle = null
+
+	func _draw() -> void:
+		if battle == null or battle.zone_rings <= 0:
+			return
+		var fill := Color(0.85, 0.2, 0.25, 0.28)
+		var stripe := Color(0.85, 0.2, 0.25, 0.45)
+		for y in battle.height:
+			for x in battle.width:
+				if not battle.in_zone(Vector2i(x, y)):
+					continue
+				var p := Vector2(x * 32, y * 32)
+				draw_rect(Rect2(p, Vector2(32, 32)), fill)
+				for k in range(-32, 32, 8):  # diagonal warning stripes
+					draw_line(p + Vector2(maxf(k, 0), maxf(-k, 0)), p + Vector2(minf(32, 32 + k), minf(32, 32 - k)), stripe, 2.0)
+
 
 class FloorLayer extends Node2D:
 	var size := Vector2i.ZERO

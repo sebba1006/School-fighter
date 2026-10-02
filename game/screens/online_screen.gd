@@ -11,6 +11,7 @@ const PixelArt = preload("res://art/pixel_art.gd")
 const UiTheme = preload("res://ui/ui_theme.gd")
 const Config = preload("res://net/config.gd")
 const FighterInfo = preload("res://ui/fighter_info.gd")
+const FighterPicker = preload("res://ui/fighter_picker.gd")
 const Battle = preload("res://rules/battle.gd")
 
 const TIMERS := [15, 30, 45, 60, 0]
@@ -66,7 +67,7 @@ func _ready() -> void:
 	_entry = _build_entry()
 	col.add_child(_entry)
 	_lobby_view = VBoxContainer.new()
-	_lobby_view.add_theme_constant_override("separation", 8)
+	_lobby_view.add_theme_constant_override("separation", 6)
 	_lobby_view.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	col.add_child(_lobby_view)
 	_status = UiTheme.label("", 8, UiTheme.CHALK_DIM)
@@ -212,7 +213,9 @@ func _show_lobby() -> void:
 	var me := _me()
 	var host: bool = lobby.host_pid == lobby.you_pid
 	var members: Array = lobby.members
-	var four := members.size() == 4
+	# 4 players: 2v2 (teams) or everyone for themselves, the host picks
+	var four_ffa: bool = lobby.settings.get("four", "2v2") == "ffa"
+	var four := members.size() == 4 and not four_ffa
 
 	var head := _row(_lobby_view)
 	head.add_child(UiTheme.label("LOBBY CODE", 8, UiTheme.CHALK_DIM))
@@ -234,33 +237,30 @@ func _show_lobby() -> void:
 		list.add_child(_player_row(m, host, four))
 	if members.size() == 3:
 		list.add_child(UiTheme.label("3 PLAYERS = FREE FOR ALL", 8, UiTheme.CHALK_DIM))
-	elif four:
-		list.add_child(UiTheme.label("4 PLAYERS = 2V2" + (" - TAP A TEAM TO SWAP" if host else ""), 8, UiTheme.CHALK_DIM))
+	if members.size() == 4 or (host and members.size() >= 2):
+		var mrow := HBoxContainer.new()
+		mrow.add_theme_constant_override("separation", 6)
+		var mode_text := "4 PLAYERS = FREE FOR ALL" if four_ffa else ("4 PLAYERS = 2V2" + (" - TAP A TEAM" if host and four else ""))
+		mrow.add_child(UiTheme.label(mode_text, 8, UiTheme.CHALK_DIM))
+		if host:
+			mrow.add_child(_small("SWITCH TO 2V2" if four_ffa else "SWITCH TO 1V1V1V1",
+				func(): net.send({"t": "settings", "four": "2v2" if four_ffa else "ffa"})))
+		list.add_child(mrow)
 
-	var pick_box := VBoxContainer.new()
-	pick_box.add_theme_constant_override("separation", 4)
-	body.add_child(pick_box)
-	pick_box.add_child(UiTheme.label("YOUR FIGHTER", 8, UiTheme.CHALK_DIM))
-	var picks := HBoxContainer.new()
-	picks.add_theme_constant_override("separation", 4)
-	pick_box.add_child(picks)
-	for id in Characters.ALL:
-		var b := Button.new()
-		b.text = Characters.ALL[id].name.to_upper().replace(" & ", " &\n")
-		b.icon = PixelArt.character(id)
-		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
-		b.custom_minimum_size = Vector2(46, 76)
-		b.toggle_mode = true
-		b.set_pressed_no_signal(me.get("char") == id)
-		b.disabled = members.any(func(m): return m.char == id and m.pid != lobby.you_pid)
-		b.pressed.connect(func(): net.send({"t": "pick", "char": id}))
-		picks.add_child(b)
+	# right of the player list: what your fighter does
+	var info := UiTheme.label(FighterInfo.summary(me.char) if me.get("char", "") != "" else "PICK YOUR FIGHTER BELOW", 8, UiTheme.CHALK_DIM)
+	info.custom_minimum_size.x = 280
+	body.add_child(info)
 
-	if me.get("char", "") != "":
-		var info := UiTheme.label(FighterInfo.summary(me.char), 8, UiTheme.CHALK_DIM)
-		info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_lobby_view.add_child(info)
+	# your fighter: one full-width row (room for more fighters later)
+	var picker := FighterPicker.new()
+	var taken := []
+	for m in members:
+		if m.char != "" and m.pid != lobby.you_pid:
+			taken.append(m.char)
+	picker.show_state(me.get("char", ""), taken)
+	picker.picked.connect(func(id): net.send({"t": "pick", "char": id}))
+	_lobby_view.add_child(picker)
 
 	var settings: Dictionary = lobby.settings
 	var srow := _row(_lobby_view)
@@ -306,6 +306,13 @@ func _show_lobby() -> void:
 			net.send({"t": "settings", "bonus_hp": choices[(choices.find(bonus) + 1) % choices.size()]}))
 		srow.add_child(hpb)
 		srow.add_child(_fixed(Control.new(), 8))
+		var shrink: bool = settings.get("shrink", false)
+		var shb := Button.new()
+		shb.text = "SHRINK ON" if shrink else "SHRINK OFF"
+		shb.custom_minimum_size = Vector2(70, 20)
+		shb.pressed.connect(func(): net.send({"t": "settings", "shrink": not shrink}))
+		srow.add_child(shb)
+		srow.add_child(_fixed(Control.new(), 8))
 		var is_public: bool = settings.get("public", true)
 		var pub := Button.new()
 		pub.text = "PUBLIC" if is_public else "PRIVATE"
@@ -313,9 +320,10 @@ func _show_lobby() -> void:
 		pub.pressed.connect(func(): net.send({"t": "settings", "public": not is_public}))
 		srow.add_child(pub)
 	else:
-		srow.add_child(UiTheme.label("MAP %s   ROUNDS %d   TURN TIMER %s   ITEMS %s   %s" % [
+		srow.add_child(UiTheme.label("MAP %s   ROUNDS %d   TIMER %s   ITEMS %s   %s   SHRINK %s" % [
 			Maps.ALL[settings.map].name.to_upper(), settings.rounds, _timer_text(settings.timer),
-			"ON" if settings.get("items", true) else "OFF", _bonus_text(settings.get("bonus_hp", 0))], 8, UiTheme.CHALK_DIM))
+			"ON" if settings.get("items", true) else "OFF", _bonus_text(settings.get("bonus_hp", 0)),
+			"ON" if settings.get("shrink", false) else "OFF"], 8, UiTheme.CHALK_DIM))
 
 	var brow := _row(_lobby_view)
 	if host:
