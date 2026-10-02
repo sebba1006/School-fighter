@@ -15,7 +15,7 @@ func test_boss_setup() -> void:
 	var boss := b.boss()
 	check(boss != null and boss.is_boss, "the Principal is there")
 	eq(boss.id, 3, "added after the players")
-	eq(boss.max_hp, 2000, "2000 HP")
+	eq(boss.max_hp, 2250, "2250 HP")
 	eq(b.fighters[0].max_hp, Fixture.ALL.sebba.hp + Battle.BOSS_PLAYER_HP, "+250 HP for players")
 	eq(b.teams, [0, 1] as Array[int], "players vs boss")
 	eq(b.current().id, 0, "players go first")
@@ -67,7 +67,7 @@ func test_ruler_slam_hits_and_pushes_neighbours() -> void:
 	var r := end_turn(b, 2)  # boss acts
 	check(r.events.any(func(e): return e.type == "boss_attack" and e.attack == "ruler_slam"), "ruler slam")
 	eq(hp_before - b.fighters[0].hp, Battle.RULER_DAMAGE, "ruler damage")
-	eq(b.fighters[0].pos, Vector2i(boss.pos.x - 3, boss.pos.y), "pushed back 1")
+	eq(b.fighters[0].pos, Vector2i(boss.pos.x - 2 - Battle.RULER_PUSH, boss.pos.y), "pushed back 2")
 	eq(b.current().id, 0, "back to the players")
 	done()
 
@@ -75,7 +75,7 @@ func test_ruler_slam_hits_and_pushes_neighbours() -> void:
 func test_detention_hits_someone_far_away() -> void:
 	var b := _boss_battle()
 	for f in b.fighters:
-		if not f.is_boss:
+		if f.team == 0:
 			put(b, f.id, 0, f.id * 2 + 1)
 	# nobody next to him; spawns at x=0 rows 1/3/5: row 3 and 5 are in line, so force the roll
 	b.forced_rolls.assign([100, 0])  # skip megaphone (roll 100 > 60), detention on player 0
@@ -121,7 +121,7 @@ func test_beating_the_boss_wins() -> void:
 func test_boss_wins_if_everyone_is_down() -> void:
 	var b := _boss_battle()
 	for f in b.fighters:
-		if not f.is_boss:
+		if f.team == 0:
 			f.hp = 1
 			put(b, f.id, b.boss().pos.x - 2, b.boss().pos.y - 1 + f.id)
 	b.forced_rolls.assign([1])  # ruler slam
@@ -129,4 +129,69 @@ func test_boss_wins_if_everyone_is_down() -> void:
 	end_turn(b, 1)
 	end_turn(b, 2)
 	eq(b.match_winner, Battle.BOSS_TEAM, "the Principal wins")
+	done()
+
+
+func test_megaphone_pushes_three() -> void:
+	var b := _boss_battle()
+	var boss := b.boss()
+	put(b, 0, boss.pos.x - 5, boss.pos.y)  # in line, 3 tiles from his left side
+	put(b, 1, 0, 0)
+	put(b, 2, 10, 8)
+	b.forced_rolls.assign([1])  # (nobody next to him) megaphone
+	end_turn(b, 0)
+	end_turn(b, 1)
+	var r := end_turn(b, 2)
+	check(r.events.any(func(e): return e.type == "boss_attack" and e.attack == "megaphone"), "megaphone")
+	eq(b.fighters[0].pos, Vector2i(0, boss.pos.y), "pushed back until the wall")
+	done()
+
+
+func test_teachers_start_off_the_board() -> void:
+	var b := _boss_battle()
+	var teachers := b.fighters.filter(func(f): return f.is_minion)
+	eq(teachers.size(), Battle.TEACHERS, "two teachers waiting")
+	check(teachers.all(func(t): return not t.alive() and t.team == Battle.BOSS_TEAM), "knocked out until summoned")
+	eq(b.order, [0, 1, 2, 4, 5, 3] as Array[int], "players, teachers, then the Principal")
+	done()
+
+
+func test_summon_brings_teachers_who_attack() -> void:
+	var b := _boss_battle()
+	var boss := b.boss()
+	boss.own_turns = 5
+	put(b, 0, boss.pos.x - 3, boss.pos.y)
+	put(b, 1, 0, 0)
+	put(b, 2, 10, 8)
+	b.forced_rolls.assign([1])  # summon
+	end_turn(b, 0)
+	end_turn(b, 1)
+	var r := end_turn(b, 2)  # boss summons
+	var s: Array = r.events.filter(func(e): return e.type == "summon")
+	eq(s.size(), 1, "summoned")
+	eq(s[0].teachers.size(), 2, "both teachers")
+	for t in b.fighters.filter(func(f): return f.is_minion):
+		check(t.alive(), "teacher in")
+		eq(maxi(absi(t.pos.x - boss.pos.x), absi(t.pos.y - boss.pos.y)), 2, "right next to him")
+	# next round of turns: the teachers walk to the players and scold them
+	var hp := b.fighters[0].hp
+	end_turn(b, 0)
+	end_turn(b, 1)
+	r = end_turn(b, 2)
+	check(r.events.any(func(e): return e.type == "boss_attack" and e.attack == "scold"), "a teacher scolds")
+	check(b.fighters[0].hp < hp, "player 0 got hit")
+	done()
+
+
+func test_teachers_leave_when_he_is_beaten() -> void:
+	var b := _boss_battle()
+	var boss := b.boss()
+	for t in b.fighters.filter(func(f): return f.is_minion):
+		t.hp = t.max_hp
+		t.pos = Vector2i(10, t.id - 4)
+	boss.hp = 5
+	put(b, 0, boss.pos.x - 2, boss.pos.y)
+	attack(b, 0, 0, R)
+	check(b.fighters.filter(func(f): return f.is_minion).all(func(t): return not t.alive()), "teachers gone")
+	eq(b.match_winner, 0, "the players win")
 	done()

@@ -54,11 +54,17 @@ const ZONE_DAMAGE := 10
 const BOSS_TEAM := 1
 const BOSS_PLAYER_HP := 250  # every player gets this much extra HP
 const BOSS_RADIUS := 1  # 3x3 tiles
-const RULER_DAMAGE := 20  # everyone right next to him, pushed back 1
-const MEGAPHONE_DAMAGE := 12  # everyone in line with him, pushed back 2
-const DETENTION_DAMAGE := 20  # one player anywhere, + Dizzy
-## Hits on the Principal count double, so 2000 HP doesn't take forever.
+const RULER_DAMAGE := 16  # everyone right next to him, pushed back RULER_PUSH
+const MEGAPHONE_DAMAGE := 10  # everyone in line with him, pushed back MEGAPHONE_PUSH
+const DETENTION_DAMAGE := 16  # one player anywhere, + Dizzy
+## Hits on the Principal count double, so 2250 HP doesn't take forever.
 const BOSS_HIT_MULTIPLIER := 2
+const RULER_PUSH := 2  # tiles the Ruler Slam pushes you back
+const MEGAPHONE_PUSH := 3  # ...and the Megaphone Yell 3
+## Teachers the Principal summons to help him (ids after his).
+const TEACHERS := 2
+const TEACHER_DAMAGE := 8
+const SUMMON_CHANCE := 25  # % per turn once all teachers are gone
 const APPLE_EVERY := 250  # an apple drops each time he loses this much HP
 const APPLE_HEAL := 60
 ## Host setting: everyone gets this much extra HP (0 = original).
@@ -169,6 +175,11 @@ func _init(config: Dictionary) -> void:
 		boss.is_boss = true
 		fighters.append(boss)
 		teams.append(BOSS_TEAM)
+		# the teachers wait off the board (knocked out) until he summons them
+		for k in TEACHERS:
+			var t := Fighter.new(fighters.size(), "teacher", BOSS_TEAM, Characters.TEACHER)
+			t.is_minion = true
+			fighters.append(t)
 	teams.sort()
 	for t in teams:
 		round_wins[t] = 0
@@ -184,6 +195,8 @@ func start_round() -> Array:
 	_load_map()
 	for f in fighters:
 		f.reset_for_round()
+		if f.is_minion:
+			f.hp = 0
 	_place_fighters()
 	order = _build_order()
 	_team_last.clear()
@@ -630,8 +643,8 @@ func _begin_turn() -> Array:
 	path.clear()
 	turn_start_pos = f.pos
 	events.append({"type": "turn_start", "fighter": f.id, "move_budget": move_budget, "can_attack": not f.no_attack_now})
-	if f.is_boss and phase == Phase.TURN:
-		events.append_array(_boss_act(f))
+	if (f.is_boss or f.is_minion) and phase == Phase.TURN:
+		events.append_array(_boss_act(f) if f.is_boss else _teacher_act(f))
 		_check_round_end(events)
 		if phase == Phase.TURN:
 			events.append_array(_end_turn())
@@ -704,6 +717,7 @@ func boss() -> Fighter:
 
 ## The Principal's turn: picks one attack and does it. Run by the engine (it's
 ## deterministic, so every online copy does the same thing).
+##  - TEACHERS, HELP ME! sometimes, once none of his teachers are left
 ##  - Ruler Slam if someone is right next to him (usually)
 ##  - Megaphone Yell if someone is in line with him (often)
 ##  - otherwise DETENTION! on one player anywhere
@@ -713,7 +727,7 @@ func _boss_act(f: Fighter) -> Array:
 	var lane: Array = []  # players in line with him (rows/columns he covers)
 	var targets: Array = []
 	for p in fighters:
-		if p.is_boss or not p.alive():
+		if p.team == BOSS_TEAM or not p.alive():
 			continue
 		targets.append(p)
 		var d := p.pos - f.pos
@@ -725,7 +739,11 @@ func _boss_act(f: Fighter) -> Array:
 	if targets.is_empty():
 		return events
 	var ctx := {"attacker": f, "dir": Vector2i.ZERO, "super": false, "events": events}
-	if not ring.is_empty() and _roll(1, 100) <= 70:
+	var helpers := fighters.filter(func(o): return o.is_minion)
+	if f.own_turns >= 2 and not helpers.is_empty() and helpers.all(func(o): return not o.alive()) \
+			and _roll(1, 100) <= SUMMON_CHANCE:
+		_summon(f, helpers, events)
+	elif not ring.is_empty() and _roll(1, 100) <= 70:
 		var tiles: Array = []
 		for dy in range(-2, 3):
 			for dx in range(-2, 3):
@@ -735,7 +753,7 @@ func _boss_act(f: Fighter) -> Array:
 		ctx.ranged = false
 		for p in ring:
 			if p.alive() and _deal(f, p, RULER_DAMAGE, ctx) and p.alive():
-				_knockback(ctx, p, _away(f, p), 1)
+				_knockback(ctx, p, _away(f, p), RULER_PUSH)
 	elif not lane.is_empty() and _roll(1, 100) <= 60:
 		var tiles: Array = []
 		for y in height:
@@ -748,13 +766,75 @@ func _boss_act(f: Fighter) -> Array:
 		ctx.ranged = true
 		for p in lane:
 			if p.alive() and _deal(f, p, MEGAPHONE_DAMAGE, ctx) and p.alive():
-				_knockback(ctx, p, _away(f, p), 2)
+				_knockback(ctx, p, _away(f, p), MEGAPHONE_PUSH)
 	else:
 		var p: Fighter = targets[_roll(0, targets.size() - 1)]
 		events.append({"type": "boss_attack", "fighter": f.id, "attack": "detention", "tiles": [p.pos], "target": p.id})
 		ctx.ranged = true
 		if _deal(f, p, DETENTION_DAMAGE, ctx) and p.alive():
 			_apply_status(ctx, p, "dizzy")
+	return events
+
+
+## Calls the teachers in: each one appears on a free tile right next to him.
+func _summon(f: Fighter, helpers: Array, events: Array) -> void:
+	var spots: Array[Vector2i] = []
+	for dy in range(-2, 3):
+		for dx in range(-2, 3):
+			var t := f.pos + Vector2i(dx, dy)
+			if maxi(absi(dx), absi(dy)) == 2 and _walkable(t) and not apples.has(t) and t != box:
+				spots.append(t)
+	var placed := []
+	for m in helpers:
+		if spots.is_empty():
+			break
+		var t: Vector2i = spots.pop_at(_roll(0, spots.size() - 1))
+		m.reset_for_round()
+		m.pos = t
+		m.facing = Vector2i.LEFT if t.x < f.pos.x else Vector2i.RIGHT
+		placed.append({"fighter": m.id, "at": t})
+	events.append({"type": "summon", "fighter": f.id, "teachers": placed})
+
+
+## A teacher's turn: walk (up to 3 tiles) towards the nearest player and tell
+## them off if next to them.
+func _teacher_act(f: Fighter) -> Array:
+	var events: Array = []
+	var targets := fighters.filter(func(o): return o.team != BOSS_TEAM and o.alive())
+	if targets.is_empty():
+		return events
+	var near := func(t: Vector2i) -> int:
+		var best := 999
+		for o in targets:
+			best = mini(best, absi(o.pos.x - t.x) + absi(o.pos.y - t.y))
+		return best
+	if near.call(f.pos) > 1:
+		var came := _walk_area(f, f.pos, f.move)
+		var goal := f.pos
+		for t in came:
+			if apples.has(t) or t == box:
+				continue
+			if near.call(t) < near.call(goal):
+				goal = t
+		var steps: Array[Vector2i] = []
+		var t := goal
+		while t != f.pos:
+			steps.push_front(t)
+			t = came[t]
+		for to in steps:
+			var from := f.pos
+			f.facing = to - from
+			f.pos = to
+			events.append({"type": "move", "fighter": f.id, "from": from, "to": to})
+	var victim: Fighter = null
+	for o in targets:
+		if absi(o.pos.x - f.pos.x) + absi(o.pos.y - f.pos.y) == 1 and (victim == null or o.hp < victim.hp):
+			victim = o
+	if victim != null:
+		f.facing = victim.pos - f.pos
+		var ctx := {"attacker": f, "dir": f.facing, "super": false, "events": events, "ranged": false}
+		events.append({"type": "boss_attack", "fighter": f.id, "attack": "scold", "tiles": [victim.pos], "target": victim.id})
+		_deal(f, victim, TEACHER_DAMAGE, ctx)
 	return events
 
 
@@ -807,6 +887,13 @@ func _end_turn() -> Array:
 
 
 func _check_round_end(events: Array) -> void:
+	# when the Principal goes down, his teachers run off too
+	var b := boss()
+	if b != null and not b.alive():
+		for m in fighters:
+			if m.is_minion and m.alive():
+				m.hp = 0
+				events.append({"type": "ko", "fighter": m.id})
 	var alive_teams: Array[int] = []
 	for f in fighters:
 		if f.alive() and not alive_teams.has(f.team):
@@ -872,7 +959,7 @@ func _place_fighters() -> void:
 		var spawns := _spawn_tiles("1")
 		var k := 0
 		for f in fighters:
-			if f.is_boss:
+			if f.is_boss or f.is_minion:
 				f.pos = Vector2i(map_def.boss[0], map_def.boss[1])
 				f.facing = Vector2i.LEFT
 			else:
@@ -936,9 +1023,12 @@ func _advance_turn() -> void:
 
 func _build_order() -> Array[int]:
 	if boss_mode:
+		# the players, then his teachers, then the Principal himself
 		var list: Array[int] = []
 		for f in fighters:
-			list.append(f.id)  # the boss was added last
+			if not f.is_boss:
+				list.append(f.id)
+		list.append(boss().id)
 		return list
 	var by_team := {}
 	for t in teams:

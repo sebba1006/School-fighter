@@ -84,7 +84,7 @@ func _ready() -> void:
 	_info.custom_minimum_size.y = 40
 	col.add_child(_info)
 
-	_boss_note = UiTheme.label("BOSS FIGHT: YOU + 2 CPU TEAMMATES VS THE PRINCIPAL (2000 HP)  -  EVERYONE GETS +250 HP", 8, UiTheme.HIT)
+	_boss_note = UiTheme.label("BOSS FIGHT: YOU + 2 CPU TEAMMATES VS THE PRINCIPAL (2250 HP)  -  EVERYONE GETS +250 HP", 8, UiTheme.HIT)
 	_boss_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(_boss_note)
 	var options := _row(col)

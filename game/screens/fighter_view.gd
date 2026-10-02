@@ -14,6 +14,13 @@ var active := false:
 var knocked_out := false
 ## The boss: a 96x128 sprite standing on the 3x3 tiles around his tile.
 var big := false
+## A teacher the boss summons: small HP bar over the head, fades away when KO'd.
+var minion := false
+## Teachers' HP (0-1) for the bar over their head; set by the battle screen.
+var hp_frac := 1.0:
+	set(v):
+		hp_frac = v
+		queue_redraw()
 
 var _sprite := Sprite2D.new()
 var _frames: Array[Texture2D] = []
@@ -25,6 +32,7 @@ func setup(p_char_id: String, p_team_color: Color) -> void:
 	char_id = p_char_id
 	team_color = p_team_color
 	big = char_id == "principal"
+	minion = char_id == "teacher"
 	if big:
 		_frames = [PixelArt.boss(false), PixelArt.boss(true)]
 	else:
@@ -90,6 +98,10 @@ func knock_out() -> Tween:
 	knocked_out = true
 	active = false
 	var tw := create_tween().set_parallel()
+	if minion:  # a teacher just disappears in a puff
+		tw.tween_property(_sprite, "modulate", Color(1, 1, 1, 0.0), 0.35)
+		tw.tween_property(_sprite, "position", _sprite.position + Vector2(0, -10), 0.35)
+		return tw
 	if big:  # the Principal slowly sinks and fades
 		tw.tween_property(_sprite, "modulate", Color(0.5, 0.5, 0.55, 0.0), 1.2)
 		tw.tween_property(_sprite, "position", _sprite.position + Vector2(0, 24), 1.2)
@@ -122,6 +134,9 @@ func _draw() -> void:
 	draw_circle(Vector2.ZERO, r, Color(team_color, 0.35))
 	draw_arc(Vector2.ZERO, r, 0, TAU, 32, team_color, 2.0)
 	draw_set_transform(Vector2.ZERO)
+	if minion:
+		draw_rect(Rect2(4, -20, 24, 4), Color("17121c"))
+		draw_rect(Rect2(5, -19, roundf(22 * clampf(hp_frac, 0.0, 1.0)), 2), Color("e8575e"))
 	if active:
 		var bob := roundf(sin(Time.get_ticks_msec() / 150.0) * 2)
 		var tip := Vector2(16, (-70 if big else -22) + bob)

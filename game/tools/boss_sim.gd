@@ -34,7 +34,7 @@ func _init() -> void:
 		else:
 			boss_hp_left += b.boss().hp
 		for f in b.fighters:
-			if not f.is_boss and not f.alive():
+			if f.team != Battle.BOSS_TEAM and not f.alive():
 				kos_total += 1
 	print("players win %d%% (%d/%d), %.1f player turns per fight, %.1f players KO'd per fight, boss HP left when he wins: %d" % [
 		100 * wins / n, wins, n, float(turns_total) / n, float(kos_total) / n, boss_hp_left / maxi(1, n - wins)])

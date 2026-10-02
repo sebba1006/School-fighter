@@ -97,12 +97,24 @@ const ALL := {
 ## run by the rules engine (see Battle._boss_act). The attack list is only text
 ## for the info screens.
 const BOSS := {
-	"name": "The Principal", "short": "Principal", "hp": 2000, "move": 0,
+	"name": "The Principal", "short": "Principal", "hp": 2250, "move": 0,
 	"attacks": [
 		{"id": "ruler_slam", "name": "Ruler Slam", "type": "boss"},
 		{"id": "megaphone", "name": "Megaphone Yell", "type": "boss"},
 		{"id": "detention", "name": "Detention!", "type": "boss"},
 		{"id": "glare", "name": "Glare", "type": "boss"},
+	],
+	"super": {"id": "none", "name": "-", "type": "boss"},
+}
+
+## The teachers the Principal summons (boss fights only, played by the rules engine).
+const TEACHER := {
+	"name": "Teacher", "short": "Teacher", "hp": 40, "move": 3,
+	"attacks": [
+		{"id": "scold", "name": "Scold", "type": "boss"},
+		{"id": "scold", "name": "Scold", "type": "boss"},
+		{"id": "scold", "name": "Scold", "type": "boss"},
+		{"id": "scold", "name": "Scold", "type": "boss"},
 	],
 	"super": {"id": "none", "name": "-", "type": "boss"},
 }

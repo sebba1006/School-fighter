@@ -90,6 +90,8 @@ const LOOKS := {
 	"snorre": {"legs": 9, "hair": "hairChestnut", "hair_style": "messy", "shirt": "teeWhite", "sleeve": "teeWhite", "pants": "pantsGray", "shoes": "shoeBrown", "sword": true, "mouth": "smile", "pupil": 0},
 	"leon": {"legs": 11, "hair": "hairLightBrown", "hair_style": "swoop", "shirt": "teeBlue", "sleeve": "teeBlue", "pants": "pantsLightGray", "shoes": "shoeBlack", "mouth": "smile", "pupil": 1},
 	"mike": {"legs": 11, "hair": "hairDark", "hair_style": "short", "shirt": "hoodie", "sleeve": "hoodie", "hoodie": true, "pants": "pantsBlack", "shoes": "shoeBlack", "slingshot": true, "mouth": "smirk", "pupil": 1},
+	# the teachers the Principal summons: green shirt and red tie
+	"teacher": {"legs": 13, "hair": "hairDark", "hair_style": "neat", "shirt": "leaf", "sleeve": "leaf", "tie": "red", "pants": "pantsGray", "shoes": "shoeBrown", "glasses": true, "mouth": "flat", "pupil": 0},
 }
 
 static var _cache := {}
@@ -217,6 +219,9 @@ static func _character_image(c: Dictionary, bob: bool) -> Image:
 		p.rect(15, tt + 1, 16, tt + 1, "skin")
 	if c.has("stripe"):
 		p.rect(10, tt + 3, 21, tt + 4, c.stripe)
+	if c.has("tie"):
+		p.rect(15, tt + 1, 16, tt + 6, c.tie)
+		p.px(15, tt + 7, c.tie)
 	if hoodie:
 		p.rect(12, tt + 6, 19, tt + 8, "pocket")
 		p.rect(14, tt + 1, 14, tt + 3, "string")

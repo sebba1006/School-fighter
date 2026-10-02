@@ -42,6 +42,8 @@ var match_kos := 0
 var forfeited := false
 ## The boss: takes up 3x3 tiles around `pos`, never moves and can't be pushed.
 var is_boss := false
+## One of the teachers the boss summons (on his team, played by the rules engine).
+var is_minion := false
 
 
 func _init(p_id: int, p_char_id: String, p_team: int, p_def: Dictionary) -> void:
