@@ -20,6 +20,10 @@ const LEVELS := {
 	"hard": {"noise": 0.0, "lazy": 0.0},
 }
 const SELF_TYPES := ["self_rage", "self_block", "self_sugar"]
+## Boss fights: grab a health apple once missing at least this much HP, and
+## walk over to one (if there's nothing to hit) once below this share of HP.
+const APPLE_WANT := 40
+const APPLE_HURT := 0.6
 
 
 ## `noise` adds a little randomness to each option's score, so the bot doesn't
@@ -35,6 +39,13 @@ static func plan(b: Battle, noise := 0.0) -> Dictionary:
 
 	var spots: Array[Vector2i] = [f.pos]
 	spots.append_array(b.reachable_tiles())
+	# Hurt and an apple in reach: eat it this turn, attacking from there if possible.
+	var apple := _apple_in_reach(b, f, spots)
+	if apple != NO_TILE:
+		spots = [apple]
+	else:
+		# leave apples for whoever needs them: don't stand on or walk over one
+		spots = spots.filter(func(t): return t == f.pos or not _path(b, t).is_empty())
 	var home := f.pos
 	var best := {"score": 0.0}
 	var best_any_attack := 0.0
@@ -94,8 +105,8 @@ static func plan(b: Battle, noise := 0.0) -> Dictionary:
 			and b.attack_blocked_reason(f.id, Battle.ITEM_SLOT) == "":
 		best = {"score": 14.0, "pos": home, "intents": [{"type": "attack", "slot": Battle.ITEM_SLOT}]}
 	# Mystery box in reach and nothing great to do: go get it.
-	if b.box != Battle.NO_BOX and best.score < 12.0 and f.item == "" and not b.path_to(b.box).is_empty():
-		return {"path": b.path_to(b.box), "intents": [{"type": "end_turn"}]}
+	if b.box != Battle.NO_BOX and best.score < 12.0 and f.item == "" and not _path(b, b.box).is_empty():
+		return {"path": _path(b, b.box), "intents": [{"type": "end_turn"}]}
 	# Water bottle: spill a puddle toward an enemy who is a few tiles away.
 	if f.item == "water" and best.score < 12.0 and b.attack_blocked_reason(f.id, Battle.ITEM_SLOT) == "":
 		for o in enemies:
@@ -105,8 +116,13 @@ static func plan(b: Battle, noise := 0.0) -> Dictionary:
 			if dist >= 2 and dist <= 4 and b._walkable(home + dir) and not b.puddles.has(home + dir):
 				best = {"score": 12.0, "pos": home, "intents": [{"type": "attack", "slot": Battle.ITEM_SLOT, "dir": dir}]}
 				break
+	if apple != NO_TILE and best.score < KO_BONUS:
+		return {"path": _path(b, apple), "intents": best.get("intents", [{"type": "end_turn"}])}
 	if best.has("intents"):
-		return {"path": b.path_to(best.pos), "intents": best.intents}
+		return {"path": _path(b, best.pos), "intents": best.intents}
+	# Badly hurt with nothing to hit: head for the nearest apple.
+	if not b.apples.is_empty() and f.hp < f.max_hp * APPLE_HURT:
+		return {"path": _path(b, _toward_tile(b, b.apples.keys())), "intents": [{"type": "end_turn"}]}
 	# Nothing to hit: with a water bottle, walk closer and spill it toward the enemy.
 	if f.item == "water" and b.attack_blocked_reason(f.id, Battle.ITEM_SLOT) == "":
 		var spot := _toward(b, enemies)
@@ -117,8 +133,8 @@ static func plan(b: Battle, noise := 0.0) -> Dictionary:
 		var d := target - spot
 		var dir := Vector2i(signi(d.x), 0) if absi(d.x) >= absi(d.y) else Vector2i(0, signi(d.y))
 		if _dist(spot, target) <= 7 and dir != Vector2i.ZERO and b._walkable(spot + dir):
-			return {"path": b.path_to(spot), "intents": [{"type": "attack", "slot": Battle.ITEM_SLOT, "dir": dir}]}
-	return {"path": b.path_to(_toward(b, enemies)), "intents": [{"type": "end_turn"}]}
+			return {"path": _path(b, spot), "intents": [{"type": "attack", "slot": Battle.ITEM_SLOT, "dir": dir}]}
+	return {"path": _path(b, _toward(b, enemies)), "intents": [{"type": "end_turn"}]}
 
 
 ## Expected damage to enemies (plus a bonus for knock-outs) if `atk` were used now.
@@ -186,12 +202,58 @@ static func _nearest(p: Vector2i, enemies: Array) -> int:
 	return best
 
 
+const NO_TILE := Vector2i(-99, -99)
+
+
+## Path to `t`, going around health apples unless this fighter wants one
+## ([] if there's no way around: pick somewhere else).
+static func _path(b: Battle, t: Vector2i) -> Array[Vector2i]:
+	var f := b.current()
+	if not b.apples.is_empty() and f.max_hp - f.hp < APPLE_WANT:
+		return [] as Array[Vector2i] if b.apples.has(t) else b.path_to(t, b.apples)
+	return b.path_to(t)
+
+
+## The closest health apple this fighter can walk onto this turn, if it's
+## missing enough HP to want one (NO_TILE if not).
+static func _apple_in_reach(b: Battle, f, spots: Array[Vector2i]) -> Vector2i:
+	if b.apples.is_empty() or f.max_hp - f.hp < APPLE_WANT:
+		return NO_TILE
+	var best := NO_TILE
+	var best_steps := 999
+	for t in b.apples:
+		if not spots.has(t):
+			continue
+		var steps := _path(b, t).size()
+		if steps < best_steps:
+			best = t
+			best_steps = steps
+	return best
+
+
+## The reachable tile closest to any of `targets`.
+static func _toward_tile(b: Battle, targets: Array) -> Vector2i:
+	var f := b.current()
+	var best := f.pos
+	var best_d := 999
+	for t in [f.pos] + Array(b.reachable_tiles()):
+		for g in targets:
+			var d := absi(g.x - t.x) + absi(g.y - t.y)
+			if d < best_d:
+				best = t
+				best_d = d
+	return best
+
+
 ## The reachable tile closest to an enemy (where to walk when nothing can hit).
 static func _toward(b: Battle, enemies: Array) -> Vector2i:
 	var f := b.current()
 	var best := f.pos
 	var best_d := _nearest(f.pos, enemies) + (20 if b.in_zone(f.pos, 1) else 0)
+	var skip_apples := f.max_hp - f.hp < APPLE_WANT
 	for t in b.reachable_tiles():
+		if skip_apples and not b.apples.is_empty() and _path(b, t).is_empty():
+			continue  # only reachable over an apple
 		var d := _nearest(t, enemies) + (20 if b.in_zone(t, 1) else 0)
 		if d < best_d and d >= 1:
 			best = t
@@ -209,7 +271,7 @@ static func plan_level(b: Battle, level: String) -> Dictionary:
 			if o.alive() and o.team != f.team:
 				enemies.append(o)
 		if not enemies.is_empty():
-			return {"path": b.path_to(_toward(b, enemies)), "intents": [{"type": "end_turn"}]}
+			return {"path": _path(b, _toward(b, enemies)), "intents": [{"type": "end_turn"}]}
 	return plan(b, cfg.noise)
 
 

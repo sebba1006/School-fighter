@@ -100,3 +100,27 @@ func test_bot_leaves_the_detention_zone() -> void:
 	var p := Bot.plan(b)
 	check(not p.path.is_empty() and not b.in_zone(p.path.back()), "walks out of the zone")
 	done()
+
+
+func test_hurt_bot_grabs_an_apple() -> void:
+	var b := Battle.new({"boss": true, "players": [{"char": "sebba", "team": 0}, {"char": "mike", "team": 0}, {"char": "leon", "team": 0}], "seed": 1})
+	b.start_round()
+	var f := b.current()
+	f.hp = 100
+	var apple := f.pos + Vector2i(2, 0)
+	b.apples[apple] = Battle.APPLE_HEAL
+	Bot.play_turn(b)
+	eq(f.hp, 100 + Battle.APPLE_HEAL, "ate the apple")
+	check(not b.apples.has(apple), "apple gone")
+	done()
+
+
+func test_healthy_bot_leaves_the_apple() -> void:
+	var b := Battle.new({"boss": true, "players": [{"char": "sebba", "team": 0}, {"char": "mike", "team": 0}, {"char": "leon", "team": 0}], "seed": 1})
+	b.start_round()
+	var f := b.current()
+	var apple := f.pos + Vector2i(2, 0)
+	b.apples[apple] = Battle.APPLE_HEAL
+	Bot.play_turn(b)
+	check(b.apples.has(apple), "saved for someone who needs it")
+	done()

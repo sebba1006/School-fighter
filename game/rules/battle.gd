@@ -1195,7 +1195,8 @@ func _walk_area(f: Fighter, from: Vector2i, moves: int) -> Dictionary:
 
 ## Shortest walk for the current fighter to `t` within the moves left this
 ## turn, as the list of tiles to step on, or [] if it can't get there.
-func path_to(t: Vector2i) -> Array[Vector2i]:
+## Tiles in `avoid` (other than `t`) aren't walked over.
+func path_to(t: Vector2i, avoid := {}) -> Array[Vector2i]:
 	var f := current()
 	var left := move_budget - path.size()
 	var came := {f.pos: f.pos}
@@ -1205,7 +1206,7 @@ func path_to(t: Vector2i) -> Array[Vector2i]:
 		for p in frontier:
 			for d in DIRS:
 				var n: Vector2i = p + d
-				if came.has(n) or not _walkable(n):
+				if came.has(n) or not _walkable(n) or (avoid.has(n) and n != t):
 					continue
 				came[n] = p
 				next.append(n)
