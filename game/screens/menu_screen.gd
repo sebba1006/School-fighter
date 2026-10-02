@@ -4,6 +4,7 @@ extends Control
 signal online_pressed
 signal local_pressed
 signal cpu_pressed
+signal boss_pressed
 signal howto_pressed
 signal stats_pressed
 signal achievements_pressed
@@ -38,13 +39,16 @@ func _ready() -> void:
 		row.add_child(t)
 	col.add_child(row)
 
-	for item in [["PLAY ONLINE", online_pressed], ["VS CPU", cpu_pressed], ["LOCAL BATTLE", local_pressed]]:
+	for item in [["PLAY ONLINE", online_pressed], ["VS CPU", cpu_pressed], ["BOSS FIGHT", boss_pressed], ["LOCAL BATTLE", local_pressed]]:
 		var b := Button.new()
 		b.text = item[0]
 		b.add_theme_font_override("font", UiTheme.title_font())
 		b.add_theme_font_size_override("font_size", 16)
 		b.custom_minimum_size = Vector2(180, 30)
 		b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		if item[0] == "BOSS FIGHT":
+			b.add_theme_color_override("font_color", UiTheme.HIT)
+			b.add_theme_color_override("font_hover_color", UiTheme.HIT)
 		var sig: Signal = item[1]
 		b.pressed.connect(func():
 			Audio.play("click")

@@ -97,6 +97,7 @@ func show_menu() -> void:
 	m.online_pressed.connect(func(): show_online(_lobby if client.status == "online" else {}))
 	m.local_pressed.connect(show_setup)
 	m.cpu_pressed.connect(show_cpu)
+	m.boss_pressed.connect(func(): show_cpu("boss"))
 	m.stats_pressed.connect(func():
 		var st := StatsScreen.new()
 		st.back_requested.connect(show_menu)
@@ -119,8 +120,9 @@ func show_setup() -> void:
 	_swap(s)
 
 
-func show_cpu() -> void:
+func show_cpu(mode := "1v1") -> void:
 	var s := CpuScreen.new()
+	s.set_mode(mode)
 	s.start_requested.connect(show_battle)
 	s.back_requested.connect(show_menu)
 	_swap(s)

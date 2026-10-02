@@ -72,6 +72,7 @@ var zone_layer := ZoneLayer.new()  # the shrinking map's detention zone
 var obstacle_nodes := {}  # Vector2i -> Sprite2D
 var puddle_nodes := {}  # Vector2i -> Sprite2D
 var box_node: Sprite2D = null  # the mystery box, when there is one
+var apple_nodes := {}  # Vector2i -> Sprite2D (boss fights)
 var fighter_views: Array = []
 
 var busy := false
@@ -165,7 +166,8 @@ func vs_cpu() -> bool:
 
 
 func _is_cpu(id: int) -> bool:
-	return not online() and config.players[id].has("cpu")
+	# the boss isn't in config.players: the rules engine plays him
+	return not online() and id < config.players.size() and config.players[id].has("cpu")
 
 
 func set_host(v: bool) -> void:
@@ -177,6 +179,8 @@ func set_host(v: bool) -> void:
 
 
 func _name_of(f) -> String:
+	if f.is_boss:
+		return "THE PRINCIPAL"
 	if online():
 		return "%s (%s)" % [str(config.players[f.id].get("name", "?")).to_upper(), f.def.name.to_upper()]
 	if _is_cpu(f.id):
@@ -231,6 +235,11 @@ func _build_board() -> void:
 		box_node = null
 	if battle.box != Battle.NO_BOX:
 		_add_box(battle.box)
+	for n in apple_nodes.values():
+		n.queue_free()
+	apple_nodes.clear()
+	for t in battle.apples:
+		_add_apple(t)
 	floor_layer.size = Vector2i(battle.width, battle.height)
 	floor_layer.style = battle.map_def.get("floor", "lino")
 	floor_layer.sand = battle.sand
@@ -253,11 +262,8 @@ func _build_board() -> void:
 			fighter_views.append(v)
 	for f in battle.fighters:
 		var v = fighter_views[f.id]
-		v.knocked_out = false
+		v.reset_pose()
 		v.set_tile(f.pos)
-		v.get_child(0).rotation = 0
-		v.get_child(0).position = Vector2(0, -16)
-		v.get_child(0).modulate = Color.WHITE
 		if not f.alive():
 			v.knock_out()
 	_layout()
@@ -879,6 +885,22 @@ func _play(events: Array) -> void:
 				_popup_at(mid, "DETENTION ZONE GROWS!", UiTheme.HIT)
 				await _shake(3)
 				await get_tree().create_timer(0.3).timeout
+			"boss_attack":
+				await _boss_attack_anim(e)
+			"apple":
+				Audio.play("pickup")
+				_add_apple(e.at, true)
+				_popup_at(_tile_center(e.at) + Vector2(0, -16), "APPLE!", UiTheme.HEAL)
+			"heal":
+				Audio.play("pickup")
+				var an: Sprite2D = apple_nodes.get(e.at)
+				if an != null:
+					apple_nodes.erase(e.at)
+					an.queue_free()
+				_hp_shown[e.fighter] = e.hp
+				_refresh_panels()
+				_popup(fighter_views[e.fighter], "+%d HP" % e.amount, UiTheme.HEAL, -40)
+				await get_tree().create_timer(0.25).timeout
 			"box_gone":
 				if box_node != null:
 					box_node.queue_free()
@@ -1010,6 +1032,48 @@ func _use_item_anim(e: Dictionary, events: Array, i: int) -> void:
 	await last.finished
 
 
+## The Principal's attack: name popup, the hit tiles flash red, screen shake.
+func _boss_attack_anim(e: Dictionary) -> void:
+	var names := {"ruler_slam": "RULER SLAM!", "megaphone": "MEGAPHONE YELL!", "detention": "DETENTION!"}
+	var sounds := {"ruler_slam": "slam", "megaphone": "woof", "detention": "ko"}
+	var v = fighter_views[e.fighter]
+	_popup(v, names.get(e.attack, "!"), UiTheme.HIT, -80)
+	await v.lunge(Vector2i.DOWN).finished
+	Audio.play(sounds.get(e.attack, "slam"))
+	var flashes := []
+	for t in e.tiles:
+		var r := ColorRect.new()
+		r.color = Color(0.9, 0.2, 0.25, 0.45)
+		r.size = Vector2(TILE, TILE)
+		r.position = Vector2(t.x * TILE, t.y * TILE)
+		r.z_index = 3000
+		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		board.add_child(r)
+		flashes.append(r)
+	if e.attack == "detention" and e.has("target"):
+		_popup(fighter_views[e.target], "DETENTION!", UiTheme.HIT, -44)
+	await _shake(4 if e.attack == "ruler_slam" else 2)
+	var tw := create_tween().set_parallel()
+	for r in flashes:
+		tw.tween_property(r, "modulate:a", 0.0, 0.35)
+	await tw.finished
+	for r in flashes:
+		r.queue_free()
+
+
+func _add_apple(t: Vector2i, drop := false) -> void:
+	var sp := Sprite2D.new()
+	sp.texture = PixelArt.apple()
+	sp.centered = false
+	sp.position = Vector2(t.x * TILE, t.y * TILE)
+	sp.z_index = t.y * 10 - 4
+	board.add_child(sp)
+	apple_nodes[t] = sp
+	if drop:
+		sp.position.y -= 40
+		create_tween().tween_property(sp, "position:y", t.y * TILE, 0.35).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+
+
 func _add_box(t: Vector2i, drop := false) -> void:
 	box_node = Sprite2D.new()
 	box_node.texture = PixelArt.mystery_box()
@@ -1050,7 +1114,7 @@ func _track(e: Dictionary) -> void:
 			mine = [my_fighter]
 		else:
 			for i in battle.fighters.size():
-				if not _is_cpu(i):
+				if not _is_cpu(i) and not battle.fighters[i].is_boss:
 					mine.append(i)
 		_ach = AchievementTracker.new(Achievements.load_data(), battle, config, mine, online())
 	_ach.feed(e)
@@ -1442,6 +1506,8 @@ func _mvp_lines() -> Array:
 	var top_dmg = null
 	var top_kos = null
 	for f in battle.fighters:
+		if f.is_boss:
+			continue
 		if top_dmg == null or f.match_damage > top_dmg.match_damage:
 			top_dmg = f
 		if top_kos == null or f.match_kos > top_kos.match_kos:
