@@ -310,3 +310,29 @@ func test_one_v_one_ignores_lobby_teams() -> void:
 	lobby.handle("a", {"t": "start"}, 0)
 	eq(lobby.battle.teams.size(), 2, "still two sides")
 	done()
+
+
+func test_boss_fight_fills_cpus_and_server_plays_them() -> void:
+	var lobby := _lobby(["sebba"])
+	lobby.handle("a", {"t": "settings", "boss": true, "timer": 0}, 0)
+	lobby.handle("a", {"t": "start"}, 0)
+	check(lobby.in_match(), "one player can start a boss fight")
+	eq(lobby.config.players.size(), 3, "team filled to 3")
+	check(lobby.config.players[1].has("cpu") and lobby.config.players[2].has("cpu"), "two CPU teammates")
+	check(lobby.battle.boss() != null, "the Principal is there")
+	# a's turn: end it; then the server plays both CPUs (after the short wait) and the boss acts
+	lobby.handle("a", {"t": "intent", "intent": {"type": "end_turn"}}, 10)
+	eq(lobby.battle.current().id, 1, "CPU 1's turn")
+	lobby.tick(10 + Lobby.CPU_DELAY_MS + 1)
+	lobby.tick(10 + Lobby.CPU_DELAY_MS * 3)
+	lobby.tick(10 + Lobby.CPU_DELAY_MS * 5)
+	eq(lobby.battle.current().id, 0, "the CPUs and the boss played; back to a")
+	done()
+
+
+func test_boss_fight_is_for_three_at_most() -> void:
+	var lobby := _lobby(["sebba", "william", "snorre", "mike"])
+	lobby.handle("a", {"t": "settings", "boss": true}, 0)
+	lobby.handle("a", {"t": "start"}, 0)
+	eq(_last(_take(lobby, "a"), "error").get("code"), "boss_max_3", "4 is too many")
+	done()

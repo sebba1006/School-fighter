@@ -4,9 +4,11 @@ extends Control
 signal online_pressed
 signal local_pressed
 signal cpu_pressed
+signal boss_pressed
 signal howto_pressed
 signal stats_pressed
 signal achievements_pressed
+signal trophies_pressed
 
 const Characters = preload("res://rules/characters.gd")
 const PixelArt = preload("res://art/pixel_art.gd")
@@ -38,13 +40,16 @@ func _ready() -> void:
 		row.add_child(t)
 	col.add_child(row)
 
-	for item in [["PLAY ONLINE", online_pressed], ["VS CPU", cpu_pressed], ["LOCAL BATTLE", local_pressed]]:
+	for item in [["PLAY ONLINE", online_pressed], ["VS CPU", cpu_pressed], ["BOSS FIGHT", boss_pressed], ["LOCAL BATTLE", local_pressed]]:
 		var b := Button.new()
 		b.text = item[0]
 		b.add_theme_font_override("font", UiTheme.title_font())
 		b.add_theme_font_size_override("font_size", 16)
 		b.custom_minimum_size = Vector2(180, 30)
 		b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		if item[0] == "BOSS FIGHT":
+			b.add_theme_color_override("font_color", UiTheme.HIT)
+			b.add_theme_color_override("font_hover_color", UiTheme.HIT)
 		var sig: Signal = item[1]
 		b.pressed.connect(func():
 			Audio.play("click")
@@ -54,7 +59,7 @@ func _ready() -> void:
 	var small := HBoxContainer.new()
 	small.alignment = BoxContainer.ALIGNMENT_CENTER
 	small.add_theme_constant_override("separation", 6)
-	for item in [["HOW TO PLAY", howto_pressed], ["STATS", stats_pressed], ["ACHIEVEMENTS", achievements_pressed]]:
+	for item in [["HOW TO PLAY", howto_pressed], ["STATS", stats_pressed], ["ACHIEVEMENTS", achievements_pressed], ["TROPHIES", trophies_pressed]]:
 		var b := Button.new()
 		b.text = item[0]
 		b.custom_minimum_size = Vector2(87, 24)
@@ -69,13 +74,24 @@ func _ready() -> void:
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(sub)
 
+	var audio_row := HBoxContainer.new()
+	audio_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	audio_row.add_theme_constant_override("separation", 6)
 	var sound := Button.new()
 	sound.custom_minimum_size = Vector2(90, 20)
-	sound.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	sound.text = "SOUND ON" if Audio.is_enabled() else "SOUND OFF"
 	sound.pressed.connect(func():
 		Audio.set_enabled(not Audio.is_enabled())
 		Audio.play("click")
 		sound.text = "SOUND ON" if Audio.is_enabled() else "SOUND OFF")
-	col.add_child(sound)
+	audio_row.add_child(sound)
+	# MUSIC: SCHOOL -> HYPE -> CHILL -> BOSS
+	var music := Button.new()
+	music.custom_minimum_size = Vector2(110, 20)
+	music.text = "MUSIC: " + Audio.music_name()
+	music.pressed.connect(func():
+		Audio.next_music()
+		music.text = "MUSIC: " + Audio.music_name())
+	audio_row.add_child(music)
+	col.add_child(audio_row)
 	Audio.start_music()

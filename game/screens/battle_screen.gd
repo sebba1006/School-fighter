@@ -49,6 +49,7 @@ const ERRORS := {
 	"offline": "NOT CONNECTED - RECONNECTING...",
 	"no_item": "NO ITEM - BREAK A LOCKER TO FIND ONE",
 	"no_room": "NO ROOM TO SPILL THERE",
+	"cooldown": "RECHARGING - WAIT A FEW TURNS",
 }
 ## Quick-chat emotes (online). The server only relays the number.
 ## New ones go at the end: the number is what gets sent.
@@ -71,6 +72,7 @@ var zone_layer := ZoneLayer.new()  # the shrinking map's detention zone
 var obstacle_nodes := {}  # Vector2i -> Sprite2D
 var puddle_nodes := {}  # Vector2i -> Sprite2D
 var box_node: Sprite2D = null  # the mystery box, when there is one
+var apple_nodes := {}  # Vector2i -> Sprite2D (boss fights)
 var fighter_views: Array = []
 
 var busy := false
@@ -97,6 +99,9 @@ var end_button: Button
 var joystick: Control
 var leave_button: Button
 var sound_button: Button
+var music_button: Button
+var audio_button: Button  # top bar: opens the SOUND / MUSIC panel
+var _audio_panel: HBoxContainer
 var chat_button: Button
 var _emote_panel: GridContainer
 var _confirm_box: PanelContainer
@@ -164,7 +169,8 @@ func vs_cpu() -> bool:
 
 
 func _is_cpu(id: int) -> bool:
-	return not online() and config.players[id].has("cpu")
+	# the boss isn't in config.players: the rules engine plays him
+	return not online() and id < config.players.size() and config.players[id].has("cpu")
 
 
 func set_host(v: bool) -> void:
@@ -176,6 +182,8 @@ func set_host(v: bool) -> void:
 
 
 func _name_of(f) -> String:
+	if f.is_boss:
+		return "THE PRINCIPAL"
 	if online():
 		return "%s (%s)" % [str(config.players[f.id].get("name", "?")).to_upper(), f.def.name.to_upper()]
 	if _is_cpu(f.id):
@@ -206,7 +214,10 @@ func _ready() -> void:
 	board.add_child(highlight)
 	_build_hud()
 	get_viewport().size_changed.connect(_layout)
-	Audio.start_music()
+	if battle.boss_mode:
+		Audio.set_boss_music(true)  # back to your own music when the fight screen closes
+	else:
+		Audio.start_music()
 	if not online():
 		_start_round()
 	elif battle.round_number > 0:
@@ -230,6 +241,11 @@ func _build_board() -> void:
 		box_node = null
 	if battle.box != Battle.NO_BOX:
 		_add_box(battle.box)
+	for n in apple_nodes.values():
+		n.queue_free()
+	apple_nodes.clear()
+	for t in battle.apples:
+		_add_apple(t)
 	floor_layer.size = Vector2i(battle.width, battle.height)
 	floor_layer.style = battle.map_def.get("floor", "lino")
 	floor_layer.sand = battle.sand
@@ -252,11 +268,8 @@ func _build_board() -> void:
 			fighter_views.append(v)
 	for f in battle.fighters:
 		var v = fighter_views[f.id]
-		v.knocked_out = false
+		v.reset_pose()
 		v.set_tile(f.pos)
-		v.get_child(0).rotation = 0
-		v.get_child(0).position = Vector2(0, -16)
-		v.get_child(0).modulate = Color.WHITE
 		if not f.alive():
 			v.knock_out()
 	_layout()
@@ -300,7 +313,24 @@ func _build_hud() -> void:
 	shrink_label.z_index = 4000
 	add_child(shrink_label)
 	leave_button = _top_button("LEAVE", _ask_leave)
+	# AUDIO opens a small panel with SOUND ON/OFF and the MUSIC changer side by side
+	audio_button = _top_button("AUDIO", func():
+		Audio.play("click")
+		_audio_panel.visible = not _audio_panel.visible
+		_layout())
+	_audio_panel = HBoxContainer.new()
+	_audio_panel.add_theme_constant_override("separation", 3)
+	_audio_panel.z_index = 4080
+	_audio_panel.visible = false
+	add_child(_audio_panel)
 	sound_button = _top_button("SOUND ON" if Audio.is_enabled() else "SOUND OFF", _toggle_sound)
+	music_button = _top_button("MUSIC: " + Audio.music_name(), func():
+		Audio.next_music()
+		Audio.play("click")
+		_refresh())
+	for b in [sound_button, music_button]:
+		remove_child(b)
+		_audio_panel.add_child(b)
 	if online():
 		chat_button = _top_button("CHAT", _toggle_emotes)
 		_emote_panel = GridContainer.new()
@@ -542,7 +572,7 @@ func _layout() -> void:
 	shrink_label.position = Vector2(floorf(vs.x / 2.0 - 120), TOP_H + 3)
 	shrink_label.size = Vector2(240, 10)
 	# small buttons in a centred row under the round label
-	var tops := [leave_button, chat_button, sound_button] if chat_button != null else [leave_button, sound_button]
+	var tops := [leave_button, chat_button, audio_button] if chat_button != null else [leave_button, audio_button]
 	var row_w := 0.0
 	for tb in tops:
 		tb.size = tb.get_combined_minimum_size()
@@ -551,6 +581,8 @@ func _layout() -> void:
 	for tb in tops:
 		tb.position = Vector2(tx, 13)
 		tx += tb.size.x + 4
+	_audio_panel.size = _audio_panel.get_combined_minimum_size()
+	_audio_panel.position = Vector2(floorf((vs.x - _audio_panel.size.x) / 2.0), 30)
 	if _emote_panel != null:
 		_emote_panel.size = _emote_panel.get_combined_minimum_size()
 		# centred over the board, between the joystick column and the attack cards
@@ -878,6 +910,22 @@ func _play(events: Array) -> void:
 				_popup_at(mid, "DETENTION ZONE GROWS!", UiTheme.HIT)
 				await _shake(3)
 				await get_tree().create_timer(0.3).timeout
+			"boss_attack":
+				await _boss_attack_anim(e)
+			"apple":
+				Audio.play("pickup")
+				_add_apple(e.at, true)
+				_popup_at(_tile_center(e.at) + Vector2(0, -16), "APPLE!", UiTheme.HEAL)
+			"heal":
+				Audio.play("pickup")
+				var an: Sprite2D = apple_nodes.get(e.at)
+				if an != null:
+					apple_nodes.erase(e.at)
+					an.queue_free()
+				_hp_shown[e.fighter] = e.hp
+				_refresh_panels()
+				_popup(fighter_views[e.fighter], "+%d HP" % e.amount, UiTheme.HEAL, -40)
+				await get_tree().create_timer(0.25).timeout
 			"box_gone":
 				if box_node != null:
 					box_node.queue_free()
@@ -1009,6 +1057,48 @@ func _use_item_anim(e: Dictionary, events: Array, i: int) -> void:
 	await last.finished
 
 
+## The Principal's attack: name popup, the hit tiles flash red, screen shake.
+func _boss_attack_anim(e: Dictionary) -> void:
+	var names := {"ruler_slam": "RULER SLAM!", "megaphone": "MEGAPHONE YELL!", "detention": "DETENTION!"}
+	var sounds := {"ruler_slam": "slam", "megaphone": "woof", "detention": "ko"}
+	var v = fighter_views[e.fighter]
+	_popup(v, names.get(e.attack, "!"), UiTheme.HIT, -80)
+	await v.lunge(Vector2i.DOWN).finished
+	Audio.play(sounds.get(e.attack, "slam"))
+	var flashes := []
+	for t in e.tiles:
+		var r := ColorRect.new()
+		r.color = Color(0.9, 0.2, 0.25, 0.45)
+		r.size = Vector2(TILE, TILE)
+		r.position = Vector2(t.x * TILE, t.y * TILE)
+		r.z_index = 3000
+		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		board.add_child(r)
+		flashes.append(r)
+	if e.attack == "detention" and e.has("target"):
+		_popup(fighter_views[e.target], "DETENTION!", UiTheme.HIT, -44)
+	await _shake(4 if e.attack == "ruler_slam" else 2)
+	var tw := create_tween().set_parallel()
+	for r in flashes:
+		tw.tween_property(r, "modulate:a", 0.0, 0.35)
+	await tw.finished
+	for r in flashes:
+		r.queue_free()
+
+
+func _add_apple(t: Vector2i, drop := false) -> void:
+	var sp := Sprite2D.new()
+	sp.texture = PixelArt.apple()
+	sp.centered = false
+	sp.position = Vector2(t.x * TILE, t.y * TILE)
+	sp.z_index = t.y * 10 - 4
+	board.add_child(sp)
+	apple_nodes[t] = sp
+	if drop:
+		sp.position.y -= 40
+		create_tween().tween_property(sp, "position:y", t.y * TILE, 0.35).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+
+
 func _add_box(t: Vector2i, drop := false) -> void:
 	box_node = Sprite2D.new()
 	box_node.texture = PixelArt.mystery_box()
@@ -1049,10 +1139,13 @@ func _track(e: Dictionary) -> void:
 			mine = [my_fighter]
 		else:
 			for i in battle.fighters.size():
-				if not _is_cpu(i):
+				if not _is_cpu(i) and not battle.fighters[i].is_boss:
 					mine.append(i)
 		_ach = AchievementTracker.new(Achievements.load_data(), battle, config, mine, online())
 	_ach.feed(e)
+	for id in _ach.new_trophies:
+		_toasts.append("trophy:" + id)
+	_ach.new_trophies.clear()
 	for id in _ach.new_unlocks:
 		_toasts.append(id)
 	_ach.new_unlocks.clear()
@@ -1072,7 +1165,9 @@ func _show_toasts() -> void:
 	_toast_busy = true
 	while not _toasts.is_empty() and is_inside_tree():
 		var id: String = _toasts.pop_front()
-		var league: Dictionary = Achievements.LEAGUES[Achievements.league_of(id)]
+		var trophy := id.begins_with("trophy:")
+		var league: Dictionary = {"name": "TROPHY", "color": UiTheme.GOLD} if trophy \
+			else Achievements.LEAGUES[Achievements.league_of(id)]
 		Audio.play("super")
 		var box := PanelContainer.new()
 		var style := StyleBoxFlat.new()
@@ -1084,7 +1179,10 @@ func _show_toasts() -> void:
 		style.content_margin_top = 3
 		style.content_margin_bottom = 3
 		box.add_theme_stylebox_override("panel", style)
-		var l := UiTheme.label("%s - ACHIEVEMENT UNLOCKED!  %s" % [league.name.get_slice(" ", 0), Achievements.by_id(id).name.to_upper()], 8, league.color)
+		var text := "%s - ACHIEVEMENT UNLOCKED!  %s" % [league.name.get_slice(" ", 0), Achievements.by_id(id).get("name", "").to_upper()]
+		if trophy:
+			text = "NEW TROPHY!  " + Achievements.trophy_by_id(id.trim_prefix("trophy:")).get("name", "").to_upper()
+		var l := UiTheme.label(text, 8, league.color)
 		box.add_child(l)
 		box.z_index = 4095
 		add_child(box)
@@ -1103,6 +1201,8 @@ func _show_toasts() -> void:
 
 func _exit_tree() -> void:
 	_save_achievements()  # e.g. leaving in the middle of a match
+	if battle != null and battle.boss_mode:
+		Audio.set_boss_music(false)
 
 
 func _slot_of(f, attack_id: String) -> int:
@@ -1384,6 +1484,8 @@ func _show_overlay(e: Dictionary, is_match: bool) -> void:
 	var title_text := ("%s %s THE MATCH!" if is_match else "%s %s ROUND %d") % ([winner, verb] if is_match else [winner, verb, e["round"]])
 	if e.winner_team == -1:
 		title_text = "ROUND %d IS A DRAW" % e["round"]
+	if battle.boss_mode:
+		title_text = "THE PRINCIPAL WINS!" if e.winner_team == Battle.BOSS_TEAM else "YOU BEAT THE PRINCIPAL!"
 	var title := UiTheme.label(title_text, 16, UiTheme.GOLD, true)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(title)
@@ -1441,6 +1543,8 @@ func _mvp_lines() -> Array:
 	var top_dmg = null
 	var top_kos = null
 	for f in battle.fighters:
+		if f.is_boss:
+			continue
 		if top_dmg == null or f.match_damage > top_dmg.match_damage:
 			top_dmg = f
 		if top_kos == null or f.match_kos > top_kos.match_kos:
@@ -1625,6 +1729,8 @@ func _refresh() -> void:
 	_update_shrink_label()
 	sound_button.text = "SOUND ON" if Audio.is_enabled() else "SOUND OFF"
 	sound_button.size = sound_button.get_combined_minimum_size()
+	music_button.text = "MUSIC: " + Audio.music_name()
+	music_button.size = music_button.get_combined_minimum_size()
 
 	var in_turn := _my_turn() and mode != "over" and not _waiting
 	# Online, the buttons always show your own fighter's moves.
@@ -1635,6 +1741,9 @@ func _refresh() -> void:
 		var key := "Q" if slot == Battle.SUPER_SLOT else str(slot + 1)
 		attack_names[slot].text = "%s %s" % [key, atk.name.to_upper()]
 		attack_infos[slot].text = FighterInfo.attack_info(atk)
+		var wait := battle.turns_until_ready(bf, slot)
+		if wait > 0:
+			attack_infos[slot].text = "READY IN %d TURN%s" % [wait, "" if wait == 1 else "S"]
 		if slot == Battle.SUPER_SLOT:
 			super_bar.value = float(bf.meter) / Battle.METER_MAX
 			super_bar.queue_redraw()

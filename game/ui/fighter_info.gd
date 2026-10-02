@@ -12,7 +12,7 @@ static func attack_info(atk: Dictionary) -> String:
 		"self_rage":
 			return "+%d DMG, 1-%d TURNS" % [atk.bonus, atk.turns_max]
 		"self_block":
-			return "BLOCKS NEXT HIT"
+			return "BLOCKS NEXT HIT" + (", %d-TURN WAIT" % atk.cooldown if atk.has("cooldown") else "")
 		"self_sugar":
 			return "X%s DMG THIS TURN" % str(atk.multiplier)
 		"shockwave":

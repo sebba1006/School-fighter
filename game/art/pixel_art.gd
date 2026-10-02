@@ -70,6 +70,9 @@ const PAL := {
 	"eraser": ["e88aa0", "c46a80", "f5b3c3"],
 	"puddle": ["7fbbe6", "5d9cd0", "b8def5"],
 	"slide": ["f2c64a", "c99a26", "f8de86"],
+	"suit": ["4a4f5c", "343844", "626879"],
+	"greyHair": ["b9b9bd", "8f8f95", "dadade"],
+	"apple": ["d9363b", "a3232a", "f06a6d"],
 	"eye": "ffffff",
 	"pupil": "1a1420",
 	"mouth": "7a2e2e",
@@ -330,6 +333,97 @@ static func _dogs_image(bob: bool) -> Image:
 	return p.bake()
 
 
+# ---------------------------------------------------------------- the boss
+
+## The Principal: 96x128 (3 tiles wide, standing on his 3x3 tiles). Bald, grey
+## at the sides, glasses, mustache, angry eyebrows, grey suit, red tie, and a
+## big ruler in his hand. `bob` is the idle frame.
+static func boss(bob := false) -> Texture2D:
+	var key := "boss_%s" % bob
+	if not _cache.has(key):
+		var p := Painter.new(96, 128)
+		var u := 1 if bob else 0
+		# shoes and legs
+		p.rect(28, 120, 45, 126, "shoeBlack")
+		p.rect(51, 120, 68, 126, "shoeBlack")
+		p.rect(31, 92, 45, 120, "suit")
+		p.rect(51, 92, 65, 120, "suit")
+		# jacket, shirt, tie
+		p.rect(18, 52 + u, 78, 96, "suit")
+		p.rect(40, 52 + u, 56, 72, "teeWhite")
+		for i in 8:  # jacket lapels closing into a V
+			p.rect(40, 66 + i + u, 40 + i, 66 + i + u, "suit")
+			p.rect(56 - i, 66 + i + u, 56, 66 + i + u, "suit")
+		p.rect(46, 54 + u, 50, 80 + u, "red")
+		p.rect(45, 53 + u, 51, 56 + u, "red")
+		# arms; the right hand holds the ruler
+		p.rect(8, 56 + u, 19, 92, "suit")
+		p.rect(8, 92, 19, 99, "skin")
+		p.rect(77, 56 + u, 88, 86, "suit")
+		p.rect(78, 86, 90, 94, "skin")
+		p.rect(86, 30 + u, 91, 100, "foodYellow")
+		for y in range(34, 98, 6):
+			p.rect(86, y + u, 88, y + u, "pupil")
+		# neck and head
+		p.rect(40, 44 + u, 56, 53 + u, "skin")
+		p.ell(48, 28 + u, 19, 21, "skin")
+		p.rect(28, 22 + u, 32, 36 + u, "greyHair")
+		p.rect(64, 22 + u, 68, 36 + u, "greyHair")
+		p.rect(26, 26 + u, 29, 33 + u, "skin")  # ears
+		p.rect(67, 26 + u, 70, 33 + u, "skin")
+		# angry eyebrows, glasses, eyes
+		for i in 9:  # thick eyebrows slanting down to the middle: angry
+			p.rect(34 + i, 19 + i / 3 + u, 34 + i, 21 + i / 3 + u, "pupil")
+			p.rect(62 - i, 19 + i / 3 + u, 62 - i, 21 + i / 3 + u, "pupil")
+		p.rect(34, 25 + u, 45, 32 + u, "frame")
+		p.rect(51, 25 + u, 62, 32 + u, "frame")
+		p.rect(35, 26 + u, 44, 31 + u, "eye")
+		p.rect(52, 26 + u, 61, 31 + u, "eye")
+		p.rect(46, 27 + u, 50, 28 + u, "frame")
+		p.rect(39, 27 + u, 41, 30 + u, "pupil")
+		p.rect(55, 27 + u, 57, 30 + u, "pupil")
+		# nose, mustache, frown
+		p.rect(47, 32 + u, 49, 36 + u, "skin")
+		p.rect(39, 37 + u, 57, 40 + u, "greyHair")
+		p.rect(36, 39 + u, 39, 41 + u, "greyHair")
+		p.rect(57, 39 + u, 60, 41 + u, "greyHair")
+		p.rect(43, 43 + u, 53, 43 + u, "mouth")
+		p.px(42, 44 + u, "mouth")
+		p.px(54, 44 + u, "mouth")
+		_cache[key] = ImageTexture.create_from_image(p.bake())
+	return _cache[key]
+
+
+## A trophy cup (24x24): gold if won, a dark grey shape if not yet.
+static func trophy(won: bool) -> Texture2D:
+	var key := "trophy_%s" % won
+	if not _cache.has(key):
+		var m := "guard" if won else "pantsGray"
+		var p := Painter.new(24, 24)
+		p.rect(5, 3, 18, 4, m)  # rim
+		p.ell(11.5, 8, 6.5, 6, m)
+		p.rect(2, 5, 4, 10, m)  # handles
+		p.rect(19, 5, 21, 10, m)
+		p.rect(10, 13, 13, 17, m)  # stem
+		p.rect(7, 18, 16, 20, m)  # base
+		if won:
+			p.rect(8, 5, 9, 9, "teeWhite")  # shine
+		_cache[key] = ImageTexture.create_from_image(p.bake())
+	return _cache[key]
+
+
+## A health apple lying on a tile (boss fights).
+static func apple() -> Texture2D:
+	if not _cache.has("apple"):
+		var p := Painter.new(TILE, TILE)
+		p.ell(16, 19, 8, 7.5, "apple")
+		p.rect(15, 8, 16, 12, "trunk")
+		p.ell(20, 9, 3.5, 2, "leaf")
+		p.rect(12, 15, 13, 17, "teeWhite")  # shine
+		_cache["apple"] = ImageTexture.create_from_image(p.bake())
+	return _cache["apple"]
+
+
 # ---------------------------------------------------------------- items
 
 ## 16x16 icon for an item: "book", "pencils" or "water".
@@ -423,6 +517,9 @@ static func floor_tile(alt := false, style := "lino") -> Texture2D:
 						col = Color("4f8a37")
 					elif n == 11:
 						col = Color("86c262")
+				elif style == "carpet":
+					# the Principal's office: dark red carpet with a small diamond pattern
+					col = Color("7a3036") if (x + y + (4 if alt else 0)) % 8 != 0 and (x - y + 64) % 8 != 0 else Color("8d3c42")
 				elif style == "sand":
 					col = Color("e6cf8f") if (x * 5 + y * 11 + (3 if alt else 0)) % 17 != 0 else Color("c9ae68")
 					if (x * 13 + y * 7) % 29 == 0:

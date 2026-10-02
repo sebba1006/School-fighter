@@ -15,8 +15,6 @@ var _sounds := {}
 var _players: Array[AudioStreamPlayer] = []
 var _next := 0
 var _music: AudioStreamPlayer
-var _music_ready := false
-var _music_building := false
 
 
 func _ready() -> void:
@@ -24,6 +22,9 @@ func _ready() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(SETTINGS_PATH) == OK:
 		enabled = cfg.get_value("audio", "enabled", true)
+		music_choice = cfg.get_value("audio", "music", "school")
+		if not MUSIC_LIST.has(music_choice):
+			music_choice = "school"
 	for i in VOICES:
 		var p := AudioStreamPlayer.new()
 		p.volume_db = -6.0
@@ -189,57 +190,162 @@ func _wav(samples: PackedFloat32Array, rate := RATE, loop := false) -> AudioStre
 
 # ---------------------------------------------------------------- music
 
-## A looping 8-bar chiptune (lead, bass, hi-hat). Built a chunk per frame so
-## the game never freezes while it's being made.
-func _start_music() -> void:
-	if not enabled:
-		return
-	if _music_ready:
-		if not _music.playing:
-			_music.play()
-		return
-	if _music_building:
-		return
-	_music_building = true
-	var bpm := 140.0
-	var eighth := 60.0 / bpm / 2.0
-	# Am - F - C - G, twice. Lead notes are MIDI numbers, -1 = rest.
+## The songs. Lead and bass are MIDI notes per eighth note (-1 = rest), 8 bars.
+## Boss fights switch to "boss" by themselves; the MUSIC button picks the rest.
+const MUSIC_LIST := ["school", "hype", "chill", "boss"]
+const MUSIC_TITLES := {"school": "SCHOOL", "hype": "HYPE", "chill": "CHILL", "boss": "BOSS"}
+
+
+## One bar = 8 eighth notes. `chord` notes are repeated to fill the bar.
+static func _bar(notes: Array) -> Array:
+	var out := []
+	for i in 8:
+		out.append(notes[i % notes.size()])
+	return out
+
+
+static func _song(id: String) -> Dictionary:
+	match id:
+		"hype":
+			# C - G - Am - F, bright arpeggios, kick and snare
+			var lead := []
+			for ch in [[60, 64, 67, 72, 76, 72, 67, 64], [67, 71, 74, 79, 83, 79, 74, 71], [69, 72, 76, 81, 84, 81, 76, 72], [65, 69, 72, 77, 81, 77, 72, 69]]:
+				lead.append_array(ch)
+			lead.append_array([72, -1, 76, 79, 84, 79, 76, 72, 74, -1, 79, 83, 86, 83, 79, 74, 76, -1, 81, 84, 88, 84, 81, 76, 77, 76, 74, 72, 69, 67, 65, -1])
+			var bass := []
+			for r in [36, 43, 45, 41, 36, 43, 45, 41]:
+				bass.append_array(_bar([r, r, r + 12, r]))
+			return {"bpm": 160.0, "lead": lead, "lead_wave": "square", "lead_vol": 0.10, "bass": bass, "bass_vol": 0.20, "kick": true, "snare": true, "hat": 0.04}
+		"chill":
+			# Fmaj7 - Em7 - Dm7 - Cmaj7, soft and slow
+			var lead := []
+			for ch in [[77, -1, 76, -1, 72, -1, 69, -1], [76, -1, 74, -1, 71, -1, 67, -1], [74, -1, 72, -1, 69, -1, 65, -1], [72, -1, 71, -1, 67, -1, 64, -1]]:
+				lead.append_array(ch)
+			lead.append_array([69, -1, -1, 72, -1, 76, -1, -1, 67, -1, -1, 71, -1, 74, -1, -1, 65, -1, -1, 69, -1, 72, -1, -1, 64, -1, 67, -1, 72, -1, -1, -1])
+			var bass := []
+			for r in [41, 40, 38, 36, 41, 40, 38, 36]:
+				bass.append_array(_bar([r, -1, r, -1, r + 7, -1, r, -1]))
+			return {"bpm": 96.0, "lead": lead, "lead_wave": "tri", "lead_vol": 0.16, "bass": bass, "bass_vol": 0.18, "kick": false, "snare": false, "hat": 0.02}
+		"boss":
+			# E minor, fast and heavy: Em Em C D | Em Em C B
+			var lead := [
+				64, 67, 71, 67, 76, 74, 71, 67,
+				64, 67, 71, 74, 76, 79, 76, 74,
+				72, 71, 67, 64, 72, 74, 76, 72,
+				74, 72, 69, 66, 74, 76, 78, 74,
+				76, -1, 76, 74, 76, 79, 76, 74,
+				71, -1, 71, 69, 71, 74, 71, 69,
+				67, 72, 76, 79, 76, 72, 67, 72,
+				71, 75, 78, 83, 78, 75, 71, -1,
+			]
+			var bass := []
+			for r in [40, 40, 36, 38, 40, 40, 36, 35]:
+				bass.append_array(_bar([r, r + 12]))  # pumping octaves
+			return {"bpm": 180.0, "lead": lead, "lead_wave": "square", "lead_vol": 0.11, "bass": bass, "bass_wave": "square", "bass_vol": 0.10, "kick": true, "snare": true, "hat": 0.05}
+	# "school": the original theme, Am - F - C - G
 	var lead := [
 		69, 72, 76, 72, 79, 76, 72, 76,
 		65, 69, 72, 69, 77, 72, 69, 72,
 		60, 64, 67, 72, 76, 72, 67, 64,
 		67, 71, 74, 79, 74, 71, 67, -1,
 	]
-	var bass := [45, 41, 48, 43]
-	var bars := 8
+	lead.append_array(lead.duplicate())
+	var bass := []
+	for r in [45, 41, 48, 43, 45, 41, 48, 43]:
+		bass.append_array(_bar([r]))
+	return {"bpm": 140.0, "lead": lead, "lead_wave": "square", "lead_vol": 0.12, "bass": bass, "bass_vol": 0.22, "kick": false, "snare": false, "hat": 0.05}
+
+
+var music_choice := "school"
+var _music_override := ""  # "boss" during boss fights
+var _songs := {}  # id -> AudioStreamWAV, built once
+var _building := {}  # id -> true while being built
+
+
+static func music_name() -> String:
+	return MUSIC_TITLES.get(instance._current_song() if instance != null else "school", "SCHOOL")
+
+
+## The MUSIC button: next song in the list (and it's remembered).
+static func next_music() -> void:
+	if instance == null:
+		return
+	var i := MUSIC_LIST.find(instance._current_song())
+	instance.music_choice = MUSIC_LIST[(i + 1) % MUSIC_LIST.size()]
+	instance._music_override = ""  # picking a song by hand wins over the boss theme
+	var cfg := ConfigFile.new()
+	cfg.load(SETTINGS_PATH)
+	cfg.set_value("audio", "music", instance.music_choice)
+	cfg.save(SETTINGS_PATH)
+	instance._start_music()
+
+
+## Boss fights play the boss theme while they last.
+static func set_boss_music(on: bool) -> void:
+	if instance == null:
+		return
+	instance._music_override = "boss" if on else ""
+	instance._start_music()
+
+
+func _current_song() -> String:
+	return _music_override if _music_override != "" else music_choice
+
+
+## Plays the current song, building it first if needed (a chunk per frame so
+## the game never freezes while it's being made).
+func _start_music() -> void:
+	if not enabled:
+		return
+	var id := _current_song()
+	if _songs.has(id):
+		if _music.stream != _songs[id]:
+			_music.stream = _songs[id]
+			_music.play()
+		elif not _music.playing:
+			_music.play()
+		return
+	if _building.has(id):
+		return
+	_building[id] = true
+	var song := _song(id)
+	var eighth: float = 60.0 / song.bpm / 2.0
 	var spb := int(eighth * MUSIC_RATE)  # samples per eighth note
-	var total := spb * 8 * bars
+	var steps: int = song.lead.size()
+	var total := spb * steps
 	var out := PackedFloat32Array()
 	out.resize(total)
 	var lead_phase := 0.0
 	var bass_phase := 0.0
+	var kick_phase := 0.0
 	var i := 0
 	while i < total:
 		var chunk_end := mini(total, i + 12000)
 		while i < chunk_end:
 			var step := i / spb
 			var in_step := float(i % spb) / spb
-			var bar := (step / 8) % 4
-			var note: int = lead[(step % 32)]
 			var v := 0.0
+			var note: int = song.lead[step]
 			if note >= 0:
 				lead_phase += _hz(note) / MUSIC_RATE
-				v += _wave("square", lead_phase) * 0.12 * (1.0 - in_step * 0.7)
-			bass_phase += _hz(bass[bar]) / MUSIC_RATE
-			var beat_pos := float(i % (spb * 2)) / (spb * 2)
-			v += _wave("tri", bass_phase) * 0.22 * (1.0 - beat_pos * 0.5)
+				v += _wave(song.lead_wave, lead_phase) * song.lead_vol * (1.0 - in_step * 0.7)
+			var b: int = song.bass[step % song.bass.size()]
+			if b >= 0:
+				bass_phase += _hz(b) / MUSIC_RATE
+				v += _wave(song.get("bass_wave", "tri"), bass_phase) * song.bass_vol * (1.0 - in_step * 0.5)
+			var beat_t := float(i % (spb * 2)) / MUSIC_RATE  # seconds since the beat
+			if song.kick and beat_t < 0.09:
+				kick_phase += lerpf(120.0, 45.0, beat_t / 0.09) / MUSIC_RATE
+				v += sin(TAU * kick_phase) * 0.35 * (1.0 - beat_t / 0.09)
+			if song.snare and step % 4 == 2 and in_step < 0.35:
+				v += randf_range(-1.0, 1.0) * 0.13 * (1.0 - in_step / 0.35)
 			if step % 2 == 1 and in_step < 0.08:
-				v += randf_range(-1.0, 1.0) * 0.05
+				v += randf_range(-1.0, 1.0) * song.hat
 			out[i] = v
 			i += 1
 		await get_tree().process_frame
-	_music.stream = _wav(out, MUSIC_RATE, true)
-	_music_ready = true
-	_music_building = false
-	if enabled:
+	_songs[id] = _wav(out, MUSIC_RATE, true)
+	_building.erase(id)
+	if enabled and _current_song() == id:
+		_music.stream = _songs[id]
 		_music.play()

@@ -50,6 +50,17 @@ const PUDDLE_DAMAGE := 5
 const SHRINK_START := 6
 const SHRINK_EVERY := 4
 const ZONE_DAMAGE := 10
+## Boss fight: three players (team 0) against the Principal (team 1).
+const BOSS_TEAM := 1
+const BOSS_PLAYER_HP := 250  # every player gets this much extra HP
+const BOSS_RADIUS := 1  # 3x3 tiles
+const RULER_DAMAGE := 20  # everyone right next to him, pushed back 1
+const MEGAPHONE_DAMAGE := 12  # everyone in line with him, pushed back 2
+const DETENTION_DAMAGE := 20  # one player anywhere, + Dizzy
+## Hits on the Principal count double, so 2000 HP doesn't take forever.
+const BOSS_HIT_MULTIPLIER := 2
+const APPLE_EVERY := 250  # an apple drops each time he loses this much HP
+const APPLE_HEAL := 60
 ## Host setting: everyone gets this much extra HP (0 = original).
 const BONUS_HP_CHOICES := [0, 50, 100, 150]
 const MAX_BONUS_HP := 150
@@ -79,6 +90,10 @@ const NO_BOX := Vector2i(-1, -1)
 var box := NO_BOX
 var _turn_count := 0
 var shrink_on := false
+var boss_mode := false
+## Health apples on the floor (boss fights): Vector2i -> HP they heal.
+var apples := {}
+var _apples_dropped := 0
 ## How many rings from the edge are detention zone right now (0 = none).
 var zone_rings := 0
 var fighters: Array[Fighter] = []
@@ -119,11 +134,19 @@ var _last_team := -1
 ##   items: true = broken lockers can drop items (default off)
 ##   bonus_hp: extra HP for every fighter (0, 50, 100 or 150) for longer fights
 ##   shrink: true = the map shrinks (detention zone) as the round goes on
+##   boss: true = boss fight: `players` are the team against the Principal
+##     (the engine adds him as the last fighter); one round, Principal's Office
 func _init(config: Dictionary) -> void:
 	items_on = config.get("items", false) == true
 	shrink_on = config.get("shrink", false) == true
-	map_def = config.map if config.map is Dictionary else Maps.ALL[config.map]
-	rounds_total = config.get("rounds", 1)
+	boss_mode = config.get("boss", false) == true
+	if boss_mode:
+		var m = config.get("map")  # always the Principal's Office unless a test passes a map
+		map_def = m if m is Dictionary else Maps.BOSS_ROOM
+		rounds_total = 1
+	else:
+		map_def = config.map if config.map is Dictionary else Maps.ALL[config.map]
+		rounds_total = config.get("rounds", 1)
 	_rng.seed = config.get("seed", 0)
 	_first_team = config.get("first_team", -1)
 	# Tests can pass their own fighter numbers; the game always uses Characters.ALL.
@@ -131,12 +154,21 @@ func _init(config: Dictionary) -> void:
 	var players: Array = config.players
 	for i in players.size():
 		var p: Dictionary = players[i]
-		var fighter := Fighter.new(i, p["char"], p.team, roster[p["char"]])
-		fighter.max_hp += clampi(int(config.get("bonus_hp", 0)), 0, MAX_BONUS_HP)
+		var team: int = 0 if boss_mode else p.team
+		var fighter := Fighter.new(i, p["char"], team, roster[p["char"]])
+		if boss_mode:
+			fighter.max_hp += BOSS_PLAYER_HP
+		else:
+			fighter.max_hp += clampi(int(config.get("bonus_hp", 0)), 0, MAX_BONUS_HP)
 		fighter.hp = fighter.max_hp
 		fighters.append(fighter)
-		if not teams.has(p.team):
-			teams.append(p.team)
+		if not teams.has(team):
+			teams.append(team)
+	if boss_mode:
+		var boss := Fighter.new(players.size(), "principal", BOSS_TEAM, Characters.BOSS)
+		boss.is_boss = true
+		fighters.append(boss)
+		teams.append(BOSS_TEAM)
 	teams.sort()
 	for t in teams:
 		round_wins[t] = 0
@@ -217,6 +249,11 @@ func _move(f: Fighter, dir) -> Dictionary:
 		move_budget -= path.size()
 		path.clear()
 		turn_start_pos = f.pos
+	if apples.has(to):
+		var healed := mini(apples[to], f.max_hp - f.hp)
+		f.hp += healed
+		apples.erase(to)
+		events.append({"type": "heal", "fighter": f.id, "amount": healed, "hp": f.hp, "at": to})
 	if puddles.has(to) and fighters[puddles[to]].team != f.team:
 		_slip(f, to, events)
 	return _ok(events)
@@ -271,6 +308,8 @@ func _attack(f: Fighter, slot: int, dir, dist: int) -> Dictionary:
 		return _fail("bad_dir")
 	if f.no_attack_now:
 		return _fail("cannot_attack")
+	if turns_until_ready(f, slot) > 0:
+		return _fail("cooldown")
 	if is_super and f.meter < METER_MAX:
 		return _fail("super_not_ready")
 	var err := _validate(f, atk, dir, dist)
@@ -283,6 +322,9 @@ func _attack(f: Fighter, slot: int, dir, dist: int) -> Dictionary:
 		f.meter = 0
 	if slot == ITEM_SLOT:
 		f.item = ""
+	if atk.has("cooldown"):
+		# e.g. Block with cooldown 2: not on the next 2 own turns
+		f.ready_at[slot] = f.own_turns + atk.cooldown + 1
 	var ctx := {"attacker": f, "dir": dir, "super": is_super, "ranged": RANGED_TYPES.has(atk.type), "events": []}
 	ctx.events.append({"type": "attack", "fighter": f.id, "attack": atk.id, "super": is_super, "item": slot == ITEM_SLOT, "dir": dir, "dist": dist})
 	_resolve(ctx, atk, dist)
@@ -340,6 +382,7 @@ func _resolve(ctx: Dictionary, atk: Dictionary, dist: int) -> void:
 				var o := _fighter_at(t)
 				if obstacles.has(t) or (o != null and o.team != f.team and not sand.has(t)):
 					for h in atk.get("hits", 1):
+						ctx.boss_hit = false
 						_hit_tile(ctx, t, atk.damage, atk)
 					break
 		"spill":
@@ -426,6 +469,11 @@ func _hit_tile(ctx: Dictionary, tile: Vector2i, base: int, opts := {}) -> void:
 	var t := _fighter_at(tile)
 	if t == null or t.team == f.team:
 		return
+	if t.is_boss:
+		# he covers 9 tiles: an attack hits him once (Pencils reset this per pencil)
+		if ctx.get("boss_hit", false):
+			return
+		ctx.boss_hit = true
 	if ctx.get("ranged", false) and sand.has(tile):
 		ctx.events.append({"type": "hidden", "fighter": t.id})
 		return
@@ -454,6 +502,8 @@ func _attack_damage(f: Fighter, base: int) -> int:
 
 ## Returns false when the hit was stopped by a Block.
 func _deal(src: Fighter, target: Fighter, amount: int, ctx: Dictionary) -> bool:
+	if target.is_boss:
+		amount *= BOSS_HIT_MULTIPLIER
 	var guarded := 0
 	if not target.guard.is_empty() and (target.guard.kind == "ranged") == ctx.get("ranged", false):
 		guarded = amount - int(round(amount * (100 - target.guard.pct) / 100.0))
@@ -472,6 +522,8 @@ func _deal(src: Fighter, target: Fighter, amount: int, ctx: Dictionary) -> bool:
 	target.hp -= lost
 	if src != target:
 		src.match_damage += lost
+	if target.is_boss:
+		_drop_apples(target, ctx.events)
 	ctx.events.append({"type": "damage", "fighter": target.id, "amount": amount, "absorbed": absorbed, "guarded": guarded, "hp": target.hp})
 	# A super's own damage doesn't charge the attacker's meter.
 	if not ctx.super:
@@ -500,6 +552,8 @@ func _apply_status(ctx: Dictionary, f: Fighter, status: String) -> void:
 
 
 func _knockback(ctx: Dictionary, t: Fighter, dir: Vector2i, tiles: int) -> void:
+	if t.is_boss:
+		return  # far too big to push around
 	var attacker: Fighter = ctx.attacker
 	for i in tiles:
 		var next := t.pos + dir
@@ -553,7 +607,7 @@ func _begin_turn() -> Array:
 		if box != NO_BOX and in_zone(box):
 			box = NO_BOX
 			events.append({"type": "box_gone"})
-	if in_zone(f.pos) and f.alive():
+	if in_zone(f.pos) and f.alive() and not f.is_boss:
 		var lost := mini(ZONE_DAMAGE, f.hp)
 		f.hp -= lost
 		events.append({"type": "damage", "fighter": f.id, "amount": lost, "absorbed": 0, "guarded": 0, "hp": f.hp, "zone": true})
@@ -565,6 +619,7 @@ func _begin_turn() -> Array:
 			if phase == Phase.TURN:
 				events.append_array(_end_turn())
 			return events
+	f.own_turns += 1
 	move_budget = maxi(0, f.move - (1 if f.dizzy_next else 0))
 	for o in fighters:
 		o.dizzy_now = false
@@ -575,6 +630,11 @@ func _begin_turn() -> Array:
 	path.clear()
 	turn_start_pos = f.pos
 	events.append({"type": "turn_start", "fighter": f.id, "move_budget": move_budget, "can_attack": not f.no_attack_now})
+	if f.is_boss and phase == Phase.TURN:
+		events.append_array(_boss_act(f))
+		_check_round_end(events)
+		if phase == Phase.TURN:
+			events.append_array(_end_turn())
 	return events
 
 
@@ -622,6 +682,107 @@ func _spawn_box(events: Array) -> void:
 		return
 	box = pool[_roll(0, pool.size() - 1)]
 	events.append({"type": "box", "at": box})
+
+
+# ---------------------------------------------------------------- the boss
+
+## Every tile the boss stands on.
+func footprint(f: Fighter) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	for dy in range(-BOSS_RADIUS, BOSS_RADIUS + 1):
+		for dx in range(-BOSS_RADIUS, BOSS_RADIUS + 1):
+			out.append(f.pos + Vector2i(dx, dy))
+	return out
+
+
+func boss() -> Fighter:
+	for f in fighters:
+		if f.is_boss:
+			return f
+	return null
+
+
+## The Principal's turn: picks one attack and does it. Run by the engine (it's
+## deterministic, so every online copy does the same thing).
+##  - Ruler Slam if someone is right next to him (usually)
+##  - Megaphone Yell if someone is in line with him (often)
+##  - otherwise DETENTION! on one player anywhere
+func _boss_act(f: Fighter) -> Array:
+	var events: Array = []
+	var ring: Array = []  # players right next to him
+	var lane: Array = []  # players in line with him (rows/columns he covers)
+	var targets: Array = []
+	for p in fighters:
+		if p.is_boss or not p.alive():
+			continue
+		targets.append(p)
+		var d := p.pos - f.pos
+		var reach := BOSS_RADIUS + 1
+		if maxi(absi(d.x), absi(d.y)) == reach:
+			ring.append(p)
+		if absi(d.x) <= BOSS_RADIUS or absi(d.y) <= BOSS_RADIUS:
+			lane.append(p)
+	if targets.is_empty():
+		return events
+	var ctx := {"attacker": f, "dir": Vector2i.ZERO, "super": false, "events": events}
+	if not ring.is_empty() and _roll(1, 100) <= 70:
+		var tiles: Array = []
+		for dy in range(-2, 3):
+			for dx in range(-2, 3):
+				if maxi(absi(dx), absi(dy)) == 2 and _in_bounds(f.pos + Vector2i(dx, dy)):
+					tiles.append(f.pos + Vector2i(dx, dy))
+		events.append({"type": "boss_attack", "fighter": f.id, "attack": "ruler_slam", "tiles": tiles})
+		ctx.ranged = false
+		for p in ring:
+			if p.alive() and _deal(f, p, RULER_DAMAGE, ctx) and p.alive():
+				_knockback(ctx, p, _away(f, p), 1)
+	elif not lane.is_empty() and _roll(1, 100) <= 60:
+		var tiles: Array = []
+		for y in height:
+			for x in width:
+				var d := Vector2i(x, y) - f.pos
+				var inside := absi(d.x) <= BOSS_RADIUS and absi(d.y) <= BOSS_RADIUS
+				if not inside and (absi(d.x) <= BOSS_RADIUS or absi(d.y) <= BOSS_RADIUS):
+					tiles.append(Vector2i(x, y))
+		events.append({"type": "boss_attack", "fighter": f.id, "attack": "megaphone", "tiles": tiles})
+		ctx.ranged = true
+		for p in lane:
+			if p.alive() and _deal(f, p, MEGAPHONE_DAMAGE, ctx) and p.alive():
+				_knockback(ctx, p, _away(f, p), 2)
+	else:
+		var p: Fighter = targets[_roll(0, targets.size() - 1)]
+		events.append({"type": "boss_attack", "fighter": f.id, "attack": "detention", "tiles": [p.pos], "target": p.id})
+		ctx.ranged = true
+		if _deal(f, p, DETENTION_DAMAGE, ctx) and p.alive():
+			_apply_status(ctx, p, "dizzy")
+	return events
+
+
+## The straight direction from the boss out towards `p`.
+func _away(f: Fighter, p: Fighter) -> Vector2i:
+	var d := p.pos - f.pos
+	if absi(d.x) >= absi(d.y):
+		return Vector2i(signi(d.x), 0)
+	return Vector2i(0, signi(d.y))
+
+
+## Each time the boss loses another APPLE_EVERY HP, a health apple drops on a
+## free tile near him (but not right next to him, where his ruler reaches).
+func _drop_apples(f: Fighter, events: Array) -> void:
+	while f.alive() and f.max_hp - f.hp >= APPLE_EVERY * (_apples_dropped + 1):
+		_apples_dropped += 1
+		var spots: Array[Vector2i] = []
+		for y in height:
+			for x in width:
+				var t := Vector2i(x, y)
+				var d := maxi(absi(x - f.pos.x), absi(y - f.pos.y))
+				if d >= 3 and d <= 4 and _walkable(t) and not apples.has(t) and not puddles.has(t) and t != box:
+					spots.append(t)
+		if spots.is_empty():
+			continue
+		var t: Vector2i = spots[_roll(0, spots.size() - 1)]
+		apples[t] = APPLE_HEAL
+		events.append({"type": "apple", "at": t})
 
 
 func _end_turn() -> Array:
@@ -691,6 +852,8 @@ func _load_map() -> void:
 	width = rows[0].length()
 	obstacles.clear()
 	puddles.clear()
+	apples.clear()
+	_apples_dropped = 0
 	sand.clear()
 	box = NO_BOX
 	_turn_count = 0
@@ -705,6 +868,18 @@ func _load_map() -> void:
 
 
 func _place_fighters() -> void:
+	if boss_mode:
+		var spawns := _spawn_tiles("1")
+		var k := 0
+		for f in fighters:
+			if f.is_boss:
+				f.pos = Vector2i(map_def.boss[0], map_def.boss[1])
+				f.facing = Vector2i.LEFT
+			else:
+				f.pos = spawns[k % spawns.size()]
+				f.facing = Vector2i.RIGHT
+				k += 1
+		return
 	if teams.size() == 2:
 		for side in 2:
 			var spawns := _spawn_tiles(str(side + 1))
@@ -734,6 +909,14 @@ func _spawn_tiles(ch: String) -> Array[Vector2i]:
 ## that team's next living fighter after the one who acted last.
 func _advance_turn() -> void:
 	var cur := current()
+	if boss_mode:
+		# everyone in order, then the boss: plain rotation over the living
+		for k in range(1, order.size() + 1):
+			var i := (turn_index + k) % order.size()
+			if fighters[order[i]].alive():
+				turn_index = i
+				return
+		return
 	_team_last[cur.team] = cur.id
 	_last_team = cur.team
 	var ti := teams.find(cur.team)
@@ -752,6 +935,11 @@ func _advance_turn() -> void:
 
 
 func _build_order() -> Array[int]:
+	if boss_mode:
+		var list: Array[int] = []
+		for f in fighters:
+			list.append(f.id)  # the boss was added last
+		return list
 	var by_team := {}
 	for t in teams:
 		by_team[t] = []
@@ -808,14 +996,18 @@ func forfeit(fighter_id: int) -> Array:
 ## A fingerprint of everything that matters in the battle. The server sends it
 ## with every move so clients can tell if their copy got out of sync.
 func state_hash() -> int:
-	var parts := [phase, round_number, turn_index, move_budget, path.size(), _rng.state, _last_team, _team_last, box, _turn_count, zone_rings]
+	var parts := [phase, round_number, turn_index, move_budget, path.size(), _rng.state, _last_team, _team_last, box, _turn_count, zone_rings, _apples_dropped]
 	for f in fighters:
 		parts.append_array([f.hp, f.pos.x, f.pos.y, f.meter, f.shield.get("kind", ""), f.shield.get("amount", 0),
-			f.dizzy_next, f.rage_turns, f.sugar_active, f.no_attack_next, f.no_attack_now, f.forfeited, f.item, f.guard])
+			f.dizzy_next, f.rage_turns, f.sugar_active, f.no_attack_next, f.no_attack_now, f.forfeited, f.item, f.guard, f.own_turns, f.ready_at])
 	var tiles := obstacles.keys()
 	tiles.sort()
 	for t in tiles:
 		parts.append_array([t.x, t.y, obstacles[t].hp])
+	var fruit := apples.keys()
+	fruit.sort()
+	for t in fruit:
+		parts.append_array([t.x, t.y, apples[t]])
 	var wet := puddles.keys()
 	wet.sort()
 	for t in wet:
@@ -1003,6 +1195,12 @@ func preview(fighter_id: int, slot: int, dir, dist := 0) -> Array:
 	return out
 
 
+## For attacks with a cooldown: how many more of the fighter's own turns until it
+## can be used again (0 = ready). Counts the current turn if it's theirs.
+func turns_until_ready(f: Fighter, slot: int) -> int:
+	return maxi(0, int(f.ready_at.get(slot, 0)) - f.own_turns)
+
+
 ## Short reason an attack can't be used right now, or "" if it can.
 func attack_blocked_reason(fighter_id: int, slot: int) -> String:
 	var f := fighters[fighter_id]
@@ -1010,6 +1208,8 @@ func attack_blocked_reason(fighter_id: int, slot: int) -> String:
 		return "cannot_attack"
 	if slot == ITEM_SLOT and f.item == "":
 		return "no_item"
+	if turns_until_ready(f, slot) > 0:
+		return "cooldown"
 	if slot == SUPER_SLOT and f.meter < METER_MAX:
 		return "super_not_ready"
 	if slot == 3 and f.def.attacks[3].type == "self_sugar" and f.sugar_active:
@@ -1035,7 +1235,11 @@ func _in_bounds(t: Vector2i) -> bool:
 
 func _fighter_at(t: Vector2i) -> Fighter:
 	for f in fighters:
-		if f.alive() and f.pos == t:
+		if not f.alive():
+			continue
+		if f.pos == t:
+			return f
+		if f.is_boss and absi(t.x - f.pos.x) <= BOSS_RADIUS and absi(t.y - f.pos.y) <= BOSS_RADIUS:
 			return f
 	return null
 

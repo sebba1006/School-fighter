@@ -23,12 +23,12 @@ func _play(b: Battle, t: Tracker, r: Dictionary) -> void:
 		t.feed(e)
 
 
-func test_list_is_twenty_unique_achievements() -> void:
-	eq(A.LIST.size(), 20, "20 achievements")
+func test_list_is_twenty_five_unique_achievements() -> void:
+	eq(A.LIST.size(), 25, "25 achievements (5 leagues)")
 	var ids := {}
 	for a in A.LIST:
 		ids[a.id] = true
-	eq(ids.size(), 20, "unique ids")
+	eq(ids.size(), 25, "unique ids")
 	eq(A.LIST[0].id, "first_win", "easiest first")
 	eq(A.LIST[19].id, "online_legend", "hardest last")
 	done()
@@ -176,4 +176,50 @@ func test_four_leagues_of_five() -> void:
 	eq(A.league_of("combo"), 1, "silver")
 	eq(A.league_of("wall_slam"), 2, "gold")
 	eq(A.league_of("online_legend"), 3, "diamond")
+	done()
+
+
+
+func _boss_cfg(chars: Array, cpus: Array) -> Dictionary:
+	var players := []
+	for i in chars.size():
+		var p := {"char": chars[i], "team": 0}
+		if cpus[i]:
+			p.cpu = "normal"
+		players.append(p)
+	return {"boss": true, "players": players, "characters": Fixture.ALL}
+
+
+func test_beating_the_boss_gives_trophies() -> void:
+	var cfg := _boss_cfg(["sebba", "mike", "leon"], [false, true, true])
+	var b := Battle.new(cfg)
+	b.start_round()
+	var t := Tracker.new(_fresh(), b, cfg, [0], false)
+	t.feed({"type": "match_end", "winner_team": 0, "wins": {}})
+	for id in ["solo", "untouchable", "with_sebba"]:
+		check(t.new_trophies.has(id), "trophy " + id)
+	check(not t.new_trophies.has("friends"), "not with friends")
+	check(t.new_unlocks.has("boss_slayer"), "first trophy")
+	check(t.new_unlocks.has("trophy_collector"), "3 trophies at once")
+	check(t.new_unlocks.has("not_a_scratch"), "untouchable achievement")
+	check(not t.new_unlocks.has("teamwork"), "a boss win isn't a 2v2")
+	done()
+
+
+func test_friends_trophy_and_ko() -> void:
+	var cfg := _boss_cfg(["sebba", "mike", "leon"], [false, false, true])
+	var b := Battle.new(cfg)
+	b.start_round()
+	b.fighters[2].hp = 0  # the CPU went down
+	var t := Tracker.new(_fresh(), b, cfg, [1], true)
+	t.feed({"type": "match_end", "winner_team": 0, "wins": {}})
+	check(t.new_trophies.has("friends"), "2 real players")
+	check(t.new_trophies.has("with_mike"), "mike trophy")
+	check(not t.new_trophies.has("untouchable"), "someone was KO'd")
+	done()
+
+
+func test_trophy_list_has_one_per_fighter() -> void:
+	eq(A.trophy_list().size(), A.TROPHIES.size() + preload("res://rules/characters.gd").ALL.size(), "3 + one per fighter")
+	eq(A.goal(A.by_id("trophy_master")), A.trophy_list().size(), "trophy master needs them all")
 	done()

@@ -15,6 +15,7 @@ const Audio = preload("res://audio/audio.gd")
 const HowtoScreen = preload("res://screens/howto_screen.gd")
 const StatsScreen = preload("res://screens/stats_screen.gd")
 const AchievementsScreen = preload("res://screens/achievements_screen.gd")
+const TrophiesScreen = preload("res://screens/trophies_screen.gd")
 const Achievements = preload("res://stats/achievements.gd")
 const Stats = preload("res://stats/stats.gd")
 
@@ -97,6 +98,7 @@ func show_menu() -> void:
 	m.online_pressed.connect(func(): show_online(_lobby if client.status == "online" else {}))
 	m.local_pressed.connect(show_setup)
 	m.cpu_pressed.connect(show_cpu)
+	m.boss_pressed.connect(func(): show_cpu("boss"))
 	m.stats_pressed.connect(func():
 		var st := StatsScreen.new()
 		st.back_requested.connect(show_menu)
@@ -105,6 +107,10 @@ func show_menu() -> void:
 		var a := AchievementsScreen.new()
 		a.back_requested.connect(show_menu)
 		_swap(a))
+	m.trophies_pressed.connect(func():
+		var t := TrophiesScreen.new()
+		t.back_requested.connect(show_menu)
+		_swap(t))
 	m.howto_pressed.connect(func():
 		var h := HowtoScreen.new()
 		h.back_requested.connect(show_menu)
@@ -119,8 +125,9 @@ func show_setup() -> void:
 	_swap(s)
 
 
-func show_cpu() -> void:
+func show_cpu(mode := "1v1") -> void:
 	var s := CpuScreen.new()
+	s.set_mode(mode)
 	s.start_requested.connect(show_battle)
 	s.back_requested.connect(show_menu)
 	_swap(s)

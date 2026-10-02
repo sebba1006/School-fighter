@@ -62,8 +62,9 @@ func _fill() -> void:
 	var wins: int = Stats.get_value("online", "wins")
 	var losses: int = Stats.get_value("online", "losses")
 	var ach := Achievements.load_data()
-	_body.add_child(UiTheme.label("ACHIEVEMENTS: %d / %d UNLOCKED (SEE THE ACHIEVEMENTS SCREEN)" % [
-		Achievements.unlocked_count(ach), Achievements.LIST.size()], 8, UiTheme.GOLD))
+	_body.add_child(UiTheme.label("ACHIEVEMENTS: %d / %d UNLOCKED     TROPHIES: %d / %d" % [
+		Achievements.unlocked_count(ach), Achievements.LIST.size(),
+		ach.sets.get("trophies", []).size(), Achievements.trophy_list().size()], 8, UiTheme.GOLD))
 	_body.add_child(UiTheme.label("ONLINE", 8, UiTheme.GOLD))
 	var rate := "-" if played == 0 else "%d%%" % roundi(100.0 * wins / played)
 	_body.add_child(_line("MATCHES %d    WINS %d    LOSSES %d    WIN RATE %s" % [played, wins, losses, rate]))

@@ -34,6 +34,20 @@ const LIST := [
 	{"id": "main_character", "name": "Main Character", "desc": "Win 10 matches with the same fighter", "counter": "best_fighter_wins", "goal": 10},
 	{"id": "all_fighters", "name": "Jack of All Trades", "desc": "Win with every fighter", "set": "fighters"},
 	{"id": "online_legend", "name": "Online Legend", "desc": "Win 25 online matches", "counter": "online_wins", "goal": 25},
+	# boss league: collecting trophies from beating the Principal
+	{"id": "boss_slayer", "name": "Boss Slayer", "desc": "Win your first trophy", "set": "trophies", "goal": 1},
+	{"id": "not_a_scratch", "name": "Not A Scratch", "desc": "Get the Untouchable trophy"},
+	{"id": "trophy_collector", "name": "Trophy Collector", "desc": "Collect 3 trophies", "set": "trophies", "goal": 3},
+	{"id": "trophy_hunter", "name": "Trophy Hunter", "desc": "Collect 6 trophies", "set": "trophies", "goal": 6},
+	{"id": "trophy_master", "name": "Trophy Master", "desc": "Collect every trophy", "set": "trophies"},
+]
+
+## Trophies for beating the Principal in different ways (plus one per fighter,
+## see trophy_list()).
+const TROPHIES := [
+	{"id": "solo", "name": "Solo Win", "desc": "Beat the Principal with 2 CPU teammates"},
+	{"id": "friends", "name": "Friends Win", "desc": "Beat him with 2-3 real players"},
+	{"id": "untouchable", "name": "Untouchable", "desc": "Beat him with nobody KO'd"},
 ]
 ## The list is split into leagues of 5, easiest first.
 const LEAGUES := [
@@ -41,6 +55,7 @@ const LEAGUES := [
 	{"name": "SILVER LEAGUE", "color": Color("c3cad6")},
 	{"name": "GOLD LEAGUE", "color": Color("f2c14e")},
 	{"name": "DIAMOND LEAGUE", "color": Color("7fe3f2")},
+	{"name": "BOSS LEAGUE", "color": Color("e8575e")},
 ]
 const PER_LEAGUE := 5
 const COMBO_DAMAGE := 30
@@ -102,10 +117,28 @@ static func league_of(id: String) -> int:
 	return 0
 
 
+## Every trophy: the three above plus "beat him as <fighter>" for each fighter.
+static func trophy_list() -> Array:
+	var out: Array = TROPHIES.duplicate()
+	for id in Characters.ALL:
+		var n: String = Characters.ALL[id].name
+		out.append({"id": "with_" + id, "name": "%s Trophy" % n, "desc": "Beat him as %s" % n, "fighter": id})
+	return out
+
+
+static func trophy_by_id(id: String) -> Dictionary:
+	for t in trophy_list():
+		if t.id == id:
+			return t
+	return {}
+
+
 static func goal(a: Dictionary) -> int:
 	if a.has("goal"):
 		return a.goal
 	match a.get("set", ""):
+		"trophies":
+			return trophy_list().size()
 		"maps":
 			return Maps.ALL.size()
 		"fighters":

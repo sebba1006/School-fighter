@@ -13,6 +13,7 @@ extends RefCounted
 const Battle = preload("res://rules/battle.gd")
 const Characters = preload("res://rules/characters.gd")
 const Maps = preload("res://rules/maps.gd")
+const Bot = preload("res://ai/bot.gd")
 
 const MAX_PLAYERS := 4
 const TIMER_CHOICES := [0, 15, 30, 45, 60]
@@ -20,13 +21,17 @@ const DISCONNECT_GRACE_MS := 60000
 ## Quick-chat emotes (texts live in the game); at most one per player per 1.5 s.
 const EMOTE_COUNT := 16
 const EMOTE_COOLDOWN_MS := 1500
+## Boss fights: the team is always 3; CPU teammates fill the empty spots and the
+## server plays them, waiting a moment first so everyone can follow.
+const BOSS_TEAM_SIZE := 3
+const CPU_DELAY_MS := 900
 
 var code: String
 var host := ""  # token of the host
 ## [{"token", "pid", "name", "char", "team", "ready", "connected", "gone_since"}]
 var members: Array = []
 ## public: listed in the server's open-lobby list (otherwise code only)
-var settings := {"map": "classroom", "rounds": 3, "timer": 30, "items": true, "public": true, "bonus_hp": 0, "shrink": false, "four": "2v2"}
+var settings := {"map": "classroom", "rounds": 3, "timer": 30, "items": true, "public": true, "bonus_hp": 0, "shrink": false, "four": "2v2", "boss": false}
 var battle: Battle = null
 var config := {}
 var fighter_of := {}  # token -> fighter id
@@ -38,6 +43,7 @@ var kicked := {}
 
 var _next_pid := 1
 var _turn_key := ""
+var _cpu_due := 0  # when the CPU whose turn it is may play
 var _now := 0
 
 
@@ -189,6 +195,8 @@ func handle(token: String, msg: Dictionary, now: int) -> void:
 				settings.shrink = msg.shrink
 			if msg.get("four") in ["2v2", "ffa"]:
 				settings.four = msg.four
+			if msg.get("boss") is bool:
+				settings.boss = msg.boss
 			if msg.get("bonus_hp") is int and Battle.BONUS_HP_CHOICES.has(msg.bonus_hp):
 				settings.bonus_hp = msg.bonus_hp
 			_broadcast_state()
@@ -248,6 +256,8 @@ func handle(token: String, msg: Dictionary, now: int) -> void:
 ## Called regularly by the server: turn timer and disconnect grace.
 func tick(now: int) -> void:
 	_now = now
+	if in_match() and battle.phase == Battle.Phase.TURN and _is_cpu(battle.current().id) and now >= _cpu_due:
+		_play_cpu_turn()
 	if in_match() and turn_deadline > 0 and now >= turn_deadline and battle.phase == Battle.Phase.TURN:
 		_apply_op({"op": "intent", "fighter": battle.current().id, "intent": {"type": "end_turn"}, "timeout": true})
 	for m in members.duplicate():
@@ -267,7 +277,10 @@ func _start_match() -> String:
 	if in_match():
 		return "in_match"
 	var n := members.size()
-	if n < 2:
+	if settings.boss:
+		if n > BOSS_TEAM_SIZE:
+			return "boss_max_3"
+	elif n < 2:
 		return "need_players"
 	for m in members:
 		if not m.connected:
@@ -278,7 +291,7 @@ func _start_match() -> String:
 			return "not_everyone_ready"
 	# Everyone for themselves unless it is a 4-player match set to 2v2.
 	var ffa: bool = n != 4 or settings.four == "ffa"
-	if n == 4 and not ffa:
+	if n == 4 and not ffa and not settings.boss:
 		var t0 := 0
 		for m in members:
 			if m.team == 0:
@@ -290,11 +303,19 @@ func _start_match() -> String:
 	for i in n:
 		var m: Dictionary = members[i]
 		var team: int = i if ffa else m.team
-		players.append({"char": m.char, "team": team, "name": m.name, "pid": m.pid})
+		players.append({"char": m.char, "team": 0 if settings.boss else team, "name": m.name, "pid": m.pid})
 		fighter_of[m.token] = i
-	config = {"map": settings.map, "rounds": settings.rounds, "timer": settings.timer, "items": settings.items, "bonus_hp": settings.bonus_hp, "shrink": settings.shrink, "seed": randi(), "players": players}
+	if settings.boss:
+		# fill the team up to 3 with CPU teammates on fighters nobody picked
+		var free: Array = Characters.ALL.keys().filter(func(c): return not players.any(func(p): return p.char == c))
+		free.shuffle()
+		while players.size() < BOSS_TEAM_SIZE:
+			players.append({"char": free.pop_back(), "team": 0, "name": "CPU", "cpu": "normal"})
+		config = {"boss": true, "timer": settings.timer, "items": settings.items, "seed": randi(), "players": players}
+	else:
+		config = {"map": settings.map, "rounds": settings.rounds, "timer": settings.timer, "items": settings.items, "bonus_hp": settings.bonus_hp, "shrink": settings.shrink, "seed": randi(), "players": players}
 	battle = Battle.new(config)
-	print("lobby %s: match started, %d players on %s" % [code, n, settings.map])
+	print("lobby %s: match started, %d players on %s" % [code, n, "the boss" if settings.boss else settings.map])
 	ops.clear()
 	_turn_key = ""
 	for m in members:
@@ -340,15 +361,38 @@ func _apply_op(op: Dictionary) -> String:
 	return ""
 
 
+func _is_cpu(fighter_id: int) -> bool:
+	return fighter_id < config.players.size() and config.players[fighter_id].has("cpu")
+
+
+## Plays a CPU teammate's whole turn, as ops like a player's moves.
+func _play_cpu_turn() -> void:
+	var f := battle.current()
+	var p := Bot.plan_level(battle, config.players[f.id].cpu)
+	for t in p.path:
+		if battle.phase != Battle.Phase.TURN or battle.current() != f:
+			return
+		if _apply_op({"op": "intent", "fighter": f.id, "intent": {"type": "move", "dir": t - f.pos}}) != "":
+			break
+	for intent in p.intents:
+		if battle.phase != Battle.Phase.TURN or battle.current() != f:
+			return
+		if _apply_op({"op": "intent", "fighter": f.id, "intent": _clean_intent(intent)}) != "":
+			break
+	if battle.phase == Battle.Phase.TURN and battle.current() == f:
+		_apply_op({"op": "intent", "fighter": f.id, "intent": {"type": "end_turn"}})
+
+
 func _update_deadline() -> void:
-	if battle == null or battle.phase != Battle.Phase.TURN or settings.timer <= 0:
+	if battle == null or battle.phase != Battle.Phase.TURN:
 		turn_deadline = 0
 		_turn_key = ""
 		return
 	var key := "%d:%d" % [battle.round_number, battle.current().id]
 	if key != _turn_key:
 		_turn_key = key
-		turn_deadline = _now + settings.timer * 1000
+		_cpu_due = _now + CPU_DELAY_MS
+		turn_deadline = _now + settings.timer * 1000 if settings.timer > 0 else 0
 
 
 func _turn_ms() -> int:

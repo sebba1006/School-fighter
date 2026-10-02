@@ -46,8 +46,8 @@ const ALL := {
 		"hp": 105,
 		"move": 3,
 		"attacks": [
-			{"id": "stab", "name": "Stab", "type": "melee", "damage": 16},
-			{"id": "block", "name": "Block", "type": "self_block"},
+			{"id": "stab", "name": "Stab", "type": "melee", "damage": 15},
+			{"id": "block", "name": "Block", "type": "self_block", "cooldown": 2},
 			{"id": "dual_spin", "name": "Dual Spin", "type": "around", "damage": 12},
 			{"id": "sugar_rush", "name": "Sugar Rush", "type": "self_sugar", "multiplier": 1.3, "free": true},
 		],
@@ -90,4 +90,19 @@ const ALL := {
 		],
 		"super": {"id": "mega_woof", "name": "Mega Woof", "type": "melee", "damage_min": 30, "damage_max": 40, "knockback_min": 1, "knockback_max": 2},
 	},
+}
+
+
+## The boss (boss fights only, not pickable). He never moves; his attacks are
+## run by the rules engine (see Battle._boss_act). The attack list is only text
+## for the info screens.
+const BOSS := {
+	"name": "The Principal", "short": "Principal", "hp": 2000, "move": 0,
+	"attacks": [
+		{"id": "ruler_slam", "name": "Ruler Slam", "type": "boss"},
+		{"id": "megaphone", "name": "Megaphone Yell", "type": "boss"},
+		{"id": "detention", "name": "Detention!", "type": "boss"},
+		{"id": "glare", "name": "Glare", "type": "boss"},
+	],
+	"super": {"id": "none", "name": "-", "type": "boss"},
 }

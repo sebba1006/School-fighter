@@ -29,6 +29,7 @@ const ERRORS := {
 	"someone_offline": "SOMEONE IS OFFLINE",
 	"server_full": "THE SERVER IS FULL, TRY AGAIN LATER",
 	"kicked": "YOU WERE REMOVED FROM THAT LOBBY",
+	"boss_max_3": "A BOSS FIGHT IS FOR 1-3 PLAYERS",
 }
 const LIST_EVERY_MS := 4000
 
@@ -235,9 +236,11 @@ func _show_lobby() -> void:
 	list.add_child(UiTheme.label("PLAYERS %d/4" % members.size(), 8, UiTheme.CHALK_DIM))
 	for m in members:
 		list.add_child(_player_row(m, host, four))
-	if members.size() == 3:
+	if members.size() == 3 and not lobby.settings.get("boss", false):
 		list.add_child(UiTheme.label("3 PLAYERS = FREE FOR ALL", 8, UiTheme.CHALK_DIM))
-	if members.size() == 4 or (host and members.size() >= 2):
+	if lobby.settings.get("boss", false):
+		list.add_child(UiTheme.label("BOSS FIGHT: CPUS FILL THE TEAM UP TO 3", 8, UiTheme.HIT))
+	elif members.size() == 4 or (host and members.size() >= 2):
 		var mrow := HBoxContainer.new()
 		mrow.add_theme_constant_override("separation", 6)
 		var mode_text := "4 PLAYERS = FREE FOR ALL" if four_ffa else ("4 PLAYERS = 2V2" + (" - TAP A TEAM" if host and four else ""))
@@ -272,7 +275,17 @@ func _show_lobby() -> void:
 			b.toggle_mode = true
 			b.set_pressed_no_signal(settings.map == id)
 			b.pressed.connect(func(): net.send({"t": "settings", "map": id}))
+			b.disabled = settings.get("boss", false)  # the boss has his own room
 			srow.add_child(b)
+		var boss_on: bool = settings.get("boss", false)
+		var bb := Button.new()
+		bb.text = "BOSS ON" if boss_on else "BOSS"
+		bb.toggle_mode = true
+		bb.set_pressed_no_signal(boss_on)
+		bb.add_theme_color_override("font_color", UiTheme.HIT)
+		bb.add_theme_color_override("font_pressed_color", UiTheme.HIT)
+		bb.pressed.connect(func(): net.send({"t": "settings", "boss": not boss_on}))
+		srow.add_child(bb)
 		srow = _row(_lobby_view)  # rounds and timer go on their own row
 		srow.add_child(UiTheme.label("ROUNDS", 8, UiTheme.CHALK_DIM))
 		srow.add_child(_small("-", func(): net.send({"t": "settings", "rounds": maxi(1, settings.rounds - 1)})))
@@ -320,10 +333,14 @@ func _show_lobby() -> void:
 		pub.pressed.connect(func(): net.send({"t": "settings", "public": not is_public}))
 		srow.add_child(pub)
 	else:
-		srow.add_child(UiTheme.label("MAP %s   ROUNDS %d   TIMER %s   ITEMS %s   %s   SHRINK %s" % [
-			Maps.ALL[settings.map].name.to_upper(), settings.rounds, _timer_text(settings.timer),
-			"ON" if settings.get("items", true) else "OFF", _bonus_text(settings.get("bonus_hp", 0)),
-			"ON" if settings.get("shrink", false) else "OFF"], 8, UiTheme.CHALK_DIM))
+		if settings.get("boss", false):
+			srow.add_child(UiTheme.label("BOSS FIGHT VS THE PRINCIPAL!   TIMER %s   ITEMS %s" % [
+				_timer_text(settings.timer), "ON" if settings.get("items", true) else "OFF"], 8, UiTheme.HIT))
+		else:
+			srow.add_child(UiTheme.label("MAP %s   ROUNDS %d   TIMER %s   ITEMS %s   %s   SHRINK %s" % [
+				Maps.ALL[settings.map].name.to_upper(), settings.rounds, _timer_text(settings.timer),
+				"ON" if settings.get("items", true) else "OFF", _bonus_text(settings.get("bonus_hp", 0)),
+				"ON" if settings.get("shrink", false) else "OFF"], 8, UiTheme.CHALK_DIM))
 
 	var brow := _row(_lobby_view)
 	if host:

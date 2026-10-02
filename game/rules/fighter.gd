@@ -27,6 +27,10 @@ var sugar_active := false
 var sugar_multiplier := 1.0
 var no_attack_next := false
 var no_attack_now := false
+## How many of their own turns this fighter has started this round, and for
+## attacks with a cooldown: slot -> the own-turn number it can be used again.
+var own_turns := 0
+var ready_at := {}
 ## Melee / Ranged Guard in use: {"kind": "melee" | "ranged", "pct": 20-45, "turns": n} or {}.
 var guard := {}
 ## Item held ("" = none; see Battle.ITEMS). Lost at the end of the round.
@@ -36,6 +40,8 @@ var match_damage := 0
 var match_kos := 0
 ## Left the match (disconnected too long). Stays knocked out for the rest of it.
 var forfeited := false
+## The boss: takes up 3x3 tiles around `pos`, never moves and can't be pushed.
+var is_boss := false
 
 
 func _init(p_id: int, p_char_id: String, p_team: int, p_def: Dictionary) -> void:
@@ -63,6 +69,8 @@ func reset_for_round() -> void:
 	no_attack_now = false
 	item = ""
 	guard = {}
+	own_turns = 0
+	ready_at = {}
 
 
 func alive() -> bool:

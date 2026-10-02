@@ -15,7 +15,7 @@ const FighterPicker = preload("res://ui/fighter_picker.gd")
 const Battle = preload("res://rules/battle.gd")
 const Audio = preload("res://audio/audio.gd")
 
-const MODES := {"1v1": "1V1", "ffa": "1V1V1", "ffa4": "1V1V1V1", "2v2": "2V2"}
+const MODES := {"1v1": "1V1", "ffa": "1V1V1", "ffa4": "1V1V1V1", "2v2": "2V2", "boss": "BOSS"}
 const LEVELS := {"easy": "EASY", "normal": "NORMAL", "hard": "HARD"}
 const RANDOM := "random"
 
@@ -34,6 +34,8 @@ var _level_buttons := {}
 var _slot_row: HBoxContainer
 var _picker: FighterPicker
 var _map_buttons := {}
+var _normal_only: Array[Control] = []  # hidden in a boss fight (no map, rounds, HP or shrink)
+var _boss_note: Label
 var _rounds_label: Label
 var _info: Label
 
@@ -82,7 +84,11 @@ func _ready() -> void:
 	_info.custom_minimum_size.y = 40
 	col.add_child(_info)
 
+	_boss_note = UiTheme.label("BOSS FIGHT: YOU + 2 CPU TEAMMATES VS THE PRINCIPAL (2000 HP)  -  EVERYONE GETS +250 HP", 8, UiTheme.HIT)
+	_boss_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(_boss_note)
 	var options := _row(col)
+	_normal_only.append(options)
 	options.add_child(UiTheme.label("MAP", 8, UiTheme.CHALK_DIM))
 	for id in Maps.ALL:
 		var b := _toggle(Maps.ALL[id].name.to_upper())
@@ -90,14 +96,18 @@ func _ready() -> void:
 		_map_buttons[id] = b
 		options.add_child(b)
 	options = _row(col)  # rounds and items on their own row
-	options.add_child(UiTheme.label("ROUNDS", 8, UiTheme.CHALK_DIM))
-	options.add_child(_small("-", func(): rounds = maxi(1, rounds - 1); _refresh()))
+	var rounds_box := HBoxContainer.new()
+	rounds_box.add_theme_constant_override("separation", 4)
+	options.add_child(rounds_box)
+	_normal_only.append(rounds_box)
+	rounds_box.add_child(UiTheme.label("ROUNDS", 8, UiTheme.CHALK_DIM))
+	rounds_box.add_child(_small("-", func(): rounds = maxi(1, rounds - 1); _refresh()))
 	_rounds_label = UiTheme.label("3", 16, UiTheme.CHALK)
 	_rounds_label.custom_minimum_size = Vector2(16, 0)
 	_rounds_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	options.add_child(_rounds_label)
-	options.add_child(_small("+", func(): rounds = mini(5, rounds + 1); _refresh()))
-	options.add_child(_gap(16))
+	rounds_box.add_child(_rounds_label)
+	rounds_box.add_child(_small("+", func(): rounds = mini(5, rounds + 1); _refresh()))
+	rounds_box.add_child(_gap(16))
 	var it := Button.new()
 	it.custom_minimum_size = Vector2(70, 20)
 	it.text = "ITEMS ON"
@@ -113,6 +123,7 @@ func _ready() -> void:
 		bonus_hp = choices[(choices.find(bonus_hp) + 1) % choices.size()]
 		hpb.text = "HP: ORIGINAL" if bonus_hp == 0 else "HP: +%d" % bonus_hp)
 	options.add_child(hpb)
+	_normal_only.append(hpb)
 	var shb := Button.new()
 	shb.custom_minimum_size = Vector2(76, 20)
 	shb.text = "SHRINK OFF"
@@ -120,6 +131,7 @@ func _ready() -> void:
 		shrink = not shrink
 		shb.text = "SHRINK ON" if shrink else "SHRINK OFF")
 	options.add_child(shb)
+	_normal_only.append(shb)
 
 	var buttons := _row(col)
 	buttons.add_theme_constant_override("separation", 8)
@@ -141,11 +153,19 @@ func _ready() -> void:
 
 
 func _slot_count() -> int:
-	return {"1v1": 2, "ffa": 3, "ffa4": 4, "2v2": 4}[mode]
+	return {"1v1": 2, "ffa": 3, "ffa4": 4, "2v2": 4, "boss": 3}[mode]
+
+
+## Opens the screen straight in a mode (the menu's BOSS FIGHT button uses "boss").
+func set_mode(m: String) -> void:
+	mode = m
+	slot = 0
 
 
 ## Team of each slot: 2v2 = you + CPU teammate vs two CPUs; otherwise everyone alone.
 func _team(i: int) -> int:
+	if mode == "boss":
+		return 0
 	if mode == "2v2":
 		return 0 if i < 2 else 1
 	return i
@@ -154,6 +174,8 @@ func _team(i: int) -> int:
 func _slot_title(i: int) -> String:
 	if i == 0:
 		return "YOU"
+	if mode == "boss":
+		return "TEAMMATE %d" % i
 	if mode == "2v2" and i == 1:
 		return "TEAMMATE"
 	return "CPU %d" % (i if mode != "2v2" else i - 1)
@@ -205,6 +227,9 @@ func _refresh() -> void:
 	for id in _map_buttons:
 		_map_buttons[id].set_pressed_no_signal(id == map_id)
 	_rounds_label.text = str(rounds)
+	for c in _normal_only:
+		c.visible = mode != "boss"
+	_boss_note.visible = mode == "boss"
 
 
 func _start() -> void:
@@ -221,6 +246,9 @@ func _start() -> void:
 		if i > 0:
 			p["cpu"] = level
 		players.append(p)
+	if mode == "boss":
+		start_requested.emit({"boss": true, "items": items, "players": players, "seed": randi()})
+		return
 	start_requested.emit({"map": map_id, "rounds": rounds, "items": items, "bonus_hp": bonus_hp, "shrink": shrink, "players": players, "seed": randi()})
 
 
