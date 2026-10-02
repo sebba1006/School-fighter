@@ -195,3 +195,20 @@ func test_teachers_leave_when_he_is_beaten() -> void:
 	check(b.fighters.filter(func(f): return f.is_minion).all(func(t): return not t.alive()), "teachers gone")
 	eq(b.match_winner, 0, "the players win")
 	done()
+
+
+func test_angry_boss_attacks_twice() -> void:
+	var b := _boss_battle()
+	var boss := b.boss()
+	boss.hp = boss.max_hp * Battle.ANGRY_PCT / 100
+	for f in b.fighters:
+		if f.team == 0:
+			put(b, f.id, 0, f.id * 2 + 1)
+	b.forced_rolls.assign([100, 0, 100, 1])  # skip megaphone, detention; twice
+	end_turn(b, 0)
+	end_turn(b, 1)
+	var r := end_turn(b, 2)
+	check(has_event(r, "angry"), "gets angry")
+	eq(r.events.filter(func(e): return e.type == "boss_attack").size(), 2, "two attacks")
+	check(boss.angry, "stays angry")
+	done()

@@ -109,7 +109,7 @@ const BOSS := {
 
 ## The teachers the Principal summons (boss fights only, played by the rules engine).
 const TEACHER := {
-	"name": "Teacher", "short": "Teacher", "hp": 40, "move": 3,
+	"name": "Teacher", "short": "Teacher", "hp": 50, "move": 3,
 	"attacks": [
 		{"id": "scold", "name": "Scold", "type": "boss"},
 		{"id": "scold", "name": "Scold", "type": "boss"},

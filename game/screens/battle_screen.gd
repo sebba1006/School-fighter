@@ -919,6 +919,11 @@ func _play(events: Array) -> void:
 				await _boss_attack_anim(e)
 			"summon":
 				await _summon_anim(e)
+			"angry":
+				Audio.play("slam")
+				_popup(fighter_views[e.fighter], "HE'S ANGRY! 2 ATTACKS A TURN!", UiTheme.HIT, -80)
+				fighter_views[e.fighter].angry = true
+				await _shake(5)
 			"apple":
 				Audio.play("pickup")
 				_add_apple(e.at, true)

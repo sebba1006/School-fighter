@@ -54,17 +54,19 @@ const ZONE_DAMAGE := 10
 const BOSS_TEAM := 1
 const BOSS_PLAYER_HP := 250  # every player gets this much extra HP
 const BOSS_RADIUS := 1  # 3x3 tiles
-const RULER_DAMAGE := 16  # everyone right next to him, pushed back RULER_PUSH
-const MEGAPHONE_DAMAGE := 10  # everyone in line with him, pushed back MEGAPHONE_PUSH
-const DETENTION_DAMAGE := 16  # one player anywhere, + Dizzy
+const RULER_DAMAGE := 20  # everyone right next to him, pushed back RULER_PUSH
+const MEGAPHONE_DAMAGE := 12  # everyone in line with him, pushed back MEGAPHONE_PUSH
+const DETENTION_DAMAGE := 20  # one player anywhere, + Dizzy
 ## Hits on the Principal count double, so 2250 HP doesn't take forever.
 const BOSS_HIT_MULTIPLIER := 2
 const RULER_PUSH := 2  # tiles the Ruler Slam pushes you back
 const MEGAPHONE_PUSH := 3  # ...and the Megaphone Yell 3
 ## Teachers the Principal summons to help him (ids after his).
 const TEACHERS := 2
-const TEACHER_DAMAGE := 8
-const SUMMON_CHANCE := 25  # % per turn once all teachers are gone
+const TEACHER_DAMAGE := 10
+const SUMMON_CHANCE := 40  # % per turn once all teachers are gone
+## Below this much HP (%) he gets ANGRY and attacks twice every turn.
+const ANGRY_PCT := 25
 const APPLE_EVERY := 250  # an apple drops each time he loses this much HP
 const APPLE_HEAL := 60
 ## Host setting: everyone gets this much extra HP (0 = original).
@@ -645,6 +647,13 @@ func _begin_turn() -> Array:
 	events.append({"type": "turn_start", "fighter": f.id, "move_budget": move_budget, "can_attack": not f.no_attack_now})
 	if (f.is_boss or f.is_minion) and phase == Phase.TURN:
 		events.append_array(_boss_act(f) if f.is_boss else _teacher_act(f))
+		if f.is_boss and f.hp * 100 <= f.max_hp * ANGRY_PCT and phase == Phase.TURN:
+			if not f.angry:
+				f.angry = true
+				events.append({"type": "angry", "fighter": f.id})
+			_check_round_end(events)
+			if phase == Phase.TURN:
+				events.append_array(_boss_act(f))  # angry: a second attack every turn
 		_check_round_end(events)
 		if phase == Phase.TURN:
 			events.append_array(_end_turn())
@@ -1089,7 +1098,7 @@ func state_hash() -> int:
 	var parts := [phase, round_number, turn_index, move_budget, path.size(), _rng.state, _last_team, _team_last, box, _turn_count, zone_rings, _apples_dropped]
 	for f in fighters:
 		parts.append_array([f.hp, f.pos.x, f.pos.y, f.meter, f.shield.get("kind", ""), f.shield.get("amount", 0),
-			f.dizzy_next, f.rage_turns, f.sugar_active, f.no_attack_next, f.no_attack_now, f.forfeited, f.item, f.guard, f.own_turns, f.ready_at])
+			f.dizzy_next, f.rage_turns, f.sugar_active, f.no_attack_next, f.no_attack_now, f.forfeited, f.item, f.guard, f.own_turns, f.ready_at, f.angry])
 	var tiles := obstacles.keys()
 	tiles.sort()
 	for t in tiles:
