@@ -184,6 +184,8 @@ func set_host(v: bool) -> void:
 func _name_of(f) -> String:
 	if f.is_boss:
 		return "THE PRINCIPAL"
+	if f.is_minion:
+		return "TEACHER"
 	if online():
 		return "%s (%s)" % [str(config.players[f.id].get("name", "?")).to_upper(), f.def.name.to_upper()]
 	if _is_cpu(f.id):
@@ -270,14 +272,17 @@ func _build_board() -> void:
 		var v = fighter_views[f.id]
 		v.reset_pose()
 		v.set_tile(f.pos)
+		v.visible = not (f.is_minion and not f.alive())  # teachers wait off the board
 		if not f.alive():
 			v.knock_out()
 	_layout()
 
 
 func _build_hud() -> void:
-	var n := battle.fighters.size()
+	var n := battle.fighters.filter(func(o): return not o.is_minion).size()
 	for f in battle.fighters:
+		if f.is_minion:
+			continue  # teachers have a small HP bar over their head instead (they come last)
 		var color: Color = UiTheme.TEAM[battle.teams.find(f.team)]
 		var box := VBoxContainer.new()
 		box.add_theme_constant_override("separation", 1)
@@ -912,6 +917,8 @@ func _play(events: Array) -> void:
 				await get_tree().create_timer(0.3).timeout
 			"boss_attack":
 				await _boss_attack_anim(e)
+			"summon":
+				await _summon_anim(e)
 			"apple":
 				Audio.play("pickup")
 				_add_apple(e.at, true)
@@ -976,6 +983,8 @@ func _play(events: Array) -> void:
 				Audio.play("ko")
 				_popup(fighter_views[e.fighter], "KO!", UiTheme.HIT, -40)
 				await fighter_views[e.fighter].knock_out().finished
+				if battle.fighters[e.fighter].is_minion:
+					fighter_views[e.fighter].visible = false
 			"status" when e.status == "guard":
 				Audio.play("block")
 				_popup(fighter_views[e.fighter], "%s GUARD -%d%%" % [e.kind.to_upper(), e.pct], UiTheme.CHALK, -36)
@@ -999,10 +1008,11 @@ func _play(events: Array) -> void:
 				if not fighter_views[e.fighter].knocked_out:
 					await fighter_views[e.fighter].knock_out().finished
 			"turn_start":
-				if not online() or e.fighter == my_fighter:
-					Audio.play("turn")
 				_refresh()
-				await _turn_banner(battle.fighters[e.fighter])
+				if not battle.fighters[e.fighter].is_minion:  # teachers just get on with it, no banner
+					if not online() or e.fighter == my_fighter:
+						Audio.play("turn")
+					await _turn_banner(battle.fighters[e.fighter])
 			"round_end":
 				round_end = e
 			"match_end":
@@ -1059,11 +1069,12 @@ func _use_item_anim(e: Dictionary, events: Array, i: int) -> void:
 
 ## The Principal's attack: name popup, the hit tiles flash red, screen shake.
 func _boss_attack_anim(e: Dictionary) -> void:
-	var names := {"ruler_slam": "RULER SLAM!", "megaphone": "MEGAPHONE YELL!", "detention": "DETENTION!"}
-	var sounds := {"ruler_slam": "slam", "megaphone": "woof", "detention": "ko"}
+	var names := {"ruler_slam": "RULER SLAM!", "megaphone": "MEGAPHONE YELL!", "detention": "DETENTION!", "scold": "SCOLD!"}
+	var sounds := {"ruler_slam": "slam", "megaphone": "woof", "detention": "ko", "scold": "hit"}
 	var v = fighter_views[e.fighter]
-	_popup(v, names.get(e.attack, "!"), UiTheme.HIT, -80)
-	await v.lunge(Vector2i.DOWN).finished
+	var teacher: bool = battle.fighters[e.fighter].is_minion
+	_popup(v, names.get(e.attack, "!"), UiTheme.HIT, -40 if teacher else -80)
+	await v.lunge(battle.fighters[e.fighter].facing if teacher else Vector2i.DOWN).finished
 	Audio.play(sounds.get(e.attack, "slam"))
 	var flashes := []
 	for t in e.tiles:
@@ -1077,13 +1088,34 @@ func _boss_attack_anim(e: Dictionary) -> void:
 		flashes.append(r)
 	if e.attack == "detention" and e.has("target"):
 		_popup(fighter_views[e.target], "DETENTION!", UiTheme.HIT, -44)
-	await _shake(4 if e.attack == "ruler_slam" else 2)
+	if not teacher:
+		await _shake(4 if e.attack == "ruler_slam" else 2)
+	else:
+		await get_tree().create_timer(0.15).timeout
 	var tw := create_tween().set_parallel()
 	for r in flashes:
 		tw.tween_property(r, "modulate:a", 0.0, 0.35)
 	await tw.finished
 	for r in flashes:
 		r.queue_free()
+
+
+## TEACHERS, HELP ME!: the teachers pop in next to him in a puff of dust.
+func _summon_anim(e: Dictionary) -> void:
+	var v = fighter_views[e.fighter]
+	_popup(v, "TEACHERS, HELP ME!", UiTheme.HIT, -80)
+	Audio.play("turn")
+	await v.lunge(Vector2i.DOWN).finished
+	for s in e.teachers:
+		var tv = fighter_views[s.fighter]
+		tv.reset_pose()
+		tv.set_tile(s.at)
+		tv.hp_frac = 1.0
+		tv.visible = true
+		tv.flash(Color("f2c14e"))
+		_fx("dust", _px_center(tv.position))
+		_hp_shown[s.fighter] = battle.fighters[s.fighter].max_hp
+	await get_tree().create_timer(0.4).timeout
 
 
 func _add_apple(t: Vector2i, drop := false) -> void:
@@ -1398,7 +1430,7 @@ func _px_center(p: Vector2) -> Vector2:
 
 func _view_at(t: Vector2i):
 	for f in battle.fighters:
-		if f.pos == t:
+		if f.pos == t and f.alive():
 			return fighter_views[f.id]
 	return null
 
@@ -1467,7 +1499,7 @@ func _show_overlay(e: Dictionary, is_match: bool) -> void:
 	_overlay_is_match = is_match
 	var winners := []
 	for f in battle.fighters:
-		if f.team == e.winner_team:
+		if f.team == e.winner_team and not f.is_minion:
 			winners.append(_name_of(f))
 	var winner := " & ".join(winners) if not winners.is_empty() else "NOBODY"
 	if online() and battle.fighters[my_fighter].team == e.winner_team:
@@ -1543,7 +1575,7 @@ func _mvp_lines() -> Array:
 	var top_dmg = null
 	var top_kos = null
 	for f in battle.fighters:
-		if f.is_boss:
+		if f.team == Battle.BOSS_TEAM and battle.boss_mode:
 			continue
 		if top_dmg == null or f.match_damage > top_dmg.match_damage:
 			top_dmg = f
@@ -1825,6 +1857,11 @@ func _refresh() -> void:
 
 func _refresh_panels() -> void:
 	for f in battle.fighters:
+		if f.is_minion:
+			if not busy:
+				_hp_shown[f.id] = f.hp
+			fighter_views[f.id].hp_frac = float(_hp_shown.get(f.id, f.hp)) / f.max_hp
+			continue
 		var p: Dictionary = panels[f.id]
 		# While a move is animating, bars show HP as of the last hit shown so far
 		# (the rules engine already has the final numbers).

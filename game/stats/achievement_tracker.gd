@@ -129,7 +129,7 @@ func _boss_won(winner) -> void:
 		_trophy("solo")
 	if humans >= 2:
 		_trophy("friends")
-	if battle.fighters.all(func(f): return f.is_boss or f.alive()):
+	if battle.fighters.all(func(f): return f.team == Battle.BOSS_TEAM or f.alive()):
 		_trophy("untouchable")
 		_unlock("not_a_scratch")
 	_trophy("with_" + winner.char_id)
