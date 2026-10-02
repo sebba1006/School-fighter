@@ -12,6 +12,7 @@ See [PLAN.md](PLAN.md) for the full design: characters, maps, rules and mileston
 - **M2 Local battle:** done. Two players on one device, touch or keyboard
 - **VS CPU:** done. 1v1, 1v1v1 or 2v2 (with a CPU teammate) against the
   computer player (`ai/bot.gd`), with EASY / NORMAL / HARD
+- **Achievements:** 20 to unlock, with an ACHIEVEMENTS screen
 - **Shrinking map:** optional detention zone that closes in from the edges
 - **Victory screen:** MVP (most damage) and most KOs
 - **Open lobbies:** lobbies are public by default and show up in a list on

@@ -14,6 +14,8 @@ const Config = preload("res://net/config.gd")
 const Audio = preload("res://audio/audio.gd")
 const HowtoScreen = preload("res://screens/howto_screen.gd")
 const StatsScreen = preload("res://screens/stats_screen.gd")
+const AchievementsScreen = preload("res://screens/achievements_screen.gd")
+const Achievements = preload("res://stats/achievements.gd")
 const Stats = preload("res://stats/stats.gd")
 
 const KEYS := {
@@ -55,6 +57,7 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_fit_screen)
 	if not persist_online:
 		Stats.enabled = false  # test runs don't touch the real stats
+		Achievements.enabled = false
 	if Audio.instance == null:
 		add_child(Audio.new())
 	client = Client.new()
@@ -98,6 +101,10 @@ func show_menu() -> void:
 		var st := StatsScreen.new()
 		st.back_requested.connect(show_menu)
 		_swap(st))
+	m.achievements_pressed.connect(func():
+		var a := AchievementsScreen.new()
+		a.back_requested.connect(show_menu)
+		_swap(a))
 	m.howto_pressed.connect(func():
 		var h := HowtoScreen.new()
 		h.back_requested.connect(show_menu)

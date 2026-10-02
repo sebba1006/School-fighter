@@ -23,6 +23,8 @@ const FighterInfo = preload("res://ui/fighter_info.gd")
 const Audio = preload("res://audio/audio.gd")
 const Stats = preload("res://stats/stats.gd")
 const Bot = preload("res://ai/bot.gd")
+const Achievements = preload("res://stats/achievements.gd")
+const AchievementTracker = preload("res://stats/achievement_tracker.gd")
 
 const TILE := 32
 const TOP_H := 30
@@ -124,6 +126,9 @@ var _my_kos := 0
 var _my_supers := 0
 var _stats_saved := false
 var _cpu_running := false  # a CPU fighter is playing its turn
+var _ach: AchievementTracker = null
+var _toasts: Array = []  # achievement names waiting to be shown
+var _toast_busy := false
 
 
 ## Local battle.
@@ -787,6 +792,7 @@ func _play(events: Array) -> void:
 	var leaper := -1
 	for i in events.size():
 		var e: Dictionary = events[i]
+		_track(e)
 		match e.type:
 			"move":
 				Audio.play("step")
@@ -954,6 +960,7 @@ func _play(events: Array) -> void:
 			"match_end":
 				match_end = e
 				_record_stats(e.winner_team)
+	_save_achievements()
 	if not match_end.is_empty() or not round_end.is_empty():
 		Audio.play("win")
 	if not match_end.is_empty():
@@ -1029,6 +1036,62 @@ func _add_puddle(t: Vector2i, grow := false) -> void:
 		var tw := create_tween().set_parallel()
 		tw.tween_property(sp, "scale", Vector2.ONE, 0.25)
 		tw.tween_property(sp, "position", Vector2(t.x * TILE, t.y * TILE), 0.25)
+
+
+# ---------------------------------------------------------------- achievements
+
+## Achievements count for this device's fighters: yours online, fighter 0 vs the
+## CPU, and both players in a local battle.
+func _track(e: Dictionary) -> void:
+	if _ach == null:
+		var mine := []
+		if online():
+			mine = [my_fighter]
+		else:
+			for i in battle.fighters.size():
+				if not _is_cpu(i):
+					mine.append(i)
+		_ach = AchievementTracker.new(Achievements.load_data(), battle, config, mine, online())
+	_ach.feed(e)
+	for id in _ach.new_unlocks:
+		_toasts.append(Achievements.by_id(id).name)
+	_ach.new_unlocks.clear()
+	if not _toasts.is_empty() and not _toast_busy:
+		_show_toasts()
+
+
+func _save_achievements() -> void:
+	if _ach != null and _ach.changed:
+		Achievements.save_data(_ach.data)
+		_ach.changed = false
+
+
+## "ACHIEVEMENT UNLOCKED! FIRST BLOOD", one at a time near the top.
+func _show_toasts() -> void:
+	_toast_busy = true
+	while not _toasts.is_empty() and is_inside_tree():
+		var name: String = _toasts.pop_front()
+		Audio.play("super")
+		var box := PanelContainer.new()
+		var l := UiTheme.label("ACHIEVEMENT UNLOCKED!  " + name.to_upper(), 8, UiTheme.GOLD)
+		box.add_child(l)
+		box.z_index = 4095
+		add_child(box)
+		box.size = box.get_combined_minimum_size()
+		var vs := get_viewport_rect().size
+		box.position = Vector2(floorf((vs.x - box.size.x) / 2.0), TOP_H + 16)
+		box.modulate.a = 0.0
+		var tw := create_tween()
+		tw.tween_property(box, "modulate:a", 1.0, 0.2)
+		tw.tween_interval(2.2)
+		tw.tween_property(box, "modulate:a", 0.0, 0.3)
+		tw.tween_callback(box.queue_free)
+		await tw.finished
+	_toast_busy = false
+
+
+func _exit_tree() -> void:
+	_save_achievements()  # e.g. leaving in the middle of a match
 
 
 func _slot_of(f, attack_id: String) -> int:
