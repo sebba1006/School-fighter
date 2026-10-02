@@ -79,6 +79,7 @@ var aim_dist := 2
 
 var panels: Array = []  # per fighter: {"hp": Bar, "meter": Bar, "hp_text": Label, "status": Label}
 var round_label: Label
+var shrink_label: Label  # "MAP STARTS SHRINKING IN 4 TURNS"
 var hint_label: Label
 var attack_buttons: Array[Button] = []
 var attack_names: Array[Label] = []
@@ -287,6 +288,12 @@ func _build_hud() -> void:
 	round_label = UiTheme.label("", 8, UiTheme.CHALK_DIM)
 	round_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(round_label)
+	shrink_label = UiTheme.label("", 8, UiTheme.HIT)
+	shrink_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	shrink_label.add_theme_constant_override("outline_size", 3)
+	shrink_label.add_theme_color_override("font_outline_color", Color("17121c"))
+	shrink_label.z_index = 4000
+	add_child(shrink_label)
 	leave_button = _top_button("LEAVE", _ask_leave)
 	sound_button = _top_button("SOUND ON" if Audio.is_enabled() else "SOUND OFF", _toggle_sound)
 	if online():
@@ -527,6 +534,8 @@ func _layout() -> void:
 		box.position = Vector2(floorf(x), 3)
 	round_label.position = Vector2(floorf(vs.x / 2.0 - 60), 2)
 	round_label.size = Vector2(120, 10)
+	shrink_label.position = Vector2(floorf(vs.x / 2.0 - 120), TOP_H + 3)
+	shrink_label.size = Vector2(240, 10)
 	# small buttons in a centred row under the round label
 	var tops := [leave_button, chat_button, sound_button] if chat_button != null else [leave_button, sound_button]
 	var row_w := 0.0
@@ -1495,6 +1504,15 @@ func _process(_delta: float) -> void:
 			_send({"type": "move", "dir": next - battle.current().pos})
 
 
+func _update_shrink_label() -> void:
+	var n := battle.turns_until_shrink()
+	shrink_label.visible = n > 0
+	if n <= 0:
+		return
+	var what := "MAP STARTS SHRINKING" if battle.zone_rings == 0 else "DETENTION ZONE GROWS"
+	shrink_label.text = "%s NEXT TURN!" % what if n == 1 else "%s IN %d TURNS" % [what, n]
+
+
 func _update_round_label() -> void:
 	var rtxt := "ROUND %d OF %d" % [battle.round_number, battle.rounds_total]
 	if battle.is_sudden_death():
@@ -1530,6 +1548,7 @@ func _refresh() -> void:
 		fighter_views[f.id].active = true
 
 	_update_round_label()
+	_update_shrink_label()
 	sound_button.text = "SOUND ON" if Audio.is_enabled() else "SOUND OFF"
 	sound_button.size = sound_button.get_combined_minimum_size()
 

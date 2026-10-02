@@ -76,3 +76,18 @@ func test_match_damage_and_kos_are_counted() -> void:
 	b.start_round()
 	eq(b.fighters[0].match_kos, 1, "kept across rounds")
 	done()
+
+
+func test_turns_until_shrink_counts_down() -> void:
+	var off := _battle(false)
+	eq(off.turns_until_shrink(), -1, "off: no warning")
+	var b := _battle(true)
+	eq(b.turns_until_shrink(), Battle.SHRINK_START - 1, "counts down from the start")
+	_pass_turns(b, Battle.SHRINK_START - 2)
+	eq(b.turns_until_shrink(), 1, "next turn")
+	_pass_turns(b, 1)
+	eq(b.zone_rings, 1, "it happened")
+	eq(b.turns_until_shrink(), Battle.SHRINK_EVERY, "then the next growth")
+	_pass_turns(b, Battle.SHRINK_EVERY * 10)
+	eq(b.turns_until_shrink(), -1, "no warning once it's as small as it gets")
+	done()

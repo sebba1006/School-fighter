@@ -578,6 +578,18 @@ func _begin_turn() -> Array:
 	return events
 
 
+## Turns (counting everyone's) until the zone next appears or grows, or -1 if it
+## won't (shrinking off, round over, or already as small as it gets). 1 = at the
+## start of the next turn.
+func turns_until_shrink() -> int:
+	if not shrink_on or phase != Phase.TURN or zone_rings >= max_zone_rings():
+		return -1
+	var next := SHRINK_START
+	while next <= _turn_count:
+		next += SHRINK_EVERY
+	return next - _turn_count
+
+
 ## True if `t` is inside the detention zone (`extra` more rings = where it will be next).
 func in_zone(t: Vector2i, extra := 0) -> bool:
 	var rings := zone_rings + extra
