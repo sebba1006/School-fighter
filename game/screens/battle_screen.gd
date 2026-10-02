@@ -108,6 +108,9 @@ var _emote_panel: GridContainer
 var _confirm_box: PanelContainer
 ## Tiles still to walk after tapping a blue tile.
 var _auto_path: Array[Vector2i] = []
+## Joystick pushes that came in while the last step was still animating (done next, in order).
+var _queued_dirs: Array[Vector2i] = []
+const MAX_QUEUED := 3
 ## Last tile tapped while aiming; tapping it again uses the attack.
 var _aim_tap := Vector2i(-99, -99)
 var overlay: PanelContainer
@@ -694,12 +697,29 @@ func _on_tile_tapped(t: Vector2i) -> void:
 
 
 func _on_dir(dir: Vector2i) -> void:
-	if busy or mode == "over" or _waiting:
+	if mode == "over":
+		return
+	if busy or _waiting or not _auto_path.is_empty():
+		# still showing the last step: do this one right after instead of dropping it
+		if mode == "move" and _my_turn() and _queued_dirs.size() < MAX_QUEUED:
+			_queued_dirs.append(dir)
 		return
 	if not _my_turn():
 		_error("not_your_turn")
 		return
 	if mode == "move":
+		var f := battle.current()
+		var to := f.pos + dir
+		# Out of steps (or the way is blocked) but the tile is still blue: walk
+		# there the way a tap would (stepping back first if needed).
+		var can_step := battle.path.size() < battle.move_budget and battle._walkable(to)
+		var prev: Vector2i = battle.path[battle.path.size() - 2] if battle.path.size() >= 2 else battle.turn_start_pos
+		var undoing := not battle.path.is_empty() and to == prev
+		if not can_step and not undoing and (battle.turn_reachable().has(to) or to == battle.turn_start_pos):
+			var route := battle.route_to(to)
+			if not route.is_empty():
+				_auto_path = route
+				return
 		_send({"type": "move", "dir": dir})
 		return
 	var atk := _atk(aim_slot)
@@ -1778,6 +1798,12 @@ func _process(_delta: float) -> void:
 		else:
 			var next: Vector2i = _auto_path.pop_front()
 			_send({"type": "move", "dir": next - battle.current().pos})
+	elif not _queued_dirs.is_empty() and not busy and not _waiting:
+		var d: Vector2i = _queued_dirs.pop_front()
+		if mode == "move" and _my_turn():
+			_on_dir(d)
+		else:
+			_queued_dirs.clear()
 
 
 func _update_shrink_label() -> void:
@@ -1973,6 +1999,7 @@ func _error(code: String) -> void:
 
 func _error_text(text: String) -> void:
 	_auto_path.clear()
+	_queued_dirs.clear()
 	hint_label.text = text
 	hint_label.add_theme_color_override("font_color", UiTheme.HIT)
 	_hint_error_until = Time.get_ticks_msec() + 1500
