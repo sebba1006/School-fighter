@@ -204,6 +204,25 @@ away, then a long-run-up Charge) and Snorre/Mike were around 20%. After:
 Known lopsided matchup: Mike beats Snorre almost every time in the
 simulation (Snorre can't close the distance). Watch for it in real games.
 
+### Balance pass 2 (after playtests)
+Playtesters found Leon's Jab (14) and Lucy & Charlie's Bite (11) too strong.
+The simulation was made fairer first: best-of-3, a mix of HP settings
+(original / +50 / +100) and a little randomness, because with short fights
+"how many hits to KO" decided whole matchups (one damage point could flip a
+matchup from 10% to 90%). With all 7 maps (2100 matches):
+
+| Fighter | Before | After | Changes |
+|---|---|---|---|
+| Sebba | 61% | 44% | Punch 14 → 13, Charge 7 → 6 (+2 per tile) |
+| William | 43% | 57% | Punch 12 → 11 (stronger mostly because others got nerfed) |
+| Snorre | 58% | 54% | HP 100 → 105, Dual Spin 10 → 12 |
+| Mike | 35% | 43% | Slingshot 12 → 11 |
+| Leon | 62% | 54% | Jab 14 → 13 |
+| Lucy & Charlie | 40% | 48% | Bite 11 → 10, Zoomies 7 → 8 |
+
+No more lopsided matchups: Mike vs Snorre went from 98% to 49%. The most
+one-sided pair now is Lucy & Charlie vs Mike (76%).
+
 ---
 
 ## 2c. Maps

@@ -21,10 +21,10 @@ const ALL := {
 		"hp": 95,
 		"move": 3,
 		"attacks": [
-			{"id": "punch", "name": "Punch", "type": "melee", "damage": 14},
+			{"id": "punch", "name": "Punch", "type": "melee", "damage": 13},
 			{"id": "kick", "name": "Kick", "type": "melee", "damage": 8, "knockback": 1},
 			{"id": "sweep", "name": "Sweep", "type": "around", "damage": 8},
-			{"id": "charge", "name": "Charge", "type": "dash", "range": 3, "damage": 7, "damage_per_tile": 2, "knockback": 1},
+			{"id": "charge", "name": "Charge", "type": "dash", "range": 3, "damage": 6, "damage_per_tile": 2, "knockback": 1},
 		],
 		"super": {"id": "mega_barrage", "name": "Mega Barrage", "type": "melee", "damage": 32},
 	},
@@ -35,7 +35,7 @@ const ALL := {
 		"passive": "last_stand",
 		"attacks": [
 			{"id": "shoulder_tackle", "name": "Shoulder Tackle", "type": "dash", "range": 2, "damage": 10, "knockback": 1},
-			{"id": "punch", "name": "Punch", "type": "melee", "damage": 12},
+			{"id": "punch", "name": "Punch", "type": "melee", "damage": 11},
 			{"id": "rage", "name": "Rage", "type": "self_rage", "bonus": 2, "shield": 0, "turns_min": 1, "turns_max": 2},
 			{"id": "head_slam", "name": "Head Slam", "type": "melee", "damage": 9, "status": "dizzy"},
 		],
@@ -43,12 +43,12 @@ const ALL := {
 	},
 	"snorre": {
 		"name": "Snorre",
-		"hp": 100,
+		"hp": 105,
 		"move": 3,
 		"attacks": [
 			{"id": "stab", "name": "Stab", "type": "melee", "damage": 16},
 			{"id": "block", "name": "Block", "type": "self_block"},
-			{"id": "dual_spin", "name": "Dual Spin", "type": "around", "damage": 10},
+			{"id": "dual_spin", "name": "Dual Spin", "type": "around", "damage": 12},
 			{"id": "sugar_rush", "name": "Sugar Rush", "type": "self_sugar", "multiplier": 1.3, "free": true},
 		],
 		"super": {"id": "mega_sword", "name": "Mega Sword", "type": "shockwave", "inner_damage": 28, "outer_damage": 11, "outer_status": "dizzy"},
@@ -59,7 +59,7 @@ const ALL := {
 		"move": 3,
 		"attacks": [
 			{"id": "shove", "name": "Shove", "type": "melee", "damage": 7, "knockback": 2},
-			{"id": "slingshot", "name": "Slingshot", "type": "projectile", "range": 5, "damage": 12},
+			{"id": "slingshot", "name": "Slingshot", "type": "projectile", "range": 5, "damage": 11},
 			{"id": "water_gun", "name": "Water Gun", "type": "line", "range": 3, "damage": 7, "status": "dizzy"},
 			{"id": "book_lob", "name": "Book Lob", "type": "lob", "min_range": 2, "max_range": 4, "damage": 10},
 		],
@@ -70,7 +70,7 @@ const ALL := {
 		"hp": 95,
 		"move": 3,
 		"attacks": [
-			{"id": "jab", "name": "Jab", "type": "melee", "damage": 14},
+			{"id": "jab", "name": "Jab", "type": "melee", "damage": 13},
 			{"id": "hook", "name": "Hook", "type": "melee", "damage": 10, "knockback": 1},
 			{"id": "ball_throw", "name": "Ball Throw", "type": "projectile", "range": 4, "damage": 9},
 			{"id": "eraser_flick", "name": "Eraser Flick", "type": "projectile", "range": 3, "damage": 6, "status": "dizzy"},
@@ -83,9 +83,9 @@ const ALL := {
 		"hp": 110,
 		"move": 3,
 		"attacks": [
-			{"id": "bite", "name": "Bite", "type": "melee", "damage": 11},
+			{"id": "bite", "name": "Bite", "type": "melee", "damage": 10},
 			{"id": "pounce", "name": "Pounce", "type": "dash", "range": 2, "damage": 9, "knockback": 1},
-			{"id": "zoomies", "name": "Zoomies", "type": "around", "damage": 7},
+			{"id": "zoomies", "name": "Zoomies", "type": "around", "damage": 8},
 			{"id": "bark", "name": "Bark", "type": "line", "range": 2, "damage": 5, "status": "dizzy"},
 		],
 		"super": {"id": "mega_woof", "name": "Mega Woof", "type": "melee", "damage_min": 30, "damage_max": 40, "knockback_min": 1, "knockback_max": 2},

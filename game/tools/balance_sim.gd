@@ -1,7 +1,10 @@
 extends SceneTree
 ## Balance check: the computer plays every fighter against every other fighter
 ## on every map and prints win rates. 50% everywhere = perfectly balanced.
-##   godot --headless --path game -s res://tools/balance_sim.gd -- [matches per pair per map=6]
+##   godot --headless --path game -s res://tools/balance_sim.gd -- [matches per pair per map=6] [noise=8] [rounds=3]
+## Best-of-3, a mix of HP settings (original, +50, +100) and a little randomness
+## in the bot's choices keep one damage point from flipping whole matchups
+## (with short fights, "how many hits to KO" decides too much otherwise).
 
 const Battle = preload("res://rules/battle.gd")
 const Characters = preload("res://rules/characters.gd")
@@ -12,6 +15,8 @@ const Bot = preload("res://ai/bot.gd")
 func _init() -> void:
 	var args := OS.get_cmdline_user_args()
 	var per := int(args[0]) if not args.is_empty() else 6
+	var noise := float(args[1]) if args.size() > 1 else 8.0
+	var rounds := int(args[2]) if args.size() > 2 else 3
 	var chars: Array = Characters.ALL.keys()
 	var wins := {}   # [a, b] -> a's wins vs b
 	var games := {}
@@ -33,13 +38,16 @@ func _init() -> void:
 					var swap := m % 2 == 1
 					var left := b if swap else a
 					var right := a if swap else b
-					var battle := Battle.new({"map": map_id, "rounds": 1, "seed": 1000 * m + i * 37 + j,
+					var battle := Battle.new({"map": map_id, "rounds": rounds, "seed": 1000 * m + i * 37 + j, "bonus_hp": [0, 50, 100][m % 3],
 						"first_team": (m / 2) % 2, "players": [{"char": left, "team": 0}, {"char": right, "team": 1}]})
 					battle.start_round()
 					seed(1000 * m + i * 37 + j)
 					var turns := 0
-					while battle.phase == Battle.Phase.TURN and turns < 300:
-						Bot.play_turn(battle, 4.0)
+					while battle.phase != Battle.Phase.MATCH_OVER and turns < 900:
+						if battle.phase == Battle.Phase.ROUND_OVER:
+							battle.start_round()
+							continue
+						Bot.play_turn(battle, noise * (0.5 + (m / 3) % 2))
 						turns += 1
 					turns_total += turns
 					matches += 1
