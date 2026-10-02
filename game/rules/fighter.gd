@@ -44,7 +44,7 @@ var forfeited := false
 var is_boss := false
 ## One of the teachers the boss summons (on his team, played by the rules engine).
 var is_minion := false
-## The boss below Battle.ANGRY_PCT HP: attacks twice a turn.
+## The boss below Battle.ANGRY_PCT HP: his attacks hit harder.
 var angry := false
 
 
