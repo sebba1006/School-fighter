@@ -81,6 +81,7 @@ var aim_slot := -1
 var aim_dir := Vector2i.RIGHT
 var aim_dist := 2
 
+var boss_bar: BossBar  # boss fights: the Principal's big HP bar over the top of the board
 var panels: Array = []  # per fighter: {"hp": Bar, "meter": Bar, "hp_text": Label, "status": Label}
 var round_label: Label
 var shrink_label: Label  # "MAP STARTS SHRINKING IN 4 TURNS"
@@ -308,6 +309,12 @@ func _build_hud() -> void:
 		add_child(box)
 		panels.append({"box": box, "hp": hp, "hp_text": hp_text, "meter": meter, "status": status})
 
+	if battle.boss_mode:
+		boss_bar = BossBar.new()
+		boss_bar.z_index = 3500
+		boss_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		boss_bar.apple_every = Battle.APPLE_EVERY
+		add_child(boss_bar)
 	round_label = UiTheme.label("", 8, UiTheme.CHALK_DIM)
 	round_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(round_label)
@@ -562,6 +569,9 @@ func _layout() -> void:
 		area_l = 4.0
 		y = top
 	board.position = Vector2(floorf(area_l + maxf(0.0, area_r - area_l - bw) / 2.0), y)
+	if boss_bar != null:
+		boss_bar.position = board.position + Vector2(24, 3)
+		boss_bar.size = Vector2(bw - 48, 13)
 
 	# top bar: fighters spread across, round info in the middle
 	# first half of the fighters on the left, the rest on the right
@@ -1079,6 +1089,8 @@ func _boss_attack_anim(e: Dictionary) -> void:
 	var v = fighter_views[e.fighter]
 	var teacher: bool = battle.fighters[e.fighter].is_minion
 	_popup(v, names.get(e.attack, "!"), UiTheme.HIT, -40 if teacher else -80)
+	if not teacher:
+		await _warn_tiles(e.tiles)
 	await v.lunge(battle.fighters[e.fighter].facing if teacher else Vector2i.DOWN).finished
 	Audio.play(sounds.get(e.attack, "slam"))
 	var flashes := []
@@ -1105,11 +1117,59 @@ func _boss_attack_anim(e: Dictionary) -> void:
 		r.queue_free()
 
 
+## Blinks the tiles the boss is about to hit (yellow, twice) so you see it coming.
+func _warn_tiles(tiles: Array) -> void:
+	var marks := []
+	for t in tiles:
+		var r := ColorRect.new()
+		r.color = Color(UiTheme.GOLD, 0.0)
+		r.size = Vector2(TILE, TILE)
+		r.position = Vector2(t.x * TILE, t.y * TILE)
+		r.z_index = 3000
+		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		board.add_child(r)
+		marks.append(r)
+	Audio.play("dizzy")
+	var tw := create_tween()
+	for i in 2:
+		tw.tween_method(func(a: float):
+			for r in marks:
+				r.color.a = a, 0.0, 0.5, 0.12)
+		tw.tween_method(func(a: float):
+			for r in marks:
+				r.color.a = a, 0.5, 0.0, 0.12)
+	await tw.finished
+	for r in marks:
+		r.queue_free()
+
+
+## A big line of text across the middle of the screen (TEACHERS INCOMING!).
+func _big_banner(text: String, color: Color) -> void:
+	var l := UiTheme.label(text, 24, color, true)
+	l.add_theme_constant_override("outline_size", 5)
+	l.add_theme_color_override("font_outline_color", Color("17121c"))
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var vs := get_viewport_rect().size
+	l.size = Vector2(vs.x, 30)
+	l.position = Vector2(0, floorf(vs.y / 2.0 - 40))
+	l.pivot_offset = Vector2(vs.x / 2.0, 15)
+	l.scale = Vector2(1.6, 1.6)
+	l.z_index = 4080
+	add_child(l)
+	var tw := create_tween()
+	tw.tween_property(l, "scale", Vector2.ONE, 0.15).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(0.7)
+	tw.tween_property(l, "modulate:a", 0.0, 0.25)
+	tw.tween_callback(l.queue_free)
+
+
 ## TEACHERS, HELP ME!: the teachers pop in next to him in a puff of dust.
 func _summon_anim(e: Dictionary) -> void:
 	var v = fighter_views[e.fighter]
 	_popup(v, "TEACHERS, HELP ME!", UiTheme.HIT, -80)
 	Audio.play("turn")
+	_big_banner("TEACHERS INCOMING!", UiTheme.HIT)
+	_shake(4)
 	await v.lunge(Vector2i.DOWN).finished
 	for s in e.teachers:
 		var tv = fighter_views[s.fighter]
@@ -1176,7 +1236,8 @@ func _track(e: Dictionary) -> void:
 			mine = [my_fighter]
 		else:
 			for i in battle.fighters.size():
-				if not _is_cpu(i) and not battle.fighters[i].is_boss:
+				# not the CPUs, and in a boss fight not the Principal or his teachers
+				if not _is_cpu(i) and not (battle.boss_mode and battle.fighters[i].team == Battle.BOSS_TEAM):
 					mine.append(i)
 		_ach = AchievementTracker.new(Achievements.load_data(), battle, config, mine, online())
 	_ach.feed(e)
@@ -1861,6 +1922,11 @@ func _refresh() -> void:
 
 
 func _refresh_panels() -> void:
+	if boss_bar != null:
+		var b := battle.boss()
+		if not busy:
+			_hp_shown[b.id] = b.hp
+		boss_bar.set_hp(_hp_shown.get(b.id, b.hp), b.max_hp, b.angry)
 	for f in battle.fighters:
 		if f.is_minion:
 			if not busy:
@@ -2066,3 +2132,52 @@ class Bar extends Control:
 		draw_rect(Rect2(Vector2.ZERO, size), Color("152a22"))
 		draw_rect(Rect2(Vector2.ZERO, Vector2(floorf(size.x * clampf(value, 0, 1)), size.y)), color)
 		draw_rect(Rect2(Vector2.ZERO, size), Color("3e6555"), false, 1.0)
+
+
+## Boss fights: the Principal's long HP bar along the top wall of the room, with
+## a notch every APPLE_EVERY HP (each notch he loses drops an apple).
+class BossBar extends Control:
+	var hp := 1
+	var max_hp := 1
+	var angry := false
+	var apple_every := 150
+	var _label := Label.new()
+
+	func _ready() -> void:
+		_label.add_theme_font_size_override("font_size", 8)
+		_label.add_theme_constant_override("outline_size", 3)
+		_label.add_theme_color_override("font_outline_color", Color("17121c"))
+		_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_label)
+
+	func set_hp(p_hp: int, p_max: int, p_angry: bool) -> void:
+		hp = p_hp
+		max_hp = maxi(1, p_max)
+		angry = p_angry
+		_label.text = "THE PRINCIPAL  %d / %d%s" % [maxi(0, hp), max_hp, "  - ANGRY!" if angry else ""]
+		queue_redraw()
+
+	func _process(_d: float) -> void:
+		_label.size = size
+		if angry:
+			queue_redraw()
+
+	func _draw() -> void:
+		draw_rect(Rect2(Vector2.ZERO, size), Color("17121c", 0.85))
+		var inner := Rect2(Vector2(2, 2), size - Vector2(4, 4))
+		draw_rect(inner, Color("3a1418"))
+		var fill := inner
+		fill.size.x = floorf(inner.size.x * clampf(float(hp) / max_hp, 0.0, 1.0))
+		var c := Color("e8575e")
+		if angry:
+			c = c.lerp(Color("ffcf5a"), 0.5 + 0.5 * sin(Time.get_ticks_msec() / 90.0))
+		draw_rect(fill, c)
+		draw_rect(Rect2(fill.position, Vector2(fill.size.x, 2)), Color(1, 1, 1, 0.25))
+		var n := max_hp / apple_every
+		for i in range(1, n + 1):
+			var x := inner.position.x + floorf(inner.size.x * (1.0 - float(i * apple_every) / max_hp))
+			if x > inner.position.x:
+				draw_line(Vector2(x, inner.position.y), Vector2(x, inner.end.y), Color(0, 0, 0, 0.45), 1.0)
+		draw_rect(Rect2(Vector2.ZERO, size), Color("e8575e") if not angry else c, false, 1.0)

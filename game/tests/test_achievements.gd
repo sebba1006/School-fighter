@@ -223,3 +223,26 @@ func test_trophy_list_has_one_per_fighter() -> void:
 	eq(A.trophy_list().size(), A.TROPHIES.size() + preload("res://rules/characters.gd").ALL.size(), "3 + one per fighter")
 	eq(A.goal(A.by_id("trophy_master")), A.trophy_list().size(), "trophy master needs them all")
 	done()
+
+
+func test_losing_to_the_boss_gives_nothing() -> void:
+	var cfg := _boss_cfg(["sebba", "mike", "leon"], [false, true, true])
+	var b := Battle.new(cfg)
+	b.start_round()
+	var teacher: int = b.fighters.filter(func(f): return f.is_minion)[0].id
+	var t := Tracker.new(_fresh(), b, cfg, [0, teacher], false)  # even if a teacher slipped into "yours"
+	t.feed({"type": "match_end", "winner_team": Battle.BOSS_TEAM, "wins": {}})
+	check(t.new_trophies.is_empty(), "no trophy for losing")
+	check(not t.new_unlocks.has("first_win"), "not a win")
+	done()
+
+
+func test_old_teacher_trophies_are_cleaned_up() -> void:
+	var data := {"unlocked": {"boss_slayer": true, "first_win": true}, "counters": {},
+		"sets": {"trophies": ["with_teacher"], "fighters": ["teacher", "mike"]}}
+	A._clean(data)
+	eq(data.sets.trophies, [], "teacher trophy gone")
+	eq(data.sets.fighters, ["mike"], "teacher isn't a fighter")
+	check(not data.unlocked.has("boss_slayer"), "boss slayer needs a real trophy")
+	check(data.unlocked.has("first_win"), "other unlocks kept")
+	done()

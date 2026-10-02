@@ -15,6 +15,10 @@ const PixelArt = preload("res://art/pixel_art.gd")
 const UiTheme = preload("res://ui/ui_theme.gd")
 const Audio = preload("res://audio/audio.gd")
 
+var _title: Label
+var _hoppers: Array = []  # [TextureRect, char id] of the fighters hopping under the title
+var _t := 0.0
+
 
 func _ready() -> void:
 	theme = UiTheme.theme()
@@ -29,15 +33,21 @@ func _ready() -> void:
 	var title := UiTheme.label("SCHOOL FIGHTER", 32, UiTheme.CHALK, true)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(title)
+	_title = title
 
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 6)
 	for id in Characters.ALL:
+		# a fixed-size slot so the fighter can hop inside it
+		var slot := Control.new()
+		slot.custom_minimum_size = Vector2(32, 48)
 		var t := TextureRect.new()
 		t.texture = PixelArt.character(id)
-		t.custom_minimum_size = Vector2(32, 48)
-		row.add_child(t)
+		t.size = Vector2(32, 48)
+		slot.add_child(t)
+		row.add_child(slot)
+		_hoppers.append([t, id])
 	col.add_child(row)
 
 	for item in [["PLAY ONLINE", online_pressed], ["VS CPU", cpu_pressed], ["BOSS FIGHT", boss_pressed], ["LOCAL BATTLE", local_pressed]]:
@@ -95,3 +105,19 @@ func _ready() -> void:
 	audio_row.add_child(music)
 	col.add_child(audio_row)
 	Audio.start_music()
+
+
+## The fighters take turns hopping in a wave, and the title gently pulses.
+func _process(delta: float) -> void:
+	_t += delta
+	for i in _hoppers.size():
+		var t: TextureRect = _hoppers[i][0]
+		var k := fposmod(_t * 1.6 - i * 0.18, 2.0)
+		var hop := sin(k * PI) * 7.0 if k < 1.0 else 0.0
+		t.position.y = -roundf(hop)
+		var bob := int(_t * 2.5 + i) % 2 == 1
+		t.texture = PixelArt.character(_hoppers[i][1], bob)
+	if _title != null:
+		_title.pivot_offset = _title.size / 2.0
+		var sc := 1.0 + 0.03 * sin(_t * 2.2)
+		_title.scale = Vector2(sc, sc)

@@ -65,7 +65,19 @@ func _ready() -> void:
 	client.persist = persist_online
 	add_child(client)
 	client.message.connect(_on_net_message)
+	get_tree().node_added.connect(_squishy)
 	show_menu()
+
+
+## Every button squishes a little while pressed.
+func _squishy(n: Node) -> void:
+	if n is Button:
+		var b: Button = n
+		b.button_down.connect(func():
+			b.pivot_offset = b.size / 2.0
+			b.create_tween().tween_property(b, "scale", Vector2(0.93, 0.93), 0.05))
+		b.button_up.connect(func():
+			b.create_tween().tween_property(b, "scale", Vector2.ONE, 0.08).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT))
 
 
 func _run_server() -> void:
@@ -83,6 +95,10 @@ func _swap(screen: Node) -> void:
 	_screen = screen
 	add_child(screen)
 	_fit_screen()
+	# fade the new screen in
+	if screen is CanvasItem:
+		screen.modulate.a = 0.0
+		screen.create_tween().tween_property(screen, "modulate:a", 1.0, 0.18)
 
 
 ## Screens fill the window. (Main isn't a Control, so anchors alone don't

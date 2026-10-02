@@ -4,7 +4,8 @@ extends SceneTree
 ## a whole match (one bot's connection is dropped halfway and must rejoin),
 ## then go back to the lobby. Every client's copy of the battle must match the
 ## server's after every move.
-##   godot --headless --path game -s res://tools/net_smoke.gd -- [players=2]
+##   godot --headless --path game -s res://tools/net_smoke.gd -- [players=2] [boss]
+## With "boss" the players team up against the Principal (1-3 players).
 ## Exits with code 1 on any problem.
 
 const Server = preload("res://net/server.gd")
@@ -25,6 +26,7 @@ func _init() -> void:
 func _run() -> void:
 	var args := OS.get_cmdline_user_args()
 	var n := int(args[0]) if not args.is_empty() else 2
+	var boss := args.has("boss")
 	rng.seed = 7
 	var server := Server.new()
 	root.add_child(server)
@@ -60,18 +62,18 @@ func _run() -> void:
 		b.client.send({"t": "pick", "char": CHARS[b.i]})
 		if b.i > 0:
 			b.client.send({"t": "ready", "ready": true})
-	host.client.send({"t": "settings", "rounds": 2, "timer": 30, "map": "gym"})
+	host.client.send({"t": "settings", "rounds": 2, "timer": 30, "map": "gym", "boss": boss})
 	await _until(func(): return host.lobby.members.all(func(m): return m.ready or m.pid == host.lobby.host_pid), 3.0)
 	host.client.send({"t": "start"})
 	if not await _until(func(): return bots.all(func(b): return b.battle != null and b.battle.round_number == 1), 3.0):
 		_finish("match did not start: %s" % str(host.errors))
 		return
-	print("match started with %d players on the gym" % n)
+	print("match started with %d players %s" % [n, "against the Principal" if boss else "on the gym"])
 
 	var dropped := false
 	var steps := 0
 	var round_requested := 0
-	while steps < 4000:
+	while steps < (40000 if boss else 4000):
 		steps += 1
 		await process_frame
 		var hb: Battle = host.battle

@@ -74,7 +74,21 @@ static func load_data() -> Dictionary:
 	if cfg.load(PATH) == OK:
 		for key in data:
 			data[key] = cfg.get_value("achievements", key, data[key])
+	_clean(data)
 	return data
+
+
+## Drops things an old bug saved: wins "as" a teacher counted as a fighter and a
+## trophy (and could unlock the first boss league achievement with no real trophy).
+static func _clean(data: Dictionary) -> void:
+	var real := {}
+	for t in trophy_list():
+		real[t.id] = true
+	data.sets["trophies"] = data.sets.get("trophies", []).filter(func(id): return real.has(id))
+	data.sets["fighters"] = data.sets.get("fighters", []).filter(func(id): return Characters.ALL.has(id))
+	for a in LIST:
+		if a.get("set", "") == "trophies" and data.unlocked.has(a.id) and data.sets.trophies.size() < goal(a):
+			data.unlocked.erase(a.id)
 
 
 static func save_data(data: Dictionary) -> void:
