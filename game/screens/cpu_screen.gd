@@ -1,5 +1,5 @@
 extends Control
-## Fight against the computer: pick the mode (1v1, 1v1v1 or 2v2 with a CPU
+## Fight against the computer: pick the mode (1v1, 1v1v1, 1v1v1v1 or 2v2 with a CPU
 ## teammate), the CPU difficulty, every fighter, the map and rounds.
 ## You are always player 1. Tap a slot (YOU / CPU) to choose its fighter below.
 
@@ -15,7 +15,7 @@ const FighterPicker = preload("res://ui/fighter_picker.gd")
 const Battle = preload("res://rules/battle.gd")
 const Audio = preload("res://audio/audio.gd")
 
-const MODES := {"1v1": "1V1", "ffa": "1V1V1", "2v2": "2V2"}
+const MODES := {"1v1": "1V1", "ffa": "1V1V1", "ffa4": "1V1V1V1", "2v2": "2V2"}
 const LEVELS := {"easy": "EASY", "normal": "NORMAL", "hard": "HARD"}
 const RANDOM := "random"
 
@@ -141,7 +141,7 @@ func _ready() -> void:
 
 
 func _slot_count() -> int:
-	return {"1v1": 2, "ffa": 3, "2v2": 4}[mode]
+	return {"1v1": 2, "ffa": 3, "ffa4": 4, "2v2": 4}[mode]
 
 
 ## Team of each slot: 2v2 = you + CPU teammate vs two CPUs; otherwise everyone alone.

@@ -122,6 +122,7 @@ func test_real_maps_place_everyone_on_free_tiles() -> void:
 			[{"char": "sebba", "team": 0}, {"char": "mike", "team": 1}],
 			[{"char": "sebba", "team": 0}, {"char": "mike", "team": 1}, {"char": "snorre", "team": 2}],
 			[{"char": "sebba", "team": 0}, {"char": "william", "team": 0}, {"char": "mike", "team": 1}, {"char": "snorre", "team": 1}],
+			[{"char": "sebba", "team": 0}, {"char": "william", "team": 1}, {"char": "mike", "team": 2}, {"char": "snorre", "team": 3}],
 		]:
 			var b := Battle.new({"map": map_id, "players": players, "seed": 7})
 			b.start_round()

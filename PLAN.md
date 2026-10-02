@@ -469,6 +469,7 @@ animate the events.
 | M1 ✅ | Rules engine | Grid, move, 4 attacks, super, meter, knockback, obstacles, rounds. All unit-tested |
 | M2 ✅ | Local battle | Playable hot-seat 1v1 on one device with placeholder sprites + one test map |
 | ✅ | VS CPU | 1v1, 1v1v1 or 2v2 with a CPU teammate vs the computer player; you pick each CPU's fighter (or random) and EASY / NORMAL / HARD. In a 1-round sim, Hard beats Easy 97%, Hard beats Normal 66%, Normal beats Easy 92%. VS CPU matches don't count in stats |
+| ✅ | 1v1v1v1 | With 4 players the host can switch between 2V2 and FREE FOR ALL (everyone gets their own corner). VS CPU has a 1V1V1V1 mode too. A 1v1 or 1v1v1 never uses lobby teams |
 | ✅ | Shrinking map | Setting SHRINK ON/OFF (off by default). After 6 turns the outer ring becomes a red DETENTION zone; it grows a ring every 4 turns and stops one ring before the middle. Starting your turn in it costs 10 HP (can KO). The mystery box never lands in it. A red countdown at the top warns: "MAP STARTS SHRINKING IN 4 TURNS" / "DETENTION ZONE GROWS NEXT TURN!" |
 | ✅ | Victory screen | The match-end screen shows the MVP (most damage dealt) and Most KOs over the whole match |
 | ✅ | Extra HP setting | Host (and local / VS CPU setup) picks HP: ORIGINAL, +50, +100 or +150 for every fighter, for longer fights |

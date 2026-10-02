@@ -6,7 +6,7 @@ extends RefCounted
 ## right / left), s sandbox (floor you can stand in: hides you from throws and
 ## shots), 1 / 2 team spawns (left / right), . floor.
 ## `floor` picks the floor art (default: classroom lino).
-## `ffa_spawns` are the three corner spawns used in a 3-player free-for-all.
+## `ffa_spawns` are the corner spawns used in a free-for-all (3 or 4 players).
 
 const OBSTACLE_HP := {"L": 20, "D": 20, "T": 40, "B": 30, "C": 15, "F": 25, "K": 50,
 	"N": 60, "R": 45, "Y": 30, "A": 35, "G": 10, "S": 15,
@@ -24,7 +24,7 @@ const ALL := {
 			"..........",
 			"LLLLLLLLLL",
 		],
-		"ffa_spawns": [[0, 1], [9, 1], [0, 5]],
+		"ffa_spawns": [[0, 1], [9, 1], [0, 5], [9, 5]],
 	},
 	"hallway": {
 		"name": "Hallway",
@@ -35,7 +35,7 @@ const ALL := {
 			".....D..D.....",
 			"LLLLLLLLLLLLLL",
 		],
-		"ffa_spawns": [[0, 1], [13, 1], [0, 3]],
+		"ffa_spawns": [[0, 1], [13, 1], [0, 3], [13, 3]],
 	},
 	"gym": {
 		"name": "Gym",
@@ -49,7 +49,7 @@ const ALL := {
 			"..........",
 			"LLLLLLLLLL",
 		],
-		"ffa_spawns": [[0, 1], [9, 1], [0, 6]],
+		"ffa_spawns": [[0, 1], [9, 1], [0, 6], [9, 6]],
 	},
 	"cafeteria": {
 		"name": "Cafeteria",
@@ -63,7 +63,7 @@ const ALL := {
 			"............",
 			"LLLLLLLLLLLL",
 		],
-		"ffa_spawns": [[0, 1], [11, 1], [0, 5]],
+		"ffa_spawns": [[0, 1], [11, 1], [0, 5], [11, 5]],
 	},
 	"schoolyard": {
 		"name": "Schoolyard",
@@ -78,7 +78,7 @@ const ALL := {
 			"...........",
 			"NNNNNNNNNNN",
 		],
-		"ffa_spawns": [[0, 1], [10, 1], [0, 6]],
+		"ffa_spawns": [[0, 1], [10, 1], [0, 6], [10, 6]],
 	},
 	"lab": {
 		"name": "Science Lab",
@@ -92,7 +92,7 @@ const ALL := {
 			"..........",
 			"LLLLLLLLLL",
 		],
-		"ffa_spawns": [[0, 1], [9, 1], [0, 5]],
+		"ffa_spawns": [[0, 1], [9, 1], [0, 5], [9, 5]],
 	},
 	"recess": {
 		"name": "Recess",
@@ -107,6 +107,6 @@ const ALL := {
 			"...........",
 			"NNNNNNNNNNN",
 		],
-		"ffa_spawns": [[0, 1], [10, 1], [0, 6]],
+		"ffa_spawns": [[0, 1], [10, 1], [0, 6], [10, 6]],
 	},
 }

@@ -26,7 +26,7 @@ var host := ""  # token of the host
 ## [{"token", "pid", "name", "char", "team", "ready", "connected", "gone_since"}]
 var members: Array = []
 ## public: listed in the server's open-lobby list (otherwise code only)
-var settings := {"map": "classroom", "rounds": 3, "timer": 30, "items": true, "public": true, "bonus_hp": 0, "shrink": false}
+var settings := {"map": "classroom", "rounds": 3, "timer": 30, "items": true, "public": true, "bonus_hp": 0, "shrink": false, "four": "2v2"}
 var battle: Battle = null
 var config := {}
 var fighter_of := {}  # token -> fighter id
@@ -187,6 +187,8 @@ func handle(token: String, msg: Dictionary, now: int) -> void:
 				settings.public = msg.public
 			if msg.get("shrink") is bool:
 				settings.shrink = msg.shrink
+			if msg.get("four") in ["2v2", "ffa"]:
+				settings.four = msg.four
 			if msg.get("bonus_hp") is int and Battle.BONUS_HP_CHOICES.has(msg.bonus_hp):
 				settings.bonus_hp = msg.bonus_hp
 			_broadcast_state()
@@ -274,7 +276,9 @@ func _start_match() -> String:
 			return "not_everyone_picked"
 		if m.token != host and not m.ready:
 			return "not_everyone_ready"
-	if n == 4:
+	# Everyone for themselves unless it is a 4-player match set to 2v2.
+	var ffa: bool = n != 4 or settings.four == "ffa"
+	if n == 4 and not ffa:
 		var t0 := 0
 		for m in members:
 			if m.team == 0:
@@ -285,7 +289,7 @@ func _start_match() -> String:
 	fighter_of.clear()
 	for i in n:
 		var m: Dictionary = members[i]
-		var team: int = m.team if n == 4 else i
+		var team: int = i if ffa else m.team
 		players.append({"char": m.char, "team": team, "name": m.name, "pid": m.pid})
 		fighter_of[m.token] = i
 	config = {"map": settings.map, "rounds": settings.rounds, "timer": settings.timer, "items": settings.items, "bonus_hp": settings.bonus_hp, "shrink": settings.shrink, "seed": randi(), "players": players}

@@ -213,7 +213,9 @@ func _show_lobby() -> void:
 	var me := _me()
 	var host: bool = lobby.host_pid == lobby.you_pid
 	var members: Array = lobby.members
-	var four := members.size() == 4
+	# 4 players: 2v2 (teams) or everyone for themselves, the host picks
+	var four_ffa: bool = lobby.settings.get("four", "2v2") == "ffa"
+	var four := members.size() == 4 and not four_ffa
 
 	var head := _row(_lobby_view)
 	head.add_child(UiTheme.label("LOBBY CODE", 8, UiTheme.CHALK_DIM))
@@ -235,8 +237,15 @@ func _show_lobby() -> void:
 		list.add_child(_player_row(m, host, four))
 	if members.size() == 3:
 		list.add_child(UiTheme.label("3 PLAYERS = FREE FOR ALL", 8, UiTheme.CHALK_DIM))
-	elif four:
-		list.add_child(UiTheme.label("4 PLAYERS = 2V2" + (" - TAP A TEAM TO SWAP" if host else ""), 8, UiTheme.CHALK_DIM))
+	if members.size() == 4 or (host and members.size() >= 2):
+		var mrow := HBoxContainer.new()
+		mrow.add_theme_constant_override("separation", 6)
+		var mode_text := "4 PLAYERS = FREE FOR ALL" if four_ffa else ("4 PLAYERS = 2V2" + (" - TAP A TEAM" if host and four else ""))
+		mrow.add_child(UiTheme.label(mode_text, 8, UiTheme.CHALK_DIM))
+		if host:
+			mrow.add_child(_small("SWITCH TO 2V2" if four_ffa else "SWITCH TO 1V1V1V1",
+				func(): net.send({"t": "settings", "four": "2v2" if four_ffa else "ffa"})))
+		list.add_child(mrow)
 
 	# right of the player list: what your fighter does
 	var info := UiTheme.label(FighterInfo.summary(me.char) if me.get("char", "") != "" else "PICK YOUR FIGHTER BELOW", 8, UiTheme.CHALK_DIM)
