@@ -54,9 +54,9 @@ const ZONE_DAMAGE := 10
 const BOSS_TEAM := 1
 const BOSS_PLAYER_HP := 250  # every player gets this much extra HP
 const BOSS_RADIUS := 1  # 3x3 tiles
-const RULER_DAMAGE := 20  # everyone right next to him, pushed back RULER_PUSH
-const MEGAPHONE_DAMAGE := 12  # everyone in line with him, pushed back MEGAPHONE_PUSH
-const DETENTION_DAMAGE := 20  # one player anywhere, + Dizzy
+const RULER_DAMAGE := 24  # everyone right next to him, pushed back RULER_PUSH
+const MEGAPHONE_DAMAGE := 15  # everyone in line with him, pushed back MEGAPHONE_PUSH
+const DETENTION_DAMAGE := 24  # one player anywhere, + Dizzy
 ## Hits on the Principal count double, so 2250 HP doesn't take forever.
 const BOSS_HIT_MULTIPLIER := 2
 const RULER_PUSH := 2  # tiles the Ruler Slam pushes you back
