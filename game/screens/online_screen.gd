@@ -297,6 +297,13 @@ func _show_lobby() -> void:
 			net.send({"t": "settings", "bonus_hp": choices[(choices.find(bonus) + 1) % choices.size()]}))
 		srow.add_child(hpb)
 		srow.add_child(_fixed(Control.new(), 8))
+		var shrink: bool = settings.get("shrink", false)
+		var shb := Button.new()
+		shb.text = "SHRINK ON" if shrink else "SHRINK OFF"
+		shb.custom_minimum_size = Vector2(70, 20)
+		shb.pressed.connect(func(): net.send({"t": "settings", "shrink": not shrink}))
+		srow.add_child(shb)
+		srow.add_child(_fixed(Control.new(), 8))
 		var is_public: bool = settings.get("public", true)
 		var pub := Button.new()
 		pub.text = "PUBLIC" if is_public else "PRIVATE"
@@ -304,9 +311,10 @@ func _show_lobby() -> void:
 		pub.pressed.connect(func(): net.send({"t": "settings", "public": not is_public}))
 		srow.add_child(pub)
 	else:
-		srow.add_child(UiTheme.label("MAP %s   ROUNDS %d   TURN TIMER %s   ITEMS %s   %s" % [
+		srow.add_child(UiTheme.label("MAP %s   ROUNDS %d   TIMER %s   ITEMS %s   %s   SHRINK %s" % [
 			Maps.ALL[settings.map].name.to_upper(), settings.rounds, _timer_text(settings.timer),
-			"ON" if settings.get("items", true) else "OFF", _bonus_text(settings.get("bonus_hp", 0))], 8, UiTheme.CHALK_DIM))
+			"ON" if settings.get("items", true) else "OFF", _bonus_text(settings.get("bonus_hp", 0)),
+			"ON" if settings.get("shrink", false) else "OFF"], 8, UiTheme.CHALK_DIM))
 
 	var brow := _row(_lobby_view)
 	if host:

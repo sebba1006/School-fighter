@@ -44,6 +44,12 @@ const GUARD_PCT := [20, 45]
 const GUARD_TURNS := [1, 2]
 ## Stepping in an enemy's puddle: this much damage, the walk stops, Dizzy next turn.
 const PUDDLE_DAMAGE := 5
+## Shrinking map (host setting): after SHRINK_START turns the outer ring becomes
+## a detention zone, and it grows one ring every SHRINK_EVERY turns (never
+## covering the middle). Starting your turn in it costs ZONE_DAMAGE HP.
+const SHRINK_START := 6
+const SHRINK_EVERY := 4
+const ZONE_DAMAGE := 10
 ## Host setting: everyone gets this much extra HP (0 = original).
 const BONUS_HP_CHOICES := [0, 50, 100, 150]
 const MAX_BONUS_HP := 150
@@ -72,6 +78,9 @@ var items_on := false
 const NO_BOX := Vector2i(-1, -1)
 var box := NO_BOX
 var _turn_count := 0
+var shrink_on := false
+## How many rings from the edge are detention zone right now (0 = none).
+var zone_rings := 0
 var fighters: Array[Fighter] = []
 ## Team ids in ascending order. 1v1 and 2v2 have two teams, a free-for-all has one per player.
 var teams: Array[int] = []
@@ -109,8 +118,10 @@ var _last_team := -1
 ##   first_team: optional, forces which team starts every round
 ##   items: true = broken lockers can drop items (default off)
 ##   bonus_hp: extra HP for every fighter (0, 50, 100 or 150) for longer fights
+##   shrink: true = the map shrinks (detention zone) as the round goes on
 func _init(config: Dictionary) -> void:
 	items_on = config.get("items", false) == true
+	shrink_on = config.get("shrink", false) == true
 	map_def = config.map if config.map is Dictionary else Maps.ALL[config.map]
 	rounds_total = config.get("rounds", 1)
 	_rng.seed = config.get("seed", 0)
@@ -459,6 +470,8 @@ func _deal(src: Fighter, target: Fighter, amount: int, ctx: Dictionary) -> bool:
 			target.shield = {}
 	var lost := mini(amount - absorbed, target.hp)
 	target.hp -= lost
+	if src != target:
+		src.match_damage += lost
 	ctx.events.append({"type": "damage", "fighter": target.id, "amount": amount, "absorbed": absorbed, "guarded": guarded, "hp": target.hp})
 	# A super's own damage doesn't charge the attacker's meter.
 	if not ctx.super:
@@ -466,6 +479,8 @@ func _deal(src: Fighter, target: Fighter, amount: int, ctx: Dictionary) -> bool:
 	_gain_meter(ctx, target, lost * METER_PER_HP_TAKEN)
 	if not target.alive():
 		ctx.events.append({"type": "ko", "fighter": target.id})
+		if src != target and src.team != target.team:
+			src.match_kos += 1
 	return true
 
 
@@ -531,6 +546,25 @@ func _begin_turn() -> Array:
 	_turn_count += 1
 	if items_on and box == NO_BOX and _turn_count % BOX_EVERY_TURNS == 0:
 		_spawn_box(events)
+	if shrink_on and _turn_count >= SHRINK_START and (_turn_count - SHRINK_START) % SHRINK_EVERY == 0 \
+			and zone_rings < max_zone_rings():
+		zone_rings += 1
+		events.append({"type": "shrink", "rings": zone_rings})
+		if box != NO_BOX and in_zone(box):
+			box = NO_BOX
+			events.append({"type": "box_gone"})
+	if in_zone(f.pos) and f.alive():
+		var lost := mini(ZONE_DAMAGE, f.hp)
+		f.hp -= lost
+		events.append({"type": "damage", "fighter": f.id, "amount": lost, "absorbed": 0, "guarded": 0, "hp": f.hp, "zone": true})
+		var ctx := {"attacker": f, "dir": Vector2i.ZERO, "super": false, "events": events}
+		_gain_meter(ctx, f, lost * METER_PER_HP_TAKEN)
+		if not f.alive():
+			events.append({"type": "ko", "fighter": f.id})
+			_check_round_end(events)
+			if phase == Phase.TURN:
+				events.append_array(_end_turn())
+			return events
 	move_budget = maxi(0, f.move - (1 if f.dizzy_next else 0))
 	for o in fighters:
 		o.dizzy_now = false
@@ -544,6 +578,21 @@ func _begin_turn() -> Array:
 	return events
 
 
+## True if `t` is inside the detention zone (`extra` more rings = where it will be next).
+func in_zone(t: Vector2i, extra := 0) -> bool:
+	var rings := zone_rings + extra
+	if rings <= 0:
+		return false
+	rings = mini(rings, max_zone_rings())
+	return mini(mini(t.x, t.y), mini(width - 1 - t.x, height - 1 - t.y)) < rings
+
+
+## The zone stops a ring before the very middle, so there's always room to fight
+## (Classroom: 2 rings, Hallway: 1).
+func max_zone_rings() -> int:
+	return maxi(1, (mini(width, height) - 1) / 2 - 1)
+
+
 ## Drops the mystery box on a free tile, preferring the middle of the map.
 func _spawn_box(events: Array) -> void:
 	var middle: Array[Vector2i] = []
@@ -551,7 +600,7 @@ func _spawn_box(events: Array) -> void:
 	for y in height:
 		for x in width:
 			var t := Vector2i(x, y)
-			if not _walkable(t) or puddles.has(t):
+			if not _walkable(t) or puddles.has(t) or in_zone(t):
 				continue
 			any.append(t)
 			if absi(x * 2 - (width - 1)) <= width / 2:
@@ -633,6 +682,7 @@ func _load_map() -> void:
 	sand.clear()
 	box = NO_BOX
 	_turn_count = 0
+	zone_rings = 0
 	for y in height:
 		for x in width:
 			var ch: String = rows[y][x]
@@ -746,7 +796,7 @@ func forfeit(fighter_id: int) -> Array:
 ## A fingerprint of everything that matters in the battle. The server sends it
 ## with every move so clients can tell if their copy got out of sync.
 func state_hash() -> int:
-	var parts := [phase, round_number, turn_index, move_budget, path.size(), _rng.state, _last_team, _team_last, box, _turn_count]
+	var parts := [phase, round_number, turn_index, move_budget, path.size(), _rng.state, _last_team, _team_last, box, _turn_count, zone_rings]
 	for f in fighters:
 		parts.append_array([f.hp, f.pos.x, f.pos.y, f.meter, f.shield.get("kind", ""), f.shield.get("amount", 0),
 			f.dizzy_next, f.rage_turns, f.sugar_active, f.no_attack_next, f.no_attack_now, f.forfeited, f.item, f.guard])

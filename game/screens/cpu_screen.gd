@@ -27,6 +27,7 @@ var map_id := "classroom"
 var rounds := 3
 var items := true
 var bonus_hp := 0
+var shrink := false
 
 var _mode_buttons := {}
 var _level_buttons := {}
@@ -112,6 +113,13 @@ func _ready() -> void:
 		bonus_hp = choices[(choices.find(bonus_hp) + 1) % choices.size()]
 		hpb.text = "HP: ORIGINAL" if bonus_hp == 0 else "HP: +%d" % bonus_hp)
 	options.add_child(hpb)
+	var shb := Button.new()
+	shb.custom_minimum_size = Vector2(76, 20)
+	shb.text = "SHRINK OFF"
+	shb.pressed.connect(func():
+		shrink = not shrink
+		shb.text = "SHRINK ON" if shrink else "SHRINK OFF")
+	options.add_child(shb)
 
 	var buttons := _row(col)
 	buttons.add_theme_constant_override("separation", 8)
@@ -213,7 +221,7 @@ func _start() -> void:
 		if i > 0:
 			p["cpu"] = level
 		players.append(p)
-	start_requested.emit({"map": map_id, "rounds": rounds, "items": items, "bonus_hp": bonus_hp, "players": players, "seed": randi()})
+	start_requested.emit({"map": map_id, "rounds": rounds, "items": items, "bonus_hp": bonus_hp, "shrink": shrink, "players": players, "seed": randi()})
 
 
 func _row(parent: Control) -> HBoxContainer:

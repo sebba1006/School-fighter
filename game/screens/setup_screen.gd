@@ -18,6 +18,7 @@ var map_id := "classroom"
 var rounds := 3
 var items := true
 var bonus_hp := 0
+var shrink := false
 
 var player := 0  # whose fighter the row below is picking
 var _player_tabs: Array[Button] = []
@@ -112,6 +113,13 @@ func _ready() -> void:
 	options.add_child(gap)
 	options.add_child(_items_toggle())
 	options.add_child(_bonus_button())
+	var shb := Button.new()
+	shb.custom_minimum_size = Vector2(76, 20)
+	shb.text = "SHRINK OFF"
+	shb.pressed.connect(func():
+		shrink = not shrink
+		shb.text = "SHRINK ON" if shrink else "SHRINK OFF")
+	options.add_child(shb)
 
 	var start := Button.new()
 	start.text = "START FIGHT"
@@ -178,7 +186,7 @@ func _start() -> void:
 	start_requested.emit({
 		"map": map_id,
 		"rounds": rounds,
-		"items": items, "bonus_hp": bonus_hp,
+		"items": items, "bonus_hp": bonus_hp, "shrink": shrink,
 		"players": [{"char": picks[0], "team": 0}, {"char": picks[1], "team": 1}],
 		"seed": randi(),
 	})

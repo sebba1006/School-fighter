@@ -31,6 +31,9 @@ var no_attack_now := false
 var guard := {}
 ## Item held ("" = none; see Battle.ITEMS). Lost at the end of the round.
 var item := ""
+## For the victory screen: damage dealt and KOs over the whole match.
+var match_damage := 0
+var match_kos := 0
 ## Left the match (disconnected too long). Stays knocked out for the rest of it.
 var forfeited := false
 

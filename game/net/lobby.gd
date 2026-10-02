@@ -26,7 +26,7 @@ var host := ""  # token of the host
 ## [{"token", "pid", "name", "char", "team", "ready", "connected", "gone_since"}]
 var members: Array = []
 ## public: listed in the server's open-lobby list (otherwise code only)
-var settings := {"map": "classroom", "rounds": 3, "timer": 30, "items": true, "public": true, "bonus_hp": 0}
+var settings := {"map": "classroom", "rounds": 3, "timer": 30, "items": true, "public": true, "bonus_hp": 0, "shrink": false}
 var battle: Battle = null
 var config := {}
 var fighter_of := {}  # token -> fighter id
@@ -185,6 +185,8 @@ func handle(token: String, msg: Dictionary, now: int) -> void:
 				settings.items = msg.items
 			if msg.get("public") is bool:
 				settings.public = msg.public
+			if msg.get("shrink") is bool:
+				settings.shrink = msg.shrink
 			if msg.get("bonus_hp") is int and Battle.BONUS_HP_CHOICES.has(msg.bonus_hp):
 				settings.bonus_hp = msg.bonus_hp
 			_broadcast_state()
@@ -286,7 +288,7 @@ func _start_match() -> String:
 		var team: int = m.team if n == 4 else i
 		players.append({"char": m.char, "team": team, "name": m.name, "pid": m.pid})
 		fighter_of[m.token] = i
-	config = {"map": settings.map, "rounds": settings.rounds, "timer": settings.timer, "items": settings.items, "bonus_hp": settings.bonus_hp, "seed": randi(), "players": players}
+	config = {"map": settings.map, "rounds": settings.rounds, "timer": settings.timer, "items": settings.items, "bonus_hp": settings.bonus_hp, "shrink": settings.shrink, "seed": randi(), "players": players}
 	battle = Battle.new(config)
 	print("lobby %s: match started, %d players on %s" % [code, n, settings.map])
 	ops.clear()
