@@ -40,6 +40,8 @@ var match_damage := 0
 var match_kos := 0
 ## Left the match (disconnected too long). Stays knocked out for the rest of it.
 var forfeited := false
+## The boss: takes up 3x3 tiles around `pos`, never moves and can't be pushed.
+var is_boss := false
 
 
 func _init(p_id: int, p_char_id: String, p_team: int, p_def: Dictionary) -> void:

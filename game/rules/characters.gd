@@ -91,3 +91,18 @@ const ALL := {
 		"super": {"id": "mega_woof", "name": "Mega Woof", "type": "melee", "damage_min": 30, "damage_max": 40, "knockback_min": 1, "knockback_max": 2},
 	},
 }
+
+
+## The boss (boss fights only, not pickable). He never moves; his attacks are
+## run by the rules engine (see Battle._boss_act). The attack list is only text
+## for the info screens.
+const BOSS := {
+	"name": "The Principal", "short": "Principal", "hp": 2000, "move": 0,
+	"attacks": [
+		{"id": "ruler_slam", "name": "Ruler Slam", "type": "boss"},
+		{"id": "megaphone", "name": "Megaphone Yell", "type": "boss"},
+		{"id": "detention", "name": "Detention!", "type": "boss"},
+		{"id": "glare", "name": "Glare", "type": "boss"},
+	],
+	"super": {"id": "none", "name": "-", "type": "boss"},
+}

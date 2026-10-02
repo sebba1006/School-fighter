@@ -110,3 +110,25 @@ const ALL := {
 		"ffa_spawns": [[0, 1], [10, 1], [0, 6], [10, 6]],
 	},
 }
+
+
+## The Principal's Office: the boss fight room. The boss (3x3) stands in the
+## middle at `boss`; the three players start on the left ("1").
+const BOSS_ROOM := {
+	"name": "Principal's Office",
+	"floor": "carpet",
+	"boss": [5, 4],
+	"rows": [
+		"LLLLLLLLLLL",
+		"1..........",
+		".D.......D.",
+		"1..........",
+		"...........",
+		"1..........",
+		".D.......D.",
+		"...........",
+		"LLLLLLLLLLL",
+	],
+	"ffa_spawns": [[0, 1], [0, 3], [0, 5]],
+}
+
