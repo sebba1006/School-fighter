@@ -845,6 +845,63 @@ func reachable_tiles() -> Array[Vector2i]:
 	return out
 
 
+## Every tile the current fighter can stand on this turn: everything within
+## the whole move budget from where the turn started (stepping back undoes a
+## step, so these stay reachable after walking). Doesn't include the start tile.
+func turn_reachable() -> Array[Vector2i]:
+	var f := current()
+	var out: Array[Vector2i] = []
+	for t in _walk_area(f, turn_start_pos, move_budget):
+		if t != turn_start_pos:
+			out.append(t)
+	return out
+
+
+## Tiles to step on to get to `t` this turn, or [] if it can't be reached.
+## Walks back along this turn's steps first when that's the only (or a
+## shorter) way, since stepping back onto the previous tile undoes a step.
+func route_to(t: Vector2i) -> Array[Vector2i]:
+	var f := current()
+	if t == f.pos:
+		return []
+	var steps: Array[Vector2i] = [turn_start_pos]
+	steps.append_array(path)  # steps[k] = where the fighter stood after k steps
+	var back: Array[Vector2i] = []
+	for k in range(path.size(), -1, -1):
+		if k < path.size():
+			back.append(steps[k])  # step back onto the previous tile
+		var came := _walk_area(f, steps[k], move_budget - k)
+		if came.has(t):
+			var fwd: Array[Vector2i] = []
+			var at := t
+			while at != steps[k]:
+				fwd.push_front(at)
+				at = came[at]
+			return back + fwd
+	return []
+
+
+## Breadth-first walk from `from` for `moves` steps. Returns tile -> the tile it
+## was reached from. The fighter's own tile doesn't block.
+func _walk_area(f: Fighter, from: Vector2i, moves: int) -> Dictionary:
+	var came := {from: from}
+	var frontier: Array[Vector2i] = [from]
+	for i in moves:
+		var next: Array[Vector2i] = []
+		for p in frontier:
+			for d in DIRS:
+				var n: Vector2i = p + d
+				if came.has(n) or not _in_bounds(n) or obstacles.has(n):
+					continue
+				var o := _fighter_at(n)
+				if o != null and o != f:
+					continue
+				came[n] = p
+				next.append(n)
+		frontier = next
+	return came
+
+
 ## Shortest walk for the current fighter to `t` within the moves left this
 ## turn, as the list of tiles to step on, or [] if it can't get there.
 func path_to(t: Vector2i) -> Array[Vector2i]:

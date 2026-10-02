@@ -614,7 +614,7 @@ func _on_tile_tapped(t: Vector2i) -> void:
 	if mode == "move":
 		if t == f.pos:
 			return
-		var path := battle.path_to(t)
+		var path := battle.route_to(t)  # may step back first, then walk
 		if path.is_empty():
 			_error("blocked")
 			return
@@ -1596,8 +1596,12 @@ func _refresh() -> void:
 	var tiles := []
 	if in_turn and not busy:
 		if mode == "move":
-			for t in battle.reachable_tiles():
-				tiles.append({"pos": t, "kind": "reach"})
+			# the same blue area all turn: everywhere reachable from where the turn started
+			for t in battle.turn_reachable():
+				if t != f.pos:
+					tiles.append({"pos": t, "kind": "reach"})
+			if f.pos != battle.turn_start_pos:
+				tiles.append({"pos": battle.turn_start_pos, "kind": "reach"})
 		elif mode == "aim":
 			tiles = battle.preview(f.id, aim_slot, aim_dir, aim_dist)
 	if battle.phase == Battle.Phase.TURN and not busy:
