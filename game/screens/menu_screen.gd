@@ -74,13 +74,24 @@ func _ready() -> void:
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(sub)
 
+	var audio_row := HBoxContainer.new()
+	audio_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	audio_row.add_theme_constant_override("separation", 6)
 	var sound := Button.new()
 	sound.custom_minimum_size = Vector2(90, 20)
-	sound.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	sound.text = "SOUND ON" if Audio.is_enabled() else "SOUND OFF"
 	sound.pressed.connect(func():
 		Audio.set_enabled(not Audio.is_enabled())
 		Audio.play("click")
 		sound.text = "SOUND ON" if Audio.is_enabled() else "SOUND OFF")
-	col.add_child(sound)
+	audio_row.add_child(sound)
+	# MUSIC: SCHOOL -> HYPE -> CHILL -> BOSS
+	var music := Button.new()
+	music.custom_minimum_size = Vector2(110, 20)
+	music.text = "MUSIC: " + Audio.music_name()
+	music.pressed.connect(func():
+		Audio.next_music()
+		music.text = "MUSIC: " + Audio.music_name())
+	audio_row.add_child(music)
+	col.add_child(audio_row)
 	Audio.start_music()

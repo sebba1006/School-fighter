@@ -99,6 +99,9 @@ var end_button: Button
 var joystick: Control
 var leave_button: Button
 var sound_button: Button
+var music_button: Button
+var audio_button: Button  # top bar: opens the SOUND / MUSIC panel
+var _audio_panel: HBoxContainer
 var chat_button: Button
 var _emote_panel: GridContainer
 var _confirm_box: PanelContainer
@@ -211,7 +214,10 @@ func _ready() -> void:
 	board.add_child(highlight)
 	_build_hud()
 	get_viewport().size_changed.connect(_layout)
-	Audio.start_music()
+	if battle.boss_mode:
+		Audio.set_boss_music(true)  # back to your own music when the fight screen closes
+	else:
+		Audio.start_music()
 	if not online():
 		_start_round()
 	elif battle.round_number > 0:
@@ -307,7 +313,24 @@ func _build_hud() -> void:
 	shrink_label.z_index = 4000
 	add_child(shrink_label)
 	leave_button = _top_button("LEAVE", _ask_leave)
+	# AUDIO opens a small panel with SOUND ON/OFF and the MUSIC changer side by side
+	audio_button = _top_button("AUDIO", func():
+		Audio.play("click")
+		_audio_panel.visible = not _audio_panel.visible
+		_layout())
+	_audio_panel = HBoxContainer.new()
+	_audio_panel.add_theme_constant_override("separation", 3)
+	_audio_panel.z_index = 4080
+	_audio_panel.visible = false
+	add_child(_audio_panel)
 	sound_button = _top_button("SOUND ON" if Audio.is_enabled() else "SOUND OFF", _toggle_sound)
+	music_button = _top_button("MUSIC: " + Audio.music_name(), func():
+		Audio.next_music()
+		Audio.play("click")
+		_refresh())
+	for b in [sound_button, music_button]:
+		remove_child(b)
+		_audio_panel.add_child(b)
 	if online():
 		chat_button = _top_button("CHAT", _toggle_emotes)
 		_emote_panel = GridContainer.new()
@@ -549,7 +572,7 @@ func _layout() -> void:
 	shrink_label.position = Vector2(floorf(vs.x / 2.0 - 120), TOP_H + 3)
 	shrink_label.size = Vector2(240, 10)
 	# small buttons in a centred row under the round label
-	var tops := [leave_button, chat_button, sound_button] if chat_button != null else [leave_button, sound_button]
+	var tops := [leave_button, chat_button, audio_button] if chat_button != null else [leave_button, audio_button]
 	var row_w := 0.0
 	for tb in tops:
 		tb.size = tb.get_combined_minimum_size()
@@ -558,6 +581,8 @@ func _layout() -> void:
 	for tb in tops:
 		tb.position = Vector2(tx, 13)
 		tx += tb.size.x + 4
+	_audio_panel.size = _audio_panel.get_combined_minimum_size()
+	_audio_panel.position = Vector2(floorf((vs.x - _audio_panel.size.x) / 2.0), 30)
 	if _emote_panel != null:
 		_emote_panel.size = _emote_panel.get_combined_minimum_size()
 		# centred over the board, between the joystick column and the attack cards
@@ -1176,6 +1201,8 @@ func _show_toasts() -> void:
 
 func _exit_tree() -> void:
 	_save_achievements()  # e.g. leaving in the middle of a match
+	if battle != null and battle.boss_mode:
+		Audio.set_boss_music(false)
 
 
 func _slot_of(f, attack_id: String) -> int:
@@ -1702,6 +1729,8 @@ func _refresh() -> void:
 	_update_shrink_label()
 	sound_button.text = "SOUND ON" if Audio.is_enabled() else "SOUND OFF"
 	sound_button.size = sound_button.get_combined_minimum_size()
+	music_button.text = "MUSIC: " + Audio.music_name()
+	music_button.size = music_button.get_combined_minimum_size()
 
 	var in_turn := _my_turn() and mode != "over" and not _waiting
 	# Online, the buttons always show your own fighter's moves.
