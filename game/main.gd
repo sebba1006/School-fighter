@@ -15,6 +15,7 @@ const Audio = preload("res://audio/audio.gd")
 const HowtoScreen = preload("res://screens/howto_screen.gd")
 const StatsScreen = preload("res://screens/stats_screen.gd")
 const AchievementsScreen = preload("res://screens/achievements_screen.gd")
+const TrophiesScreen = preload("res://screens/trophies_screen.gd")
 const Achievements = preload("res://stats/achievements.gd")
 const Stats = preload("res://stats/stats.gd")
 
@@ -106,6 +107,10 @@ func show_menu() -> void:
 		var a := AchievementsScreen.new()
 		a.back_requested.connect(show_menu)
 		_swap(a))
+	m.trophies_pressed.connect(func():
+		var t := TrophiesScreen.new()
+		t.back_requested.connect(show_menu)
+		_swap(t))
 	m.howto_pressed.connect(func():
 		var h := HowtoScreen.new()
 		h.back_requested.connect(show_menu)

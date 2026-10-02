@@ -1118,6 +1118,9 @@ func _track(e: Dictionary) -> void:
 					mine.append(i)
 		_ach = AchievementTracker.new(Achievements.load_data(), battle, config, mine, online())
 	_ach.feed(e)
+	for id in _ach.new_trophies:
+		_toasts.append("trophy:" + id)
+	_ach.new_trophies.clear()
 	for id in _ach.new_unlocks:
 		_toasts.append(id)
 	_ach.new_unlocks.clear()
@@ -1137,7 +1140,9 @@ func _show_toasts() -> void:
 	_toast_busy = true
 	while not _toasts.is_empty() and is_inside_tree():
 		var id: String = _toasts.pop_front()
-		var league: Dictionary = Achievements.LEAGUES[Achievements.league_of(id)]
+		var trophy := id.begins_with("trophy:")
+		var league: Dictionary = {"name": "TROPHY", "color": UiTheme.GOLD} if trophy \
+			else Achievements.LEAGUES[Achievements.league_of(id)]
 		Audio.play("super")
 		var box := PanelContainer.new()
 		var style := StyleBoxFlat.new()
@@ -1149,7 +1154,10 @@ func _show_toasts() -> void:
 		style.content_margin_top = 3
 		style.content_margin_bottom = 3
 		box.add_theme_stylebox_override("panel", style)
-		var l := UiTheme.label("%s - ACHIEVEMENT UNLOCKED!  %s" % [league.name.get_slice(" ", 0), Achievements.by_id(id).name.to_upper()], 8, league.color)
+		var text := "%s - ACHIEVEMENT UNLOCKED!  %s" % [league.name.get_slice(" ", 0), Achievements.by_id(id).get("name", "").to_upper()]
+		if trophy:
+			text = "NEW TROPHY!  " + Achievements.trophy_by_id(id.trim_prefix("trophy:")).get("name", "").to_upper()
+		var l := UiTheme.label(text, 8, league.color)
 		box.add_child(l)
 		box.z_index = 4095
 		add_child(box)
@@ -1449,6 +1457,8 @@ func _show_overlay(e: Dictionary, is_match: bool) -> void:
 	var title_text := ("%s %s THE MATCH!" if is_match else "%s %s ROUND %d") % ([winner, verb] if is_match else [winner, verb, e["round"]])
 	if e.winner_team == -1:
 		title_text = "ROUND %d IS A DRAW" % e["round"]
+	if battle.boss_mode:
+		title_text = "THE PRINCIPAL WINS!" if e.winner_team == Battle.BOSS_TEAM else "YOU BEAT THE PRINCIPAL!"
 	var title := UiTheme.label(title_text, 16, UiTheme.GOLD, true)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(title)

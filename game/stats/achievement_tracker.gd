@@ -11,8 +11,9 @@ var battle
 var config: Dictionary
 var mine: Array  # fighter ids that count for this device
 var online := false
-## Achievements unlocked since the screen last asked (it shows a popup each).
+## Achievements and trophies won since the screen last asked (it shows a popup each).
 var new_unlocks: Array = []
+var new_trophies: Array = []
 var changed := false
 
 var _turn_damage := {}  # fighter id -> damage dealt this turn
@@ -90,6 +91,9 @@ func _match_won(team: int) -> void:
 	if winner == null:
 		return
 	_unlock("first_win")
+	if battle.boss_mode:
+		_boss_won(winner)
+		return
 	var four: bool = battle.fighters.size() == 4
 	if four and battle.teams.size() == 2:
 		_unlock("teamwork")
@@ -113,6 +117,32 @@ func _match_won(team: int) -> void:
 	if online:
 		_count("online_wins")
 	changed = true
+
+
+## Beat the Principal: trophies (which unlock the boss league achievements).
+func _boss_won(winner) -> void:
+	var humans := 0
+	for p in config.players:
+		if not p.has("cpu"):
+			humans += 1
+	if humans == 1:
+		_trophy("solo")
+	if humans >= 2:
+		_trophy("friends")
+	if battle.fighters.all(func(f): return f.is_boss or f.alive()):
+		_trophy("untouchable")
+		_unlock("not_a_scratch")
+	_trophy("with_" + winner.char_id)
+	_add_to_set("fighters", winner.char_id)
+	changed = true
+
+
+func _trophy(id: String) -> void:
+	var list: Array = data.sets.get("trophies", [])
+	if list.has(id):
+		return
+	new_trophies.append(id)
+	_add_to_set("trophies", id)
 
 
 func _mine(id: int) -> bool:

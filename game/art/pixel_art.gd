@@ -394,6 +394,24 @@ static func boss(bob := false) -> Texture2D:
 	return _cache[key]
 
 
+## A trophy cup (24x24): gold if won, a dark grey shape if not yet.
+static func trophy(won: bool) -> Texture2D:
+	var key := "trophy_%s" % won
+	if not _cache.has(key):
+		var m := "guard" if won else "pantsGray"
+		var p := Painter.new(24, 24)
+		p.rect(5, 3, 18, 4, m)  # rim
+		p.ell(11.5, 8, 6.5, 6, m)
+		p.rect(2, 5, 4, 10, m)  # handles
+		p.rect(19, 5, 21, 10, m)
+		p.rect(10, 13, 13, 17, m)  # stem
+		p.rect(7, 18, 16, 20, m)  # base
+		if won:
+			p.rect(8, 5, 9, 9, "teeWhite")  # shine
+		_cache[key] = ImageTexture.create_from_image(p.bake())
+	return _cache[key]
+
+
 ## A health apple lying on a tile (boss fights).
 static func apple() -> Texture2D:
 	if not _cache.has("apple"):

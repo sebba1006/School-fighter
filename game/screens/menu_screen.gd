@@ -8,6 +8,7 @@ signal boss_pressed
 signal howto_pressed
 signal stats_pressed
 signal achievements_pressed
+signal trophies_pressed
 
 const Characters = preload("res://rules/characters.gd")
 const PixelArt = preload("res://art/pixel_art.gd")
@@ -58,7 +59,7 @@ func _ready() -> void:
 	var small := HBoxContainer.new()
 	small.alignment = BoxContainer.ALIGNMENT_CENTER
 	small.add_theme_constant_override("separation", 6)
-	for item in [["HOW TO PLAY", howto_pressed], ["STATS", stats_pressed], ["ACHIEVEMENTS", achievements_pressed]]:
+	for item in [["HOW TO PLAY", howto_pressed], ["STATS", stats_pressed], ["ACHIEVEMENTS", achievements_pressed], ["TROPHIES", trophies_pressed]]:
 		var b := Button.new()
 		b.text = item[0]
 		b.custom_minimum_size = Vector2(87, 24)

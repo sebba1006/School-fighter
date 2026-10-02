@@ -1,5 +1,5 @@
 extends Control
-## Your achievements in four leagues of five (bronze, silver, gold, diamond),
+## Your achievements in leagues of five (bronze, silver, gold, diamond, boss),
 ## each in a framed box: unlocked ones light up, locked ones show how far along you are.
 
 signal back_requested
@@ -52,12 +52,16 @@ func _ready() -> void:
 	head.add_child(reset)
 	outer.add_child(head)
 
-	# the four league boxes, two by two
+	# the league boxes, two by two (scroll down for the boss league)
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	outer.add_child(scroll)
 	_grid = GridContainer.new()
 	_grid.columns = 2
 	_grid.add_theme_constant_override("h_separation", 10)
 	_grid.add_theme_constant_override("v_separation", 8)
-	outer.add_child(_grid)
+	scroll.add_child(_grid)
 	_fill()
 
 

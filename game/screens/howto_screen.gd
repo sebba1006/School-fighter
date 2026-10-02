@@ -20,6 +20,7 @@ const SECTIONS := [
 	["ITEMS", "With ITEMS ON, a broken locker gives the fighter who broke it an item 30% of the time (hold 1 at a time). Use it from the card above the joystick (or key 5) instead of attacking. BOOK: throw, 12 dmg + push. PENCILS: throw 3 for 3 dmg each. WATER BOTTLE: spill a puddle next to you; an enemy who walks in slips: 5 dmg, stops walking, DIZZY."],
 	["MYSTERY BOX", "With ITEMS ON a ? box drops near the middle every few turns. Walk onto it to get a MELEE GUARD or a RANGED GUARD (random). Using it: 20-45% less damage from that kind of attack for 1-2 turns."],
 	["SHRINKING MAP", "With SHRINK ON, after 6 turns the edge of the map becomes a red DETENTION zone, and it grows every 4 turns. Start your turn in it and you lose 10 HP. Get to the middle!"],
+	["BOSS FIGHT", "Team up (you + 2 CPUs, or friends online) against THE PRINCIPAL: 2000 HP, 3x3 tiles, never moves. Your hits on him count double and everyone gets +250 HP. After your team's turns he attacks: RULER SLAM hits everyone next to him, MEGAPHONE YELL hits everyone in line with him, DETENTION! hits one player anywhere. Every 250 HP he loses, a health apple drops: walk onto it to heal. Win TROPHIES for beating him in different ways."],
 	["VS CPU", "Fight the computer: 1v1, 1v1v1, or 2v2 with a CPU teammate. Pick each CPU's fighter (or RANDOM) and EASY, NORMAL or HARD."],
 	["PC KEYS", "WASD move/aim - 1 2 3 4 attacks - Q super - SPACE use - Z undo - E end turn - ESC cancel aiming."],
 ]
