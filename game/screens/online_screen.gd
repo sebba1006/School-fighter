@@ -11,6 +11,7 @@ const PixelArt = preload("res://art/pixel_art.gd")
 const UiTheme = preload("res://ui/ui_theme.gd")
 const Config = preload("res://net/config.gd")
 const FighterInfo = preload("res://ui/fighter_info.gd")
+const FighterPicker = preload("res://ui/fighter_picker.gd")
 const Battle = preload("res://rules/battle.gd")
 
 const TIMERS := [15, 30, 45, 60, 0]
@@ -66,7 +67,7 @@ func _ready() -> void:
 	_entry = _build_entry()
 	col.add_child(_entry)
 	_lobby_view = VBoxContainer.new()
-	_lobby_view.add_theme_constant_override("separation", 8)
+	_lobby_view.add_theme_constant_override("separation", 6)
 	_lobby_view.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	col.add_child(_lobby_view)
 	_status = UiTheme.label("", 8, UiTheme.CHALK_DIM)
@@ -237,30 +238,20 @@ func _show_lobby() -> void:
 	elif four:
 		list.add_child(UiTheme.label("4 PLAYERS = 2V2" + (" - TAP A TEAM TO SWAP" if host else ""), 8, UiTheme.CHALK_DIM))
 
-	var pick_box := VBoxContainer.new()
-	pick_box.add_theme_constant_override("separation", 4)
-	body.add_child(pick_box)
-	pick_box.add_child(UiTheme.label("YOUR FIGHTER", 8, UiTheme.CHALK_DIM))
-	var picks := HBoxContainer.new()
-	picks.add_theme_constant_override("separation", 4)
-	pick_box.add_child(picks)
-	for id in Characters.ALL:
-		var b := Button.new()
-		b.text = Characters.ALL[id].name.to_upper().replace(" & ", " &\n")
-		b.icon = PixelArt.character(id)
-		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
-		b.custom_minimum_size = Vector2(46, 76)
-		b.toggle_mode = true
-		b.set_pressed_no_signal(me.get("char") == id)
-		b.disabled = members.any(func(m): return m.char == id and m.pid != lobby.you_pid)
-		b.pressed.connect(func(): net.send({"t": "pick", "char": id}))
-		picks.add_child(b)
+	# right of the player list: what your fighter does
+	var info := UiTheme.label(FighterInfo.summary(me.char) if me.get("char", "") != "" else "PICK YOUR FIGHTER BELOW", 8, UiTheme.CHALK_DIM)
+	info.custom_minimum_size.x = 280
+	body.add_child(info)
 
-	if me.get("char", "") != "":
-		var info := UiTheme.label(FighterInfo.summary(me.char), 8, UiTheme.CHALK_DIM)
-		info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_lobby_view.add_child(info)
+	# your fighter: one full-width row (room for more fighters later)
+	var picker := FighterPicker.new()
+	var taken := []
+	for m in members:
+		if m.char != "" and m.pid != lobby.you_pid:
+			taken.append(m.char)
+	picker.show_state(me.get("char", ""), taken)
+	picker.picked.connect(func(id): net.send({"t": "pick", "char": id}))
+	_lobby_view.add_child(picker)
 
 	var settings: Dictionary = lobby.settings
 	var srow := _row(_lobby_view)

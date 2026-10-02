@@ -11,6 +11,7 @@ const Maps = preload("res://rules/maps.gd")
 const PixelArt = preload("res://art/pixel_art.gd")
 const UiTheme = preload("res://ui/ui_theme.gd")
 const FighterInfo = preload("res://ui/fighter_info.gd")
+const FighterPicker = preload("res://ui/fighter_picker.gd")
 const Battle = preload("res://rules/battle.gd")
 const Audio = preload("res://audio/audio.gd")
 
@@ -30,7 +31,7 @@ var bonus_hp := 0
 var _mode_buttons := {}
 var _level_buttons := {}
 var _slot_row: HBoxContainer
-var _char_buttons := {}
+var _picker: FighterPicker
 var _map_buttons := {}
 var _rounds_label: Label
 var _info: Label
@@ -71,19 +72,9 @@ func _ready() -> void:
 	_slot_row = _row(col)
 	_slot_row.add_theme_constant_override("separation", 6)
 
-	var chars := _row(col)
-	chars.add_theme_constant_override("separation", 4)
-	for id in Characters.ALL.keys() + [RANDOM]:
-		var name: String = "RANDOM" if id == RANDOM else Characters.ALL[id].name.to_upper().replace(" & ", " &\n")
-		var b := _toggle(name)
-		if id != RANDOM:
-			b.icon = PixelArt.character(id)
-			b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
-		b.custom_minimum_size = Vector2(52, 72)
-		b.pressed.connect(func(): _pick(id))
-		_char_buttons[id] = b
-		chars.add_child(b)
+	_picker = FighterPicker.new(true)
+	_picker.picked.connect(_pick)
+	col.add_child(_picker)
 
 	_info = UiTheme.label("", 8, UiTheme.CHALK_DIM)
 	_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -200,11 +191,7 @@ func _refresh() -> void:
 		b.set_pressed_no_signal(i == slot)
 		b.add_theme_color_override("font_color", UiTheme.TEAM[_team(i)])
 		b.add_theme_color_override("font_pressed_color", UiTheme.TEAM[_team(i)])
-	var taken := _taken(slot)
-	for id in _char_buttons:
-		var b: Button = _char_buttons[id]
-		b.set_pressed_no_signal(picks[slot] == id)
-		b.disabled = taken.has(id)
+	_picker.show_state(picks[slot], _taken(slot))
 	var shown: String = picks[slot]
 	_info.text = "A RANDOM FIGHTER NOBODY ELSE PICKED" if shown == RANDOM else FighterInfo.summary(shown)
 	for id in _map_buttons:

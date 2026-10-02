@@ -30,7 +30,7 @@ game/                 Godot 4 project (open game/project.godot)
   screens/            setup screen, battle screen, fighter sprites
   ui/                 theme and on-screen joystick
   art/pixel_art.gd    all pixel art, drawn from code
-  fonts/              Silkscreen + Pixelify Sans (SIL Open Font License)
+  fonts/              Silkscreen pixel font (SIL Open Font License)
   tools/              dev tools (screenshots)
   net/                online play
     server.gd         WebSocket server: players, lobby codes
