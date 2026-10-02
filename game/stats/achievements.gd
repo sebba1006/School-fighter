@@ -25,7 +25,7 @@ const LIST := [
 	{"id": "box_hunter", "name": "Box Hunter", "desc": "Grab 5 mystery boxes", "counter": "boxes", "goal": 5},
 	{"id": "super_star", "name": "Super Star", "desc": "Use 10 supers", "counter": "supers", "goal": 10},
 	{"id": "wall_slam", "name": "Wall Slam", "desc": "Slam enemies into things 10 times", "counter": "slams", "goal": 10},
-	{"id": "survivor", "name": "Survivor", "desc": "Win a round on a shrinking map without detention damage"},
+	{"id": "survivor", "name": "Survivor", "desc": "Win a shrinking-map round with no detention damage"},
 	{"id": "cpu_crusher", "name": "CPU Crusher", "desc": "Beat a Hard CPU"},
 	{"id": "locker_breaker", "name": "Locker Breaker", "desc": "Break 25 lockers", "counter": "lockers", "goal": 25},
 	{"id": "champion", "name": "Fighting Champion", "desc": "Win 5 1v1v1v1s", "counter": "ffa4_wins", "goal": 5},
@@ -35,6 +35,14 @@ const LIST := [
 	{"id": "all_fighters", "name": "Jack of All Trades", "desc": "Win with every fighter", "set": "fighters"},
 	{"id": "online_legend", "name": "Online Legend", "desc": "Win 25 online matches", "counter": "online_wins", "goal": 25},
 ]
+## The list is split into leagues of 5, easiest first.
+const LEAGUES := [
+	{"name": "BRONZE LEAGUE", "color": Color("cd8a4e")},
+	{"name": "SILVER LEAGUE", "color": Color("c3cad6")},
+	{"name": "GOLD LEAGUE", "color": Color("f2c14e")},
+	{"name": "DIAMOND LEAGUE", "color": Color("7fe3f2")},
+]
+const PER_LEAGUE := 5
 const COMBO_DAMAGE := 30
 const COMEBACK_HP := 20
 
@@ -84,6 +92,14 @@ static func progress(data: Dictionary, a: Dictionary) -> Array:
 	if a.has("set"):
 		return [data.sets.get(a.set, []).size(), goal(a)]
 	return [0, 1]
+
+
+## Which league (0 = bronze ... 3 = diamond) an achievement is in.
+static func league_of(id: String) -> int:
+	for i in LIST.size():
+		if LIST[i].id == id:
+			return i / PER_LEAGUE
+	return 0
 
 
 static func goal(a: Dictionary) -> int:

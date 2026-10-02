@@ -1,6 +1,6 @@
 extends Control
-## Your achievements, easiest first: unlocked ones in gold, locked ones grey with
-## how far along you are.
+## Your achievements in four leagues of five (bronze, silver, gold, diamond),
+## each in a framed box: unlocked ones light up, locked ones show how far along you are.
 
 signal back_requested
 
@@ -52,11 +52,11 @@ func _ready() -> void:
 	head.add_child(reset)
 	outer.add_child(head)
 
-	# two columns, read top to bottom: easiest on the left, hardest bottom right
+	# the four league boxes, two by two
 	_grid = GridContainer.new()
 	_grid.columns = 2
-	_grid.add_theme_constant_override("h_separation", 16)
-	_grid.add_theme_constant_override("v_separation", 3)
+	_grid.add_theme_constant_override("h_separation", 10)
+	_grid.add_theme_constant_override("v_separation", 8)
 	outer.add_child(_grid)
 	_fill()
 
@@ -66,25 +66,55 @@ func _fill() -> void:
 		c.queue_free()
 	var data := Achievements.load_data()
 	_count.text = "%d / %d UNLOCKED" % [Achievements.unlocked_count(data), Achievements.LIST.size()]
-	var half := ceili(Achievements.LIST.size() / 2.0)
-	for row in half:
-		for column in 2:
-			var i := row + column * half
-			if i < Achievements.LIST.size():
-				_grid.add_child(_entry(i + 1, Achievements.LIST[i], data))
+	for league in Achievements.LEAGUES.size():
+		_grid.add_child(_league_box(league, data))
 
 
-func _entry(number: int, a: Dictionary, data: Dictionary) -> Control:
+## One framed box: "BRONZE LEAGUE  3/5" and its five achievements.
+func _league_box(league: int, data: Dictionary) -> Control:
+	var info: Dictionary = Achievements.LEAGUES[league]
+	var color: Color = info.color
+	var box := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(color.darkened(0.35), 0.22)  # a light tint of the league color
+	style.border_color = color
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(4)
+	style.content_margin_left = 6
+	style.content_margin_right = 6
+	style.content_margin_top = 3
+	style.content_margin_bottom = 4
+	box.add_theme_stylebox_override("panel", style)
+	box.custom_minimum_size = Vector2(305, 0)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 1)
+	box.add_child(col)
+	var first := league * Achievements.PER_LEAGUE
+	var got := 0
+	for i in range(first, first + Achievements.PER_LEAGUE):
+		if data.unlocked.has(Achievements.LIST[i].id):
+			got += 1
+	var title := UiTheme.label("%s  %d/%d" % [info.name, got, Achievements.PER_LEAGUE], 8, color)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(title)
+	for i in range(first, first + Achievements.PER_LEAGUE):
+		col.add_child(_entry(i + 1, Achievements.LIST[i], data, color))
+	return box
+
+
+func _entry(number: int, a: Dictionary, data: Dictionary, color: Color) -> Control:
 	var done: bool = data.unlocked.has(a.id)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 0)
-	box.custom_minimum_size = Vector2(300, 0)
 	var p := Achievements.progress(data, a)
 	var title := "%d. %s" % [number, a.name.to_upper()]
 	if done:
 		title += "  - UNLOCKED!"
 	elif p[1] > 1:
 		title += "  (%d/%d)" % [p[0], p[1]]
-	box.add_child(UiTheme.label(title, 8, UiTheme.GOLD if done else UiTheme.CHALK))
-	box.add_child(UiTheme.label(a.desc.to_upper(), 8, UiTheme.CHALK if done else UiTheme.CHALK_DIM))
+	box.add_child(UiTheme.label(title, 8, color if done else UiTheme.CHALK))
+	var desc := UiTheme.label(a.desc.to_upper(), 8, UiTheme.CHALK if done else UiTheme.CHALK_DIM)
+	desc.clip_text = true
+	desc.custom_minimum_size.x = 290
+	box.add_child(desc)
 	return box

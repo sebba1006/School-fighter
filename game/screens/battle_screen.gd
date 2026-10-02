@@ -1054,7 +1054,7 @@ func _track(e: Dictionary) -> void:
 		_ach = AchievementTracker.new(Achievements.load_data(), battle, config, mine, online())
 	_ach.feed(e)
 	for id in _ach.new_unlocks:
-		_toasts.append(Achievements.by_id(id).name)
+		_toasts.append(id)
 	_ach.new_unlocks.clear()
 	if not _toasts.is_empty() and not _toast_busy:
 		_show_toasts()
@@ -1066,14 +1066,25 @@ func _save_achievements() -> void:
 		_ach.changed = false
 
 
-## "ACHIEVEMENT UNLOCKED! FIRST BLOOD", one at a time near the top.
+## "BRONZE - ACHIEVEMENT UNLOCKED! FIRST BLOOD", one at a time near the top,
+## framed in the league's color.
 func _show_toasts() -> void:
 	_toast_busy = true
 	while not _toasts.is_empty() and is_inside_tree():
-		var name: String = _toasts.pop_front()
+		var id: String = _toasts.pop_front()
+		var league: Dictionary = Achievements.LEAGUES[Achievements.league_of(id)]
 		Audio.play("super")
 		var box := PanelContainer.new()
-		var l := UiTheme.label("ACHIEVEMENT UNLOCKED!  " + name.to_upper(), 8, UiTheme.GOLD)
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color("17121c")
+		style.border_color = league.color
+		style.set_border_width_all(2)
+		style.content_margin_left = 6
+		style.content_margin_right = 6
+		style.content_margin_top = 3
+		style.content_margin_bottom = 3
+		box.add_theme_stylebox_override("panel", style)
+		var l := UiTheme.label("%s - ACHIEVEMENT UNLOCKED!  %s" % [league.name.get_slice(" ", 0), Achievements.by_id(id).name.to_upper()], 8, league.color)
 		box.add_child(l)
 		box.z_index = 4095
 		add_child(box)

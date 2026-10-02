@@ -168,3 +168,12 @@ func Maps_all_but(skip: String) -> Array:
 		if m != skip:
 			out.append(m)
 	return out
+
+
+func test_four_leagues_of_five() -> void:
+	eq(A.LEAGUES.size() * A.PER_LEAGUE, A.LIST.size(), "every achievement is in a league")
+	eq(A.league_of("first_win"), 0, "bronze")
+	eq(A.league_of("combo"), 1, "silver")
+	eq(A.league_of("wall_slam"), 2, "gold")
+	eq(A.league_of("online_legend"), 3, "diamond")
+	done()
