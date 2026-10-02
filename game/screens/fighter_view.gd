@@ -16,6 +16,11 @@ var knocked_out := false
 var big := false
 ## A teacher the boss summons: small HP bar over the head, fades away when KO'd.
 var minion := false
+## The boss when he's angry: tinted red.
+var angry := false:
+	set(v):
+		angry = v
+		_sprite.modulate = Color(1, 0.65, 0.65) if v else Color.WHITE
 ## Teachers' HP (0-1) for the bar over their head; set by the battle screen.
 var hp_frac := 1.0:
 	set(v):
@@ -49,6 +54,7 @@ func reset_pose() -> void:
 	_sprite.rotation = 0
 	_sprite.position = Vector2(-32, -64) if big else Vector2(0, -16)
 	_sprite.modulate = Color.WHITE
+	angry = false
 
 
 func tile_to_pos(t: Vector2i) -> Vector2:
@@ -91,7 +97,7 @@ func leap_to(t: Vector2i, duration: float) -> Tween:
 func flash(color: Color) -> void:
 	var tw := create_tween()
 	_sprite.modulate = color
-	tw.tween_property(_sprite, "modulate", Color.WHITE if not knocked_out else Color(0.5, 0.5, 0.55, 0.6), 0.25)
+	tw.tween_property(_sprite, "modulate", (Color(1, 0.65, 0.65) if angry else Color.WHITE) if not knocked_out else Color(0.5, 0.5, 0.55, 0.6), 0.25)
 
 
 func knock_out() -> Tween:

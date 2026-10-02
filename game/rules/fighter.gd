@@ -44,6 +44,8 @@ var forfeited := false
 var is_boss := false
 ## One of the teachers the boss summons (on his team, played by the rules engine).
 var is_minion := false
+## The boss below Battle.ANGRY_PCT HP: attacks twice a turn.
+var angry := false
 
 
 func _init(p_id: int, p_char_id: String, p_team: int, p_def: Dictionary) -> void:
@@ -73,6 +75,7 @@ func reset_for_round() -> void:
 	guard = {}
 	own_turns = 0
 	ready_at = {}
+	angry = false
 
 
 func alive() -> bool:
