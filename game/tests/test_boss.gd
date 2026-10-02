@@ -94,7 +94,7 @@ func test_apples_drop_and_heal() -> void:
 	var boss := b.boss()
 	var ctx := {"attacker": b.fighters[0], "dir": Vector2i.ZERO, "super": false, "events": []}
 	b._deal(b.fighters[0], boss, (Battle.APPLE_EVERY * 2 + 5) / Battle.BOSS_HIT_MULTIPLIER + 1, ctx)
-	eq(b.apples.size(), 2, "two apples for 500+ damage")
+	eq(b.apples.size(), 2, "two apples for 2 x APPLE_EVERY damage")
 	var apple: Vector2i = b.apples.keys()[0]
 	var f := b.current()
 	f.hp = 100
@@ -197,18 +197,20 @@ func test_teachers_leave_when_he_is_beaten() -> void:
 	done()
 
 
-func test_angry_boss_attacks_twice() -> void:
+func test_angry_boss_hits_harder() -> void:
 	var b := _boss_battle()
 	var boss := b.boss()
 	boss.hp = boss.max_hp * Battle.ANGRY_PCT / 100
 	for f in b.fighters:
 		if f.team == 0:
 			put(b, f.id, 0, f.id * 2 + 1)
-	b.forced_rolls.assign([100, 0, 100, 1])  # skip megaphone, detention; twice
+	b.forced_rolls.assign([100, 0])  # skip megaphone, detention on player 0
 	end_turn(b, 0)
 	end_turn(b, 1)
+	var before := b.fighters[0].hp
 	var r := end_turn(b, 2)
 	check(has_event(r, "angry"), "gets angry")
-	eq(r.events.filter(func(e): return e.type == "boss_attack").size(), 2, "two attacks")
+	eq(r.events.filter(func(e): return e.type == "boss_attack").size(), 1, "still one attack")
+	eq(before - b.fighters[0].hp, Battle.DETENTION_DAMAGE + Battle.ANGRY_BONUS, "angry detention damage")
 	check(boss.angry, "stays angry")
 	done()

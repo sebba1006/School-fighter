@@ -65,9 +65,10 @@ const MEGAPHONE_PUSH := 3  # ...and the Megaphone Yell 3
 const TEACHERS := 2
 const TEACHER_DAMAGE := 10
 const SUMMON_CHANCE := 40  # % per turn once all teachers are gone
-## Below this much HP (%) he gets ANGRY and attacks twice every turn.
+## Below this much HP (%) he gets ANGRY: his attacks do ANGRY_BONUS more damage.
 const ANGRY_PCT := 25
-const APPLE_EVERY := 250  # an apple drops each time he loses this much HP
+const ANGRY_BONUS := 5
+const APPLE_EVERY := 150  # an apple drops each time he loses this much HP
 const APPLE_HEAL := 60
 ## Host setting: everyone gets this much extra HP (0 = original).
 const BONUS_HP_CHOICES := [0, 50, 100, 150]
@@ -646,14 +647,10 @@ func _begin_turn() -> Array:
 	turn_start_pos = f.pos
 	events.append({"type": "turn_start", "fighter": f.id, "move_budget": move_budget, "can_attack": not f.no_attack_now})
 	if (f.is_boss or f.is_minion) and phase == Phase.TURN:
+		if f.is_boss and not f.angry and f.hp * 100 <= f.max_hp * ANGRY_PCT:
+			f.angry = true
+			events.append({"type": "angry", "fighter": f.id, "bonus": ANGRY_BONUS})
 		events.append_array(_boss_act(f) if f.is_boss else _teacher_act(f))
-		if f.is_boss and f.hp * 100 <= f.max_hp * ANGRY_PCT and phase == Phase.TURN:
-			if not f.angry:
-				f.angry = true
-				events.append({"type": "angry", "fighter": f.id})
-			_check_round_end(events)
-			if phase == Phase.TURN:
-				events.append_array(_boss_act(f))  # angry: a second attack every turn
 		_check_round_end(events)
 		if phase == Phase.TURN:
 			events.append_array(_end_turn())
@@ -748,6 +745,7 @@ func _boss_act(f: Fighter) -> Array:
 	if targets.is_empty():
 		return events
 	var ctx := {"attacker": f, "dir": Vector2i.ZERO, "super": false, "events": events}
+	var rage := ANGRY_BONUS if f.angry else 0
 	var helpers := fighters.filter(func(o): return o.is_minion)
 	if f.own_turns >= 2 and not helpers.is_empty() and helpers.all(func(o): return not o.alive()) \
 			and _roll(1, 100) <= SUMMON_CHANCE:
@@ -761,7 +759,7 @@ func _boss_act(f: Fighter) -> Array:
 		events.append({"type": "boss_attack", "fighter": f.id, "attack": "ruler_slam", "tiles": tiles})
 		ctx.ranged = false
 		for p in ring:
-			if p.alive() and _deal(f, p, RULER_DAMAGE, ctx) and p.alive():
+			if p.alive() and _deal(f, p, RULER_DAMAGE + rage, ctx) and p.alive():
 				_knockback(ctx, p, _away(f, p), RULER_PUSH)
 	elif not lane.is_empty() and _roll(1, 100) <= 60:
 		var tiles: Array = []
@@ -774,13 +772,13 @@ func _boss_act(f: Fighter) -> Array:
 		events.append({"type": "boss_attack", "fighter": f.id, "attack": "megaphone", "tiles": tiles})
 		ctx.ranged = true
 		for p in lane:
-			if p.alive() and _deal(f, p, MEGAPHONE_DAMAGE, ctx) and p.alive():
+			if p.alive() and _deal(f, p, MEGAPHONE_DAMAGE + rage, ctx) and p.alive():
 				_knockback(ctx, p, _away(f, p), MEGAPHONE_PUSH)
 	else:
 		var p: Fighter = targets[_roll(0, targets.size() - 1)]
 		events.append({"type": "boss_attack", "fighter": f.id, "attack": "detention", "tiles": [p.pos], "target": p.id})
 		ctx.ranged = true
-		if _deal(f, p, DETENTION_DAMAGE, ctx) and p.alive():
+		if _deal(f, p, DETENTION_DAMAGE + rage, ctx) and p.alive():
 			_apply_status(ctx, p, "dizzy")
 	return events
 

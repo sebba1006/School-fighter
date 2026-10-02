@@ -124,3 +124,15 @@ func test_healthy_bot_leaves_the_apple() -> void:
 	Bot.play_turn(b)
 	check(b.apples.has(apple), "saved for someone who needs it")
 	done()
+
+
+func test_mostly_healthy_bot_leaves_the_apple() -> void:
+	var b := Battle.new({"boss": true, "players": [{"char": "sebba", "team": 0}, {"char": "mike", "team": 0}, {"char": "leon", "team": 0}], "seed": 1})
+	b.start_round()
+	var f := b.current()
+	f.hp = int(f.max_hp * 0.8)  # missing 60+ HP but still above 70%
+	var apple := f.pos + Vector2i(2, 0)
+	b.apples[apple] = Battle.APPLE_HEAL
+	Bot.play_turn(b)
+	check(b.apples.has(apple), "left for a hurt player")
+	done()

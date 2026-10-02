@@ -921,7 +921,7 @@ func _play(events: Array) -> void:
 				await _summon_anim(e)
 			"angry":
 				Audio.play("slam")
-				_popup(fighter_views[e.fighter], "HE'S ANGRY! 2 ATTACKS A TURN!", UiTheme.HIT, -80)
+				_popup(fighter_views[e.fighter], "HE'S ANGRY! +%d DAMAGE!" % e.bonus, UiTheme.HIT, -80)
 				fighter_views[e.fighter].angry = true
 				await _shake(5)
 			"apple":

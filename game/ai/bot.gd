@@ -20,10 +20,11 @@ const LEVELS := {
 	"hard": {"noise": 0.0, "lazy": 0.0},
 }
 const SELF_TYPES := ["self_rage", "self_block", "self_sugar"]
-## Boss fights: grab a health apple once missing at least this much HP, and
-## walk over to one (if there's nothing to hit) once below this share of HP.
-const APPLE_WANT := 40
-const APPLE_HURT := 0.6
+## Boss fights: grab a health apple in reach once below APPLE_WANT of max HP
+## (leaving them for hurt players otherwise), and walk over to one (if there's
+## nothing to hit) once below APPLE_HURT.
+const APPLE_WANT := 0.7
+const APPLE_HURT := 0.5
 
 
 ## `noise` adds a little randomness to each option's score, so the bot doesn't
@@ -209,7 +210,7 @@ const NO_TILE := Vector2i(-99, -99)
 ## ([] if there's no way around: pick somewhere else).
 static func _path(b: Battle, t: Vector2i) -> Array[Vector2i]:
 	var f := b.current()
-	if not b.apples.is_empty() and f.max_hp - f.hp < APPLE_WANT:
+	if not b.apples.is_empty() and f.hp >= f.max_hp * APPLE_WANT:
 		return [] as Array[Vector2i] if b.apples.has(t) else b.path_to(t, b.apples)
 	return b.path_to(t)
 
@@ -217,7 +218,7 @@ static func _path(b: Battle, t: Vector2i) -> Array[Vector2i]:
 ## The closest health apple this fighter can walk onto this turn, if it's
 ## missing enough HP to want one (NO_TILE if not).
 static func _apple_in_reach(b: Battle, f, spots: Array[Vector2i]) -> Vector2i:
-	if b.apples.is_empty() or f.max_hp - f.hp < APPLE_WANT:
+	if b.apples.is_empty() or f.hp >= f.max_hp * APPLE_WANT:
 		return NO_TILE
 	var best := NO_TILE
 	var best_steps := 999
@@ -250,7 +251,7 @@ static func _toward(b: Battle, enemies: Array) -> Vector2i:
 	var f := b.current()
 	var best := f.pos
 	var best_d := _nearest(f.pos, enemies) + (20 if b.in_zone(f.pos, 1) else 0)
-	var skip_apples := f.max_hp - f.hp < APPLE_WANT
+	var skip_apples := f.hp >= f.max_hp * APPLE_WANT
 	for t in b.reachable_tiles():
 		if skip_apples and not b.apples.is_empty() and _path(b, t).is_empty():
 			continue  # only reachable over an apple
