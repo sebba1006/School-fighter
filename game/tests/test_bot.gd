@@ -84,7 +84,7 @@ func test_hurt_bot_puts_up_its_shield() -> void:
 	put(b, 0, 1, 2)
 	put(b, 1, 4, 2)
 	b.fighters[0].hp = 20
-	b.fighters[0].item = "shield"
+	b.fighters[0].item = "melee_guard"
 	var p := Bot.plan(b)
 	check(p.intents.any(func(i): return i.get("slot", -1) == Battle.ITEM_SLOT), "uses the shield")
 	done()

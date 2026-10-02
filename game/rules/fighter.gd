@@ -27,7 +27,7 @@ var sugar_active := false
 var sugar_multiplier := 1.0
 var no_attack_next := false
 var no_attack_now := false
-## Shield item in use: {"kind": "melee" | "ranged", "pct": 20-45, "turns": n} or {}.
+## Melee / Ranged Guard in use: {"kind": "melee" | "ranged", "pct": 20-45, "turns": n} or {}.
 var guard := {}
 ## Item held ("" = none; see Battle.ITEMS). Lost at the end of the round.
 var item := ""

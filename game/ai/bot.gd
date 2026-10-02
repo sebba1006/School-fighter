@@ -86,9 +86,9 @@ static func plan(b: Battle, noise := 0.0) -> Dictionary:
 				if best.score < 8.0 and _nearest(home, enemies) <= 3:
 					best = {"score": 8.0, "pos": home, "intents": [{"type": "attack", "slot": slot}]}
 
-	# Shield: put it up when enemies are close and there's no good hit.
+	# Melee / Ranged Guard: put it up when enemies are close and there's no good hit.
 	var hurt := f.hp * 2 < f.max_hp
-	if f.item == "shield" and (best.score < 14.0 or hurt) and best.score < KO_BONUS and _nearest(home, enemies) <= 4 \
+	if Battle.BOX_ITEMS.has(f.item) and (best.score < 14.0 or hurt) and best.score < KO_BONUS and _nearest(home, enemies) <= 4 \
 			and b.attack_blocked_reason(f.id, Battle.ITEM_SLOT) == "":
 		best = {"score": 14.0, "pos": home, "intents": [{"type": "attack", "slot": Battle.ITEM_SLOT}]}
 	# Mystery box in reach and nothing great to do: go get it.

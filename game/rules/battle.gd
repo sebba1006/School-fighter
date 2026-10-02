@@ -31,12 +31,14 @@ const ITEMS := {
 	"book": {"id": "book", "name": "Book", "type": "projectile", "range": 4, "damage": 12, "knockback": 1},
 	"pencils": {"id": "pencils", "name": "Pencils", "type": "projectile", "range": 4, "damage": 3, "hits": 3},
 	"water": {"id": "water", "name": "Water Bottle", "type": "spill"},
-	"shield": {"id": "shield", "name": "Shield", "type": "self_guard"},
+	"melee_guard": {"id": "melee_guard", "name": "Melee Guard", "type": "self_guard", "guard": "melee"},
+	"ranged_guard": {"id": "ranged_guard", "name": "Ranged Guard", "type": "self_guard", "guard": "ranged"},
 }
 ## With items on, a mystery box appears every few turns (one at a time) on a
-## free tile near the middle. Walking onto it gives a Shield: when used it is
-## randomly a melee or a ranged guard, cutting that kind of damage by
+## free tile near the middle. Walking onto it gives a Melee Guard or a Ranged
+## Guard (random, and you see which). Using it cuts that kind of damage by
 ## 20-45% for 1-2 of your turns.
+const BOX_ITEMS := ["melee_guard", "ranged_guard"]
 const BOX_EVERY_TURNS := 4
 const GUARD_PCT := [20, 45]
 const GUARD_TURNS := [1, 2]
@@ -199,8 +201,8 @@ func _move(f: Fighter, dir) -> Dictionary:
 	if to == box:
 		# Picked up: the steps so far can't be undone (no walking back off it).
 		box = NO_BOX
-		f.item = "shield"
-		events.append({"type": "item", "fighter": f.id, "item": "shield", "at": to})
+		f.item = BOX_ITEMS[_roll(0, BOX_ITEMS.size() - 1)]
+		events.append({"type": "item", "fighter": f.id, "item": f.item, "at": to})
 		move_budget -= path.size()
 		path.clear()
 		turn_start_pos = f.pos
@@ -378,7 +380,7 @@ func _resolve(ctx: Dictionary, atk: Dictionary, dist: int) -> void:
 			f.shield = {"kind": "block"}
 			ctx.events.append({"type": "status", "fighter": f.id, "status": "block"})
 		"self_guard":
-			var kind := "melee" if _roll(0, 1) == 0 else "ranged"
+			var kind: String = atk.guard
 			f.guard = {"kind": kind, "pct": _roll(GUARD_PCT[0], GUARD_PCT[1]), "turns": _roll(GUARD_TURNS[0], GUARD_TURNS[1])}
 			ctx.events.append({"type": "status", "fighter": f.id, "status": "guard", "kind": kind, "pct": f.guard.pct, "turns": f.guard.turns})
 		"self_sugar":

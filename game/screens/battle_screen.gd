@@ -855,7 +855,7 @@ func _play(events: Array) -> void:
 				_popup_at(_tile_center(e.at) + Vector2(0, -20), "MYSTERY BOX!", UiTheme.GOLD)
 				await get_tree().create_timer(0.35).timeout
 			"item":
-				if e.item == "shield" and box_node != null:
+				if Battle.BOX_ITEMS.has(e.item) and box_node != null:
 					box_node.queue_free()
 					box_node = null
 				Audio.play("pickup")

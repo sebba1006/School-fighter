@@ -16,7 +16,7 @@ See [PLAN.md](PLAN.md) for the full design: characters, maps, rules and mileston
   the join screen (just the code and player count); the host can make the
   lobby private (code only) and kick players
 - **Items:** broken lockers can drop a book, pencils or a water bottle
-  (puddle trap), and a mystery box drops a Shield (melee or ranged guard).
+  (puddle trap), and a mystery box drops a Melee Guard or Ranged Guard.
   ITEMS ON/OFF setting
 - **M3–M5 Online:** done. Lobbies with codes, 2–4 players (1v1, free-for-all,
   2v2), host settings, turn timer, reconnecting, back to lobby

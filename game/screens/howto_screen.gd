@@ -18,7 +18,7 @@ const SECTIONS := [
 	["ONLINE", "Create a lobby and send the 5-letter code to your friends (up to 4 players). 2 players = 1v1, 3 = free for all, 4 = 2v2. The host picks the map, rounds and turn timer."],
 	["SANDBOX", "On Recess, standing in the sandbox hides you from throws and shots (slingshot, water gun, book lob, items). Punches, kicks, dashes and supers still hit."],
 	["ITEMS", "With ITEMS ON, a broken locker gives the fighter who broke it an item 30% of the time (hold 1 at a time). Use it from the card above the joystick (or key 5) instead of attacking. BOOK: throw, 12 dmg + push. PENCILS: throw 3 for 3 dmg each. WATER BOTTLE: spill a puddle next to you; an enemy who walks in slips: 5 dmg, stops walking, DIZZY."],
-	["MYSTERY BOX", "With ITEMS ON a ? box drops near the middle every few turns. Walk onto it to get a SHIELD. Using it gives you a MELEE or RANGED guard (random): 20-45% less damage from that kind of attack for 1-2 turns."],
+	["MYSTERY BOX", "With ITEMS ON a ? box drops near the middle every few turns. Walk onto it to get a MELEE GUARD or a RANGED GUARD (random). Using it: 20-45% less damage from that kind of attack for 1-2 turns."],
 	["VS CPU", "Fight the computer: 1v1, 1v1v1, or 2v2 with a CPU teammate. Pick each CPU's fighter (or RANDOM) and EASY, NORMAL or HARD."],
 	["PC KEYS", "WASD move/aim - 1 2 3 4 attacks - Q super - SPACE use - Z undo - E end turn - ESC cancel aiming."],
 ]

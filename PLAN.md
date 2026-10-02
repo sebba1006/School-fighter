@@ -330,11 +330,11 @@ A setting: **ITEMS ON/OFF** (host online, or on the local / VS CPU setup; on by 
 | Book | Thrown: first enemy in a line up to 4 tiles, 12 damage, push 1 |
 | Pencils | Thrown: first enemy in a line up to 4 tiles, 3 hits of 3 damage |
 | Water bottle | Spill a puddle on the tile in front of you. An enemy who walks into it slips: 5 damage, stops walking (no undo), Dizzy next turn. The puddle is then gone. Your own team walks over it safely. Pushes and dashes don't trigger it |
-| Shield (mystery box only) | Using it gives a random **melee guard** or **ranged guard**: that kind of damage is cut by **20–45%** (random) for **1–2 of your turns** (random) |
+| Melee Guard / Ranged Guard (mystery box only) | Two separate items; the box gives one at random and you see which. Using it cuts that kind of damage (melee, or throws/shots) by **20–45%** (random) for **1–2 of your turns** (random) |
 
 **Mystery box (Mom's idea):** with items on, a "?" box drops on a free tile
 near the middle every 4 turns (one at a time). Whoever walks onto it first gets
-the **Shield** (replacing any item). Steps taken before the pickup can't be undone.
+a **Melee Guard** or **Ranged Guard** (replacing any item). Steps taken before the pickup can't be undone.
 
 ---
 
