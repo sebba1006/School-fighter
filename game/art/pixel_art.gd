@@ -687,6 +687,16 @@ static func floor_tile(alt := false, style := "lino") -> Texture2D:
 					col = Color("e6cf8f") if (x * 5 + y * 11 + (3 if alt else 0)) % 17 != 0 else Color("c9ae68")
 					if (x * 13 + y * 7) % 29 == 0:
 						col = Color("f3e2b0")
+				elif style == "space":
+					# deep space with a scatter of stars (the same pattern every time)
+					col = Color("0d0b1f")
+					var n := (x * 17 + y * 31 + (11 if alt else 0)) % 97
+					if n == 0:
+						col = Color("ffffff")
+					elif n == 40 or n == 71:
+						col = Color("8b85c9")
+					elif (x * 3 + y * 5 + (7 if alt else 0)) % 61 == 0:
+						col = Color("f2c14e")
 				elif style == "gym":
 					# long planks, with a painted court line along one edge of every other tile
 					col = a if (int(y / 8.0) + (1 if alt else 0)) % 2 == 0 else b
@@ -724,6 +734,13 @@ static func _obstacle_image(kind: String, damaged: bool, tall: bool) -> Image:
 	var p := Painter.new(TILE, 48)
 	var o := 16  # tile top inside the 48px image
 	match kind:
+		"X":  # an asteroid floating in space (the final boss)
+			p.ell(16, o + 15, 13, 11, "steelDark")
+			p.ell(14, o + 13, 10, 8, "steel")
+			p.ell(10, o + 11, 3, 2.5, "steelDark")  # craters
+			p.ell(20, o + 18, 3.5, 2.5, "steelDark")
+			p.ell(19, o + 9, 2, 1.5, "steelDark")
+			p.rect(8, o + 7, 10, o + 7, "teeWhite")  # shine
 		"L":  # locker
 			var top := 2 if tall else o + 1
 			var k := 1.0 if tall else 0.6  # squash the details into a short locker

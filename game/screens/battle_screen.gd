@@ -62,6 +62,8 @@ const STATUS_TEXT := {
 	"block": ["BLOCK", UiTheme.CHALK],
 	"sugar_rush": ["SUGAR RUSH!", UiTheme.GOLD],
 	"hall_pass": ["HALL PASS! 2 TURNS SAFE", UiTheme.GOLD],
+	"mystery_meat": ["YUCK! NO ATTACK NEXT TURN", UiTheme.DIZZY],
+	"push_ups": ["DROP AND GIVE ME 20! NO MOVING NEXT TURN", UiTheme.DIZZY],
 }
 
 var config: Dictionary
@@ -278,6 +280,8 @@ func _build_board() -> void:
 		var v = fighter_views[f.id]
 		v.reset_pose()
 		v.set_tile(f.pos)
+		if f.is_boss:
+			v.angry = f.angry
 		v.visible = not (f.is_minion and not f.alive())  # teachers wait off the board
 		if not f.alive():
 			v.knock_out()
@@ -952,6 +956,8 @@ func _play(events: Array) -> void:
 				await _boss_attack_anim(e)
 			"summon":
 				await _summon_anim(e)
+			"space":
+				await _space_cutscene(e)
 			"angry":
 				Audio.play("slam")
 				_popup(fighter_views[e.fighter], "HE'S ANGRY! +%d DAMAGE!" % e.bonus, UiTheme.HIT, -80)
@@ -1113,11 +1119,13 @@ func _use_item_anim(e: Dictionary, events: Array, i: int) -> void:
 ## The Principal's attack: name popup, the hit tiles flash red, screen shake.
 func _boss_attack_anim(e: Dictionary) -> void:
 	var names := {"ruler_slam": "RULER SLAM!", "megaphone": "MEGAPHONE YELL!", "detention": "DETENTION!", "scold": "SCOLD!",
-		"ladle": "LADLE SMACK!", "gravy": "GRAVY SPLASH!", "food_fight": "FOOD FIGHT!", "spatula": "SPATULA SLAP!",
-		"clipboard": "CLIPBOARD SMACK!", "dodgeball": "DODGEBALL BARRAGE!", "whistle": "WHISTLE!", "tackle": "TACKLE!"}
+		"mystery_meat": "MYSTERY MEAT!", "gravy": "GRAVY SPLASH!", "tray": "TRAY FRISBEE!", "spatula": "SPATULA SLAP!",
+		"push_ups": "PUSH-UPS!", "medicine_ball": "MEDICINE BALL!", "whistle": "WHISTLE!", "tackle": "TACKLE!",
+		"gravity_slam": "GRAVITY SLAM!", "laser_eyes": "LASER EYES!", "meteor": "METEOR SHOWER!", "black_hole": "BLACK HOLE!"}
 	var sounds := {"ruler_slam": "slam", "megaphone": "woof", "detention": "ko", "scold": "hit",
-		"ladle": "slam", "gravy": "splash", "food_fight": "ko", "spatula": "hit",
-		"clipboard": "slam", "dodgeball": "whoosh", "whistle": "whistle", "tackle": "hit"}
+		"mystery_meat": "dizzy", "gravy": "splash", "tray": "whoosh", "spatula": "hit",
+		"push_ups": "whistle", "medicine_ball": "slam", "whistle": "whistle", "tackle": "hit",
+		"gravity_slam": "slam", "laser_eyes": "block", "meteor": "break", "black_hole": "dizzy"}
 	var v = fighter_views[e.fighter]
 	var teacher: bool = battle.fighters[e.fighter].is_minion
 	_popup(v, names.get(e.attack, "!"), UiTheme.HIT, -40 if teacher else -80)
@@ -1138,7 +1146,7 @@ func _boss_attack_anim(e: Dictionary) -> void:
 	if e.attack == "detention" and e.has("target"):
 		_popup(fighter_views[e.target], "DETENTION!", UiTheme.HIT, -44)
 	if not teacher:
-		await _shake(4 if e.attack in ["ruler_slam", "ladle", "clipboard", "whistle"] else 2)
+		await _shake(4 if e.attack in ["ruler_slam", "tray", "medicine_ball", "whistle", "gravity_slam", "meteor", "black_hole"] else 2)
 	else:
 		await get_tree().create_timer(0.15).timeout
 	var tw := create_tween().set_parallel()
@@ -1173,6 +1181,45 @@ func _warn_tiles(tiles: Array) -> void:
 	await tw.finished
 	for r in marks:
 		r.queue_free()
+
+
+## The final boss loses it: the camera zooms in on him, he turns red and the
+## screen shakes, everything flashes white, and the fight is in space.
+func _space_cutscene(e: Dictionary) -> void:
+	var v = fighter_views[e.fighter]
+	var vs := get_viewport_rect().size
+	var zoom := 2.5
+	var center: Vector2 = v.position + Vector2(16, 0)
+	var tw := create_tween().set_parallel()
+	tw.tween_property(board, "scale", Vector2(zoom, zoom), 0.7).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(board, "position", vs / 2.0 - center * zoom, 0.7).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+	await tw.finished
+	Audio.play("slam")
+	v.angry = true
+	v.flash(UiTheme.HIT)
+	_big_banner("THE PRINCIPAL IS FURIOUS!!!", UiTheme.HIT)
+	for i in 3:
+		await _shake(6)
+	await get_tree().create_timer(0.6).timeout
+	var white := ColorRect.new()
+	white.color = Color(1, 1, 1, 0)
+	white.set_anchors_preset(Control.PRESET_FULL_RECT)
+	white.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	white.z_index = 4090
+	add_child(white)
+	var fade := create_tween()
+	fade.tween_property(white, "color:a", 1.0, 0.45)
+	await fade.finished
+	# now in space: rebuild the room and zoom back out
+	board.scale = Vector2.ONE
+	_build_board()
+	_layout()
+	Audio.play("super")
+	fade = create_tween()
+	fade.tween_property(white, "color:a", 0.0, 0.6)
+	fade.tween_callback(white.queue_free)
+	_big_banner("TO SPACE!", UiTheme.GOLD)
+	await fade.finished
 
 
 ## A big line of text across the middle of the screen (TEACHERS INCOMING!).
@@ -2006,6 +2053,8 @@ func _refresh_panels() -> void:
 			st.append("%s GUARD" % ("MELEE" if f.guard.kind == "melee" else "RANGED"))
 		if f.zone_safe > 0:
 			st.append("PASS")
+		if f.no_move_next:
+			st.append("PUSH-UPS")
 		if f.item != "":
 			st.append(Battle.ITEMS[f.item].name.to_upper())
 		if f.dizzy_next or f.dizzy_now:

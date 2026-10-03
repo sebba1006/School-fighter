@@ -5,13 +5,14 @@ extends SceneTree
 ## then go back to the lobby. Every client's copy of the battle must match the
 ## server's after every move.
 ##   godot --headless --path game -s res://tools/net_smoke.gd -- [players=2] [boss]
-## With "boss" the players team up against the Principal (1-3 players), with
-## "lunch_lady" against the Lunch Lady.
+## With "boss" the players team up against the Principal (1-3 players); a boss
+## id (lunch_lady, gym_teacher, final_principal) picks that boss.
 ## Exits with code 1 on any problem.
 
 const Server = preload("res://net/server.gd")
 const Client = preload("res://net/client.gd")
 const Battle = preload("res://rules/battle.gd")
+const Characters = preload("res://rules/characters.gd")
 const PORT := 9123
 const CHARS := ["sebba", "william", "snorre", "mike"]
 
@@ -27,8 +28,11 @@ func _init() -> void:
 func _run() -> void:
 	var args := OS.get_cmdline_user_args()
 	var n := int(args[0]) if not args.is_empty() else 2
-	var boss := args.has("boss") or args.has("lunch_lady")
-	var boss_id := "lunch_lady" if args.has("lunch_lady") else "principal"
+	var boss_id := "principal"
+	for a in args:
+		if Characters.BOSSES.has(a):
+			boss_id = a
+	var boss := args.has("boss") or Characters.BOSSES.has(boss_id) and boss_id != "principal" or args.has("principal")
 	rng.seed = 7
 	var server := Server.new()
 	root.add_child(server)

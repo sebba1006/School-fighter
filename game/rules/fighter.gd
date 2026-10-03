@@ -26,6 +26,8 @@ var rage_bonus := 0
 var sugar_active := false
 var sugar_multiplier := 1.0
 var no_attack_next := false
+## Push-Ups! (the Gym Teacher): no moving on the next turn.
+var no_move_next := false
 var no_attack_now := false
 ## How many of their own turns this fighter has started this round, and for
 ## attacks with a cooldown: slot -> the own-turn number it can be used again.
@@ -72,6 +74,7 @@ func reset_for_round() -> void:
 	sugar_active = false
 	sugar_multiplier = 1.0
 	no_attack_next = false
+	no_move_next = false
 	no_attack_now = false
 	item = ""
 	guard = {}

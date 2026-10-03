@@ -220,7 +220,7 @@ func test_friends_trophy_and_ko() -> void:
 
 
 func test_trophy_list_has_one_per_fighter() -> void:
-	eq(A.trophy_list().size(), A.TROPHIES.size() + preload("res://rules/characters.gd").ALL.size() + A.LUNCH_TROPHIES.size() + A.GYM_TROPHIES.size(),
+	eq(A.trophy_list().size(), A.TROPHIES.size() + preload("res://rules/characters.gd").ALL.size() + A.LUNCH_TROPHIES.size() + A.GYM_TROPHIES.size() + A.FINAL_TROPHIES.size(),
 		"3 + one per fighter + 3 for each later boss")
 	eq(A.goal(A.by_id("trophy_master")), A.trophy_list().size(), "trophy master needs them all")
 	done()

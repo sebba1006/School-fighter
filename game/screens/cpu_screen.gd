@@ -105,7 +105,7 @@ func _ready() -> void:
 		if not Achievements.boss_unlocked(saved, id):
 			b.disabled = true
 			b.text = "LOCKED: BEAT %s" % Characters.BOSSES.values()[Characters.BOSSES.keys().find(id) - 1].def.short.to_upper()
-			b.custom_minimum_size.x = 170
+			b.custom_minimum_size.x = 0  # as wide as its text
 		b.pressed.connect(func(): boss_id = id; _refresh())
 		_boss_buttons[id] = b
 		_boss_row.add_child(b)

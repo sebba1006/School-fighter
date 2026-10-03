@@ -253,22 +253,39 @@ func test_gravy_splash_leaves_puddles() -> void:
 	done()
 
 
-func test_food_fight_splashes_neighbours() -> void:
+func test_tray_frisbee_bounces_between_players() -> void:
 	var b := _lunch_battle()
 	put(b, 0, 0, 1)
-	put(b, 1, 1, 1)  # right next to player 0
-	put(b, 2, 10, 8)
-	b.forced_rolls.assign([0])  # nobody in line: food fight, at player 0
+	put(b, 1, 2, 1)  # 2 tiles from player 0 (not in line with her)
+	put(b, 2, 10, 8)  # far away: the tray can't reach
+	b.forced_rolls.assign([0])  # nobody close or in line: tray, thrown at player 0
 	end_turn(b, 0)
 	end_turn(b, 1)
-	var h0 := b.fighters[0].hp
-	var h1 := b.fighters[1].hp
+	var hps := [b.fighters[0].hp, b.fighters[1].hp, b.fighters[2].hp]
 	var r := end_turn(b, 2)
-	check(r.events.any(func(e): return e.type == "boss_attack" and e.attack == "food_fight"), "food fight")
-	eq(h0 - b.fighters[0].hp, Battle.FOOD_FIGHT_DAMAGE, "target hit")
-	eq(h1 - b.fighters[1].hp, Battle.FOOD_SPLASH_DAMAGE, "neighbour splashed")
+	check(r.events.any(func(e): return e.type == "boss_attack" and e.attack == "tray"), "tray frisbee")
+	eq(hps[0] - b.fighters[0].hp, Battle.TRAY_DAMAGE, "first hit")
+	eq(hps[1] - b.fighters[1].hp, Battle.TRAY_DAMAGE, "bounced to the next player")
+	eq(hps[2] - b.fighters[2].hp, 0, "too far for a bounce")
 	done()
 
+
+func test_mystery_meat_stops_your_next_attack() -> void:
+	var b := _lunch_battle()
+	var boss := b.boss()
+	put(b, 0, boss.pos.x - 2, boss.pos.y)  # right next to her
+	put(b, 1, 0, 0)
+	put(b, 2, 10, 8)
+	b.forced_rolls.assign([1, 0])  # mystery meat, on player 0
+	end_turn(b, 0)
+	end_turn(b, 1)
+	var hp0 := b.fighters[0].hp
+	var r := end_turn(b, 2)
+	check(r.events.any(func(e): return e.type == "boss_attack" and e.attack == "mystery_meat"), "mystery meat")
+	eq(hp0 - b.fighters[0].hp, Battle.MYSTERY_MEAT_DAMAGE, "damage")
+	check(b.fighters[0].dizzy_now, "dizzy on their turn")
+	check(b.fighters[0].no_attack_now, "can't attack on their turn")
+	done()
 
 
 func test_gym_teacher_whistle_hits_everyone() -> void:
@@ -290,4 +307,107 @@ func test_gym_teacher_whistle_hits_everyone() -> void:
 	check(r.events.any(func(e): return e.type == "boss_attack" and e.attack == "whistle"), "whistle")
 	for i in 3:
 		check(hps[i] - b.fighters[i].hp >= Battle.WHISTLE_DAMAGE, "player %d hit" % i)
+	done()
+
+
+func _final_battle() -> Battle:
+	var players := []
+	for c in ["sebba", "mike", "leon"]:
+		players.append({"char": c, "team": 0})
+	var b := Battle.new({"boss": "final_principal", "players": players, "seed": 3, "characters": Fixture.ALL})
+	b.start_round()
+	return b
+
+
+func test_final_boss_starts_in_his_office() -> void:
+	var b := _final_battle()
+	eq(b.boss().max_hp, 2500, "more HP than the others")
+	eq(b.map_def.name, "Principal's Office", "phase 1 in the office")
+	check(not b.space, "not in space yet")
+	done()
+
+
+func test_final_boss_goes_to_space_after_500_hp() -> void:
+	var b := _final_battle()
+	var boss := b.boss()
+	boss.hp = boss.max_hp - Battle.FINAL_SPACE_AT
+	for f in b.fighters:
+		if f.team == 0:
+			put(b, f.id, 0, f.id * 2 + 1)
+	end_turn(b, 0)
+	end_turn(b, 1)
+	var r := end_turn(b, 2)  # his turn: he loses it
+	check(has_event(r, "space"), "the space event")
+	check(b.space, "in space")
+	check(boss.angry, "angry for the rest of the fight")
+	eq(b.map_def.name, "Space", "the room is space now")
+	check(not b.obstacles.values().any(func(o): return o.type == "L"), "the lockers are gone")
+	check(b.obstacles.values().any(func(o): return o.type == "X"), "asteroids")
+	var space_attacks := ["gravity_slam", "laser_eyes", "meteor", "black_hole"]
+	check(r.events.any(func(e): return e.type == "boss_attack" and space_attacks.has(e.attack)), "a space attack right away")
+	done()
+
+
+func test_black_hole_pulls_everyone_in() -> void:
+	var b := _final_battle()
+	var boss := b.boss()
+	boss.hp = boss.max_hp - Battle.FINAL_SPACE_AT
+	put(b, 0, 0, 0)
+	put(b, 1, 10, 0)
+	put(b, 2, 0, 8)
+	b.forced_rolls.assign([100, 100])  # no teachers; (nobody close or in line) 100 > 50 = black hole
+	end_turn(b, 0)
+	end_turn(b, 1)
+	var before := [b.fighters[0].pos, b.fighters[1].pos, b.fighters[2].pos]
+	var r := end_turn(b, 2)
+	check(r.events.any(func(e): return e.type == "boss_attack" and e.attack == "black_hole"), "black hole")
+	for i in 3:
+		var d0: int = absi(before[i].x - boss.pos.x) + absi(before[i].y - boss.pos.y)
+		var d1: int = absi(b.fighters[i].pos.x - boss.pos.x) + absi(b.fighters[i].pos.y - boss.pos.y)
+		check(d1 < d0, "player %d pulled closer" % i)
+	done()
+
+
+
+func _gym_battle() -> Battle:
+	var players := []
+	for c in ["sebba", "mike", "leon"]:
+		players.append({"char": c, "team": 0})
+	var b := Battle.new({"boss": "gym_teacher", "players": players, "seed": 3, "characters": Fixture.ALL})
+	b.start_round()
+	return b
+
+
+func test_push_ups_stop_your_next_move() -> void:
+	var b := _gym_battle()
+	var boss := b.boss()
+	put(b, 0, boss.pos.x - 2, boss.pos.y)  # right next to him
+	put(b, 1, 0, 0)
+	put(b, 2, 10, 8)
+	b.forced_rolls.assign([1, 0])  # push-ups, on player 0
+	end_turn(b, 0)
+	end_turn(b, 1)
+	var hp0 := b.fighters[0].hp
+	var r := end_turn(b, 2)
+	check(r.events.any(func(e): return e.type == "boss_attack" and e.attack == "push_ups"), "push-ups")
+	eq(hp0 - b.fighters[0].hp, Battle.PUSH_UPS_DAMAGE, "damage")
+	eq(b.current().id, 0, "player 0's turn")
+	eq(b.move_budget, 0, "can't move this turn")
+	check(b.attack_blocked_reason(0, 0) == "", "can still attack")
+	done()
+
+
+func test_medicine_ball_rolls_you_to_the_wall() -> void:
+	var b := _gym_battle()
+	var boss := b.boss()
+	put(b, 0, boss.pos.x - 3, boss.pos.y)  # in line, 2 tiles from the wall... (x = 2)
+	put(b, 1, 0, 0)
+	put(b, 2, 10, 8)
+	b.forced_rolls.assign([1])  # (nobody next to him) medicine ball
+	end_turn(b, 0)
+	end_turn(b, 1)
+	var r := end_turn(b, 2)
+	check(r.events.any(func(e): return e.type == "boss_attack" and e.attack == "medicine_ball"), "medicine ball")
+	eq(b.fighters[0].pos, Vector2i(0, boss.pos.y), "rolled all the way to the wall")
+	check(r.events.any(func(e): return e.type == "slam" and e.fighter == 0), "slammed into the wall")
 	done()

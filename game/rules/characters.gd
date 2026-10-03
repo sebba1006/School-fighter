@@ -124,9 +124,9 @@ const TEACHER := {
 const LUNCH_LADY := {
 	"name": "The Lunch Lady", "short": "Lunch Lady", "hp": 2250, "move": 0,
 	"attacks": [
-		{"id": "ladle", "name": "Ladle Smack", "type": "boss"},
+		{"id": "mystery_meat", "name": "Mystery Meat", "type": "boss"},
 		{"id": "gravy", "name": "Gravy Splash", "type": "boss"},
-		{"id": "food_fight", "name": "Food Fight!", "type": "boss"},
+		{"id": "tray", "name": "Tray Frisbee", "type": "boss"},
 		{"id": "glare", "name": "Glare", "type": "boss"},
 	],
 	"super": {"id": "none", "name": "-", "type": "boss"},
@@ -148,8 +148,8 @@ const COOK := {
 const GYM_TEACHER := {
 	"name": "The Gym Teacher", "short": "Gym Teacher", "hp": 2250, "move": 0,
 	"attacks": [
-		{"id": "clipboard", "name": "Clipboard Smack", "type": "boss"},
-		{"id": "dodgeball", "name": "Dodgeball Barrage", "type": "boss"},
+		{"id": "push_ups", "name": "Push-Ups!", "type": "boss"},
+		{"id": "medicine_ball", "name": "Medicine Ball", "type": "boss"},
 		{"id": "whistle", "name": "Whistle!", "type": "boss"},
 		{"id": "glare", "name": "Glare", "type": "boss"},
 	],
@@ -168,6 +168,20 @@ const ATHLETE := {
 	"super": {"id": "none", "name": "-", "type": "boss"},
 }
 
+## The final boss: the Principal again (unlocked by beating the Gym Teacher).
+## A normal Principal fight until he has lost FINAL_SPACE_AT HP, then he gets
+## furious, the fight moves to space, and he uses his space attacks.
+const FINAL_PRINCIPAL := {
+	"name": "The Principal", "short": "Final Boss", "hp": 2500, "move": 0,
+	"attacks": [
+		{"id": "gravity_slam", "name": "Gravity Slam", "type": "boss"},
+		{"id": "laser_eyes", "name": "Laser Eyes", "type": "boss"},
+		{"id": "meteor", "name": "Meteor Shower", "type": "boss"},
+		{"id": "black_hole", "name": "Black Hole", "type": "boss"},
+	],
+	"super": {"id": "none", "name": "-", "type": "boss"},
+}
+
 ## Every boss, in unlock order: the rules for each one's turn live in
 ## Battle._boss_act; here are its fighter, room, helpers and attack names.
 const BOSSES := {
@@ -175,9 +189,14 @@ const BOSSES := {
 		"ring": "ruler_slam", "lane": "megaphone", "far": "detention",
 		"summon": "TEACHERS, HELP ME!", "summon_banner": "TEACHERS INCOMING!", "minion_attack": "scold"},
 	"lunch_lady": {"def": LUNCH_LADY, "minion": "cook", "minion_def": COOK,
-		"ring": "ladle", "lane": "gravy", "far": "food_fight",
+		"ring": "mystery_meat", "lane": "gravy", "far": "tray",
 		"summon": "KITCHEN, HELP ME!", "summon_banner": "COOKS INCOMING!", "minion_attack": "spatula"},
 	"gym_teacher": {"def": GYM_TEACHER, "minion": "athlete", "minion_def": ATHLETE,
-		"ring": "clipboard", "lane": "dodgeball", "far": "whistle",
+		"ring": "push_ups", "lane": "medicine_ball", "far": "whistle",
 		"summon": "TEAM, HUDDLE UP!", "summon_banner": "ATHLETES INCOMING!", "minion_attack": "tackle"},
+	"final_principal": {"def": FINAL_PRINCIPAL, "minion": "teacher", "minion_def": TEACHER,
+		"ring": "ruler_slam", "lane": "megaphone", "far": "detention",
+		"summon": "TEACHERS, HELP ME!", "summon_banner": "TEACHERS INCOMING!", "minion_attack": "scold",
+		# in space
+		"space_ring": "gravity_slam", "space_lane": "laser_eyes", "space_far": "meteor", "space_far2": "black_hole"},
 }
