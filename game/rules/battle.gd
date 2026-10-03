@@ -71,12 +71,15 @@ const SUMMON_CHANCE := 40  # % per turn once all teachers are gone
 const ANGRY_PCT := 25
 const ANGRY_BONUS := 5
 ## The Lunch Lady: Gravy Splash leaves this many gravy puddles in her lanes
-## (players who step in one slip), and Food Fight! also splashes the players
-## right next to its target.
+## (players who step in one slip). Mystery Meat (someone next to her): damage,
+## Dizzy and no attack on their next turn. Tray Frisbee bounces from player to
+## player (the nearest one not hit yet, up to TRAY_HOP tiles away).
 const GRAVY_PUDDLES := 3
 const GRAVY_MAX := 3  # gravy puddles on the floor at once (older ones stay until stepped in)
-const FOOD_FIGHT_DAMAGE := 18
-const FOOD_SPLASH_DAMAGE := 8
+const MYSTERY_MEAT_DAMAGE := 27
+const TRAY_DAMAGE := 22
+const TRAY_BOUNCES := 3
+const TRAY_HOP := 5
 ## The Gym Teacher's WHISTLE!: every player on the floor takes this and is
 ## pushed one tile away from him.
 const WHISTLE_DAMAGE := 13
@@ -805,6 +808,15 @@ func _boss_act(f: Fighter) -> Array:
 	if f.own_turns >= 2 and not helpers.is_empty() and helpers.all(func(o): return not o.alive()) \
 			and _roll(1, 100) <= SUMMON_CHANCE:
 		_summon(f, helpers, events)
+	elif not ring.is_empty() and boss_id == "lunch_lady" and _roll(1, 100) <= 70:
+		# Mystery Meat: one player next to her eats it
+		var p: Fighter = ring[_roll(0, ring.size() - 1)]
+		events.append({"type": "boss_attack", "fighter": f.id, "attack": names.ring, "tiles": [p.pos], "target": p.id})
+		ctx.ranged = false
+		if _deal(f, p, MYSTERY_MEAT_DAMAGE + rage, ctx) and p.alive():
+			_apply_status(ctx, p, "dizzy")
+			p.no_attack_next = true
+			events.append({"type": "status", "fighter": p.id, "status": "mystery_meat"})
 	elif not ring.is_empty() and _roll(1, 100) <= 70:
 		var tiles: Array = []
 		for dy in range(-2, 3):
@@ -840,19 +852,26 @@ func _boss_act(f: Fighter) -> Array:
 			if p.alive() and _deal(f, p, WHISTLE_DAMAGE + rage, ctx) and p.alive():
 				_knockback(ctx, p, _away(f, p), WHISTLE_PUSH)
 	elif boss_id == "lunch_lady":
-		# Food Fight!: a tray of food at one player, splashing whoever is next to them
-		var p: Fighter = targets[_roll(0, targets.size() - 1)]
-		var tiles: Array = [p.pos]
-		for d in DIRS:
-			if _in_bounds(p.pos + d):
-				tiles.append(p.pos + d)
-		events.append({"type": "boss_attack", "fighter": f.id, "attack": names.far, "tiles": tiles, "target": p.id})
+		# Tray Frisbee: thrown at a random player, then it bounces to the nearest
+		# player it hasn't hit yet (if close enough), up to TRAY_BOUNCES hits
+		var hit: Array = [targets[_roll(0, targets.size() - 1)]]
+		while hit.size() < TRAY_BOUNCES:
+			var last: Fighter = hit.back()
+			var next: Fighter = null
+			for o in targets:
+				if hit.has(o):
+					continue
+				var d: int = absi(o.pos.x - last.pos.x) + absi(o.pos.y - last.pos.y)
+				if d <= TRAY_HOP and (next == null or d < absi(next.pos.x - last.pos.x) + absi(next.pos.y - last.pos.y)):
+					next = o
+			if next == null:
+				break
+			hit.append(next)
+		events.append({"type": "boss_attack", "fighter": f.id, "attack": names.far, "tiles": hit.map(func(o): return o.pos), "target": hit[0].id})
 		ctx.ranged = true
-		var splashed := targets.filter(func(o): return o != p and absi(o.pos.x - p.pos.x) + absi(o.pos.y - p.pos.y) == 1)
-		_deal(f, p, FOOD_FIGHT_DAMAGE + rage, ctx)
-		for o in splashed:
-			if o.alive():
-				_deal(f, o, FOOD_SPLASH_DAMAGE + rage, ctx)
+		for p in hit:
+			if p.alive():
+				_deal(f, p, TRAY_DAMAGE + rage, ctx)
 	else:
 		var p: Fighter = targets[_roll(0, targets.size() - 1)]
 		events.append({"type": "boss_attack", "fighter": f.id, "attack": names.far, "tiles": [p.pos], "target": p.id})

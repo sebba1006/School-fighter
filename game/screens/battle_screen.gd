@@ -62,6 +62,7 @@ const STATUS_TEXT := {
 	"block": ["BLOCK", UiTheme.CHALK],
 	"sugar_rush": ["SUGAR RUSH!", UiTheme.GOLD],
 	"hall_pass": ["HALL PASS! 2 TURNS SAFE", UiTheme.GOLD],
+	"mystery_meat": ["YUCK! NO ATTACK NEXT TURN", UiTheme.DIZZY],
 }
 
 var config: Dictionary
@@ -1117,11 +1118,11 @@ func _use_item_anim(e: Dictionary, events: Array, i: int) -> void:
 ## The Principal's attack: name popup, the hit tiles flash red, screen shake.
 func _boss_attack_anim(e: Dictionary) -> void:
 	var names := {"ruler_slam": "RULER SLAM!", "megaphone": "MEGAPHONE YELL!", "detention": "DETENTION!", "scold": "SCOLD!",
-		"ladle": "LADLE SMACK!", "gravy": "GRAVY SPLASH!", "food_fight": "FOOD FIGHT!", "spatula": "SPATULA SLAP!",
+		"mystery_meat": "MYSTERY MEAT!", "gravy": "GRAVY SPLASH!", "tray": "TRAY FRISBEE!", "spatula": "SPATULA SLAP!",
 		"clipboard": "CLIPBOARD SMACK!", "dodgeball": "DODGEBALL BARRAGE!", "whistle": "WHISTLE!", "tackle": "TACKLE!",
 		"gravity_slam": "GRAVITY SLAM!", "laser_eyes": "LASER EYES!", "meteor": "METEOR SHOWER!", "black_hole": "BLACK HOLE!"}
 	var sounds := {"ruler_slam": "slam", "megaphone": "woof", "detention": "ko", "scold": "hit",
-		"ladle": "slam", "gravy": "splash", "food_fight": "ko", "spatula": "hit",
+		"mystery_meat": "dizzy", "gravy": "splash", "tray": "whoosh", "spatula": "hit",
 		"clipboard": "slam", "dodgeball": "whoosh", "whistle": "whistle", "tackle": "hit",
 		"gravity_slam": "slam", "laser_eyes": "block", "meteor": "break", "black_hole": "dizzy"}
 	var v = fighter_views[e.fighter]
@@ -1144,7 +1145,7 @@ func _boss_attack_anim(e: Dictionary) -> void:
 	if e.attack == "detention" and e.has("target"):
 		_popup(fighter_views[e.target], "DETENTION!", UiTheme.HIT, -44)
 	if not teacher:
-		await _shake(4 if e.attack in ["ruler_slam", "ladle", "clipboard", "whistle", "gravity_slam", "meteor", "black_hole"] else 2)
+		await _shake(4 if e.attack in ["ruler_slam", "tray", "clipboard", "whistle", "gravity_slam", "meteor", "black_hole"] else 2)
 	else:
 		await get_tree().create_timer(0.15).timeout
 	var tw := create_tween().set_parallel()

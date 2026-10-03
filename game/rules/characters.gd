@@ -124,9 +124,9 @@ const TEACHER := {
 const LUNCH_LADY := {
 	"name": "The Lunch Lady", "short": "Lunch Lady", "hp": 2250, "move": 0,
 	"attacks": [
-		{"id": "ladle", "name": "Ladle Smack", "type": "boss"},
+		{"id": "mystery_meat", "name": "Mystery Meat", "type": "boss"},
 		{"id": "gravy", "name": "Gravy Splash", "type": "boss"},
-		{"id": "food_fight", "name": "Food Fight!", "type": "boss"},
+		{"id": "tray", "name": "Tray Frisbee", "type": "boss"},
 		{"id": "glare", "name": "Glare", "type": "boss"},
 	],
 	"super": {"id": "none", "name": "-", "type": "boss"},
@@ -189,7 +189,7 @@ const BOSSES := {
 		"ring": "ruler_slam", "lane": "megaphone", "far": "detention",
 		"summon": "TEACHERS, HELP ME!", "summon_banner": "TEACHERS INCOMING!", "minion_attack": "scold"},
 	"lunch_lady": {"def": LUNCH_LADY, "minion": "cook", "minion_def": COOK,
-		"ring": "ladle", "lane": "gravy", "far": "food_fight",
+		"ring": "mystery_meat", "lane": "gravy", "far": "tray",
 		"summon": "KITCHEN, HELP ME!", "summon_banner": "COOKS INCOMING!", "minion_attack": "spatula"},
 	"gym_teacher": {"def": GYM_TEACHER, "minion": "athlete", "minion_def": ATHLETE,
 		"ring": "clipboard", "lane": "dodgeball", "far": "whistle",

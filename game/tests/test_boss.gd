@@ -253,22 +253,39 @@ func test_gravy_splash_leaves_puddles() -> void:
 	done()
 
 
-func test_food_fight_splashes_neighbours() -> void:
+func test_tray_frisbee_bounces_between_players() -> void:
 	var b := _lunch_battle()
 	put(b, 0, 0, 1)
-	put(b, 1, 1, 1)  # right next to player 0
-	put(b, 2, 10, 8)
-	b.forced_rolls.assign([0])  # nobody in line: food fight, at player 0
+	put(b, 1, 2, 1)  # 2 tiles from player 0 (not in line with her)
+	put(b, 2, 10, 8)  # far away: the tray can't reach
+	b.forced_rolls.assign([0])  # nobody close or in line: tray, thrown at player 0
 	end_turn(b, 0)
 	end_turn(b, 1)
-	var h0 := b.fighters[0].hp
-	var h1 := b.fighters[1].hp
+	var hps := [b.fighters[0].hp, b.fighters[1].hp, b.fighters[2].hp]
 	var r := end_turn(b, 2)
-	check(r.events.any(func(e): return e.type == "boss_attack" and e.attack == "food_fight"), "food fight")
-	eq(h0 - b.fighters[0].hp, Battle.FOOD_FIGHT_DAMAGE, "target hit")
-	eq(h1 - b.fighters[1].hp, Battle.FOOD_SPLASH_DAMAGE, "neighbour splashed")
+	check(r.events.any(func(e): return e.type == "boss_attack" and e.attack == "tray"), "tray frisbee")
+	eq(hps[0] - b.fighters[0].hp, Battle.TRAY_DAMAGE, "first hit")
+	eq(hps[1] - b.fighters[1].hp, Battle.TRAY_DAMAGE, "bounced to the next player")
+	eq(hps[2] - b.fighters[2].hp, 0, "too far for a bounce")
 	done()
 
+
+func test_mystery_meat_stops_your_next_attack() -> void:
+	var b := _lunch_battle()
+	var boss := b.boss()
+	put(b, 0, boss.pos.x - 2, boss.pos.y)  # right next to her
+	put(b, 1, 0, 0)
+	put(b, 2, 10, 8)
+	b.forced_rolls.assign([1, 0])  # mystery meat, on player 0
+	end_turn(b, 0)
+	end_turn(b, 1)
+	var hp0 := b.fighters[0].hp
+	var r := end_turn(b, 2)
+	check(r.events.any(func(e): return e.type == "boss_attack" and e.attack == "mystery_meat"), "mystery meat")
+	eq(hp0 - b.fighters[0].hp, Battle.MYSTERY_MEAT_DAMAGE, "damage")
+	check(b.fighters[0].dizzy_now, "dizzy on their turn")
+	check(b.fighters[0].no_attack_now, "can't attack on their turn")
+	done()
 
 
 func test_gym_teacher_whistle_hits_everyone() -> void:
