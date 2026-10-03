@@ -81,6 +81,15 @@ const FOOD_SPLASH_DAMAGE := 8
 ## pushed one tile away from him.
 const WHISTLE_DAMAGE := 13
 const WHISTLE_PUSH := 1
+## The final boss: once he has lost this much HP the fight moves to space,
+## where he's angry for good and uses these attacks instead.
+const FINAL_SPACE_AT := 500
+const GRAVITY_SLAM_DAMAGE := 20
+const LASER_DAMAGE := 11
+const METEOR_DAMAGE := 12
+const METEOR_TARGETS := 3
+const BLACK_HOLE_DAMAGE := 4
+const BLACK_HOLE_PULL := 2
 const APPLE_EVERY := 150  # an apple drops each time he loses this much HP
 const APPLE_HEAL := 60
 ## Host setting: everyone gets this much extra HP (0 = original).
@@ -115,6 +124,8 @@ var shrink_on := false
 var boss_mode := false
 ## Which boss (a key of Characters.BOSSES) in a boss fight.
 var boss_id := ""
+## The final fight has moved to space.
+var space := false
 ## Health apples on the floor (boss fights): Vector2i -> HP they heal.
 var apples := {}
 var _apples_dropped := 0
@@ -681,6 +692,8 @@ func _begin_turn() -> Array:
 	turn_start_pos = f.pos
 	events.append({"type": "turn_start", "fighter": f.id, "move_budget": move_budget, "can_attack": not f.no_attack_now})
 	if (f.is_boss or f.is_minion) and phase == Phase.TURN:
+		if f.is_boss and boss_id == "final_principal" and not space and f.max_hp - f.hp >= FINAL_SPACE_AT:
+			_go_to_space(f, events)
 		if f.is_boss and not f.angry and f.hp * 100 <= f.max_hp * ANGRY_PCT:
 			f.angry = true
 			events.append({"type": "angry", "fighter": f.id, "bonus": ANGRY_BONUS})
@@ -786,6 +799,8 @@ func _boss_act(f: Fighter) -> Array:
 	var ctx := {"attacker": f, "dir": Vector2i.ZERO, "super": false, "events": events}
 	var rage := ANGRY_BONUS if f.angry else 0
 	var names: Dictionary = Characters.BOSSES[boss_id]
+	if space:
+		return _space_act(f, ring, lane, targets, ctx, rage, names)
 	var helpers := fighters.filter(func(o): return o.is_minion)
 	if f.own_turns >= 2 and not helpers.is_empty() and helpers.all(func(o): return not o.alive()) \
 			and _roll(1, 100) <= SUMMON_CHANCE:
@@ -844,6 +859,83 @@ func _boss_act(f: Fighter) -> Array:
 		ctx.ranged = true
 		if _deal(f, p, DETENTION_DAMAGE + rage, ctx) and p.alive():
 			_apply_status(ctx, p, "dizzy")
+	return events
+
+
+## The final fight moves to space: the furniture is gone, a few asteroids
+## float around (not on anyone), and he's angry for the rest of the fight.
+func _go_to_space(f: Fighter, events: Array) -> void:
+	space = true
+	f.angry = true
+	map_def = Maps.SPACE
+	obstacles.clear()
+	puddles.clear()
+	for y in height:
+		for x in width:
+			var t := Vector2i(x, y)
+			var ch: String = Maps.SPACE.rows[y][x]
+			if Maps.OBSTACLE_HP.has(ch) and _fighter_at(t) == null and not apples.has(t):
+				obstacles[t] = {"type": ch, "hp": Maps.OBSTACLE_HP[ch]}
+	events.append({"type": "space", "fighter": f.id})
+
+
+## His space attacks (Gravity Slam, Laser Eyes, Meteor Shower, Black Hole);
+## his teachers still come when they're all gone.
+func _space_act(f: Fighter, ring: Array, lane: Array, targets: Array, ctx: Dictionary, rage: int, names: Dictionary) -> Array:
+	var events: Array = ctx.events
+	var helpers := fighters.filter(func(o): return o.is_minion)
+	if not helpers.is_empty() and helpers.all(func(o): return not o.alive()) and _roll(1, 100) <= SUMMON_CHANCE:
+		_summon(f, helpers, events)
+	elif not ring.is_empty() and _roll(1, 100) <= 70:
+		var tiles: Array = []
+		for dy in range(-2, 3):
+			for dx in range(-2, 3):
+				if maxi(absi(dx), absi(dy)) == 2 and _in_bounds(f.pos + Vector2i(dx, dy)):
+					tiles.append(f.pos + Vector2i(dx, dy))
+		events.append({"type": "boss_attack", "fighter": f.id, "attack": names.space_ring, "tiles": tiles})
+		ctx.ranged = false
+		for p in ring:
+			if p.alive() and _deal(f, p, GRAVITY_SLAM_DAMAGE + rage, ctx) and p.alive():
+				_knockback(ctx, p, _away(f, p), RULER_PUSH)
+	elif not lane.is_empty() and _roll(1, 100) <= 60:
+		var tiles: Array = []
+		for y in height:
+			for x in width:
+				var d := Vector2i(x, y) - f.pos
+				var inside := absi(d.x) <= BOSS_RADIUS and absi(d.y) <= BOSS_RADIUS
+				if not inside and (absi(d.x) <= BOSS_RADIUS or absi(d.y) <= BOSS_RADIUS):
+					tiles.append(Vector2i(x, y))
+		events.append({"type": "boss_attack", "fighter": f.id, "attack": names.space_lane, "tiles": tiles})
+		ctx.ranged = true
+		for p in lane:
+			if p.alive() and _deal(f, p, LASER_DAMAGE + rage, ctx) and p.alive():
+				_apply_status(ctx, p, "dizzy")
+	elif _roll(1, 100) <= 50:
+		# Meteor Shower: up to 3 players, picked at random
+		var pool := targets.duplicate()
+		var hit: Array = []
+		for i in mini(METEOR_TARGETS, pool.size()):
+			hit.append(pool.pop_at(_roll(0, pool.size() - 1)))
+		events.append({"type": "boss_attack", "fighter": f.id, "attack": names.space_far, "tiles": hit.map(func(o): return o.pos)})
+		ctx.ranged = true
+		for p in hit:
+			if p.alive():
+				_deal(f, p, METEOR_DAMAGE + rage, ctx)
+	else:
+		# Black Hole: everyone is pulled towards him, and it stings
+		events.append({"type": "boss_attack", "fighter": f.id, "attack": names.space_far2, "tiles": targets.map(func(o): return o.pos)})
+		ctx.ranged = true
+		for p in targets:
+			if not p.alive() or not _deal(f, p, BLACK_HOLE_DAMAGE + rage, ctx) or not p.alive():
+				continue
+			var toward: Vector2i = -_away(f, p)
+			for i in BLACK_HOLE_PULL:
+				var next: Vector2i = p.pos + toward
+				if not _walkable(next):
+					break
+				var from: Vector2i = p.pos
+				p.pos = next
+				events.append({"type": "knockback", "fighter": p.id, "from": from, "to": next})
 	return events
 
 
@@ -1169,7 +1261,7 @@ func forfeit(fighter_id: int) -> Array:
 ## A fingerprint of everything that matters in the battle. The server sends it
 ## with every move so clients can tell if their copy got out of sync.
 func state_hash() -> int:
-	var parts := [phase, round_number, turn_index, move_budget, path.size(), _rng.state, _last_team, _team_last, box, _turn_count, zone_rings, _apples_dropped]
+	var parts := [phase, round_number, turn_index, move_budget, path.size(), _rng.state, _last_team, _team_last, box, _turn_count, zone_rings, _apples_dropped, space]
 	for f in fighters:
 		parts.append_array([f.hp, f.pos.x, f.pos.y, f.meter, f.shield.get("kind", ""), f.shield.get("amount", 0),
 			f.dizzy_next, f.rage_turns, f.sugar_active, f.no_attack_next, f.no_attack_now, f.forfeited, f.item, f.guard, f.own_turns, f.ready_at, f.angry, f.zone_safe])

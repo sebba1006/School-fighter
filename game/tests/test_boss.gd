@@ -291,3 +291,61 @@ func test_gym_teacher_whistle_hits_everyone() -> void:
 	for i in 3:
 		check(hps[i] - b.fighters[i].hp >= Battle.WHISTLE_DAMAGE, "player %d hit" % i)
 	done()
+
+
+func _final_battle() -> Battle:
+	var players := []
+	for c in ["sebba", "mike", "leon"]:
+		players.append({"char": c, "team": 0})
+	var b := Battle.new({"boss": "final_principal", "players": players, "seed": 3, "characters": Fixture.ALL})
+	b.start_round()
+	return b
+
+
+func test_final_boss_starts_in_his_office() -> void:
+	var b := _final_battle()
+	eq(b.boss().max_hp, 2500, "more HP than the others")
+	eq(b.map_def.name, "Principal's Office", "phase 1 in the office")
+	check(not b.space, "not in space yet")
+	done()
+
+
+func test_final_boss_goes_to_space_after_500_hp() -> void:
+	var b := _final_battle()
+	var boss := b.boss()
+	boss.hp = boss.max_hp - Battle.FINAL_SPACE_AT
+	for f in b.fighters:
+		if f.team == 0:
+			put(b, f.id, 0, f.id * 2 + 1)
+	end_turn(b, 0)
+	end_turn(b, 1)
+	var r := end_turn(b, 2)  # his turn: he loses it
+	check(has_event(r, "space"), "the space event")
+	check(b.space, "in space")
+	check(boss.angry, "angry for the rest of the fight")
+	eq(b.map_def.name, "Space", "the room is space now")
+	check(not b.obstacles.values().any(func(o): return o.type == "L"), "the lockers are gone")
+	check(b.obstacles.values().any(func(o): return o.type == "X"), "asteroids")
+	var space_attacks := ["gravity_slam", "laser_eyes", "meteor", "black_hole"]
+	check(r.events.any(func(e): return e.type == "boss_attack" and space_attacks.has(e.attack)), "a space attack right away")
+	done()
+
+
+func test_black_hole_pulls_everyone_in() -> void:
+	var b := _final_battle()
+	var boss := b.boss()
+	boss.hp = boss.max_hp - Battle.FINAL_SPACE_AT
+	put(b, 0, 0, 0)
+	put(b, 1, 10, 0)
+	put(b, 2, 0, 8)
+	b.forced_rolls.assign([100, 100])  # no teachers; (nobody close or in line) 100 > 50 = black hole
+	end_turn(b, 0)
+	end_turn(b, 1)
+	var before := [b.fighters[0].pos, b.fighters[1].pos, b.fighters[2].pos]
+	var r := end_turn(b, 2)
+	check(r.events.any(func(e): return e.type == "boss_attack" and e.attack == "black_hole"), "black hole")
+	for i in 3:
+		var d0: int = absi(before[i].x - boss.pos.x) + absi(before[i].y - boss.pos.y)
+		var d1: int = absi(b.fighters[i].pos.x - boss.pos.x) + absi(b.fighters[i].pos.y - boss.pos.y)
+		check(d1 < d0, "player %d pulled closer" % i)
+	done()

@@ -10,7 +10,7 @@ extends RefCounted
 
 const OBSTACLE_HP := {"L": 20, "D": 20, "T": 40, "B": 30, "C": 15, "F": 25, "K": 50,
 	"N": 60, "R": 45, "Y": 30, "A": 35, "G": 10, "S": 15,
-	"H": 60, "Z": 60, "W": 60}
+	"H": 60, "Z": 60, "W": 60, "X": 80}
 
 const ALL := {
 	"classroom": {
@@ -172,6 +172,27 @@ const BOSS_GYM := {
 	"ffa_spawns": [[0, 1], [0, 3], [0, 5]],
 }
 
+## Where the final fight goes when the Principal gets furious: open space with
+## a few asteroids (X). Fighters keep their places; an asteroid that would land
+## on someone is left out.
+const SPACE := {
+	"name": "Space",
+	"floor": "space",
+	"boss": [5, 4],
+	"rows": [
+		"...........",
+		"...........",
+		"..X.....X..",
+		"...........",
+		"...........",
+		"...........",
+		"..X.....X..",
+		"...........",
+		"...........",
+	],
+	"ffa_spawns": [[0, 1], [0, 3], [0, 5]],
+}
+
 ## Boss id -> its room.
-const BOSS_ROOMS := {"principal": BOSS_ROOM, "lunch_lady": KITCHEN, "gym_teacher": BOSS_GYM}
+const BOSS_ROOMS := {"principal": BOSS_ROOM, "lunch_lady": KITCHEN, "gym_teacher": BOSS_GYM, "final_principal": BOSS_ROOM}
 

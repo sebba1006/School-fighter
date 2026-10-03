@@ -61,8 +61,14 @@ const GYM_TROPHIES := [
 	{"id": "gt_friends", "name": "Gym Teacher: Friends", "desc": "Beat him with 2-3 real players", "boss": "gym_teacher"},
 	{"id": "gt_untouchable", "name": "Gym Teacher: No Laps", "desc": "Beat him with nobody KO'd", "boss": "gym_teacher"},
 ]
+## The final boss's trophies.
+const FINAL_TROPHIES := [
+	{"id": "fp_solo", "name": "Final Boss: Solo", "desc": "Beat the final Principal with 2 CPU teammates", "boss": "final_principal"},
+	{"id": "fp_friends", "name": "Final Boss: Friends", "desc": "Beat him in space with 2-3 real players", "boss": "final_principal"},
+	{"id": "fp_untouchable", "name": "Final Boss: Out Of This World", "desc": "Beat him with nobody KO'd", "boss": "final_principal"},
+]
 ## Trophy id prefix for each boss's own trophies (the Principal's have none).
-const TROPHY_PREFIX := {"principal": "", "lunch_lady": "ll_", "gym_teacher": "gt_"}
+const TROPHY_PREFIX := {"principal": "", "lunch_lady": "ll_", "gym_teacher": "gt_", "final_principal": "fp_"}
 ## The list is split into leagues of 5, easiest first.
 const LEAGUES := [
 	{"name": "BRONZE LEAGUE", "color": Color("cd8a4e")},
@@ -153,6 +159,7 @@ static func trophy_list() -> Array:
 		out.append({"id": "with_" + id, "name": "%s Trophy" % n, "desc": "Beat the Principal as %s" % n, "fighter": id})
 	out.append_array(LUNCH_TROPHIES)
 	out.append_array(GYM_TROPHIES)
+	out.append_array(FINAL_TROPHIES)
 	return out
 
 
