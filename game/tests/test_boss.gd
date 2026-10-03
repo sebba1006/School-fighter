@@ -400,6 +400,13 @@ func test_push_ups_stop_your_next_move() -> void:
 	eq(b.current().id, 0, "player 0's turn")
 	eq(b.move_budget, 0, "can't move this turn")
 	check(b.attack_blocked_reason(0, 0) == "", "can still attack")
+	# his next turn: never Push-Ups! again right away
+	end_turn(b, 0)
+	end_turn(b, 1)
+	b.forced_rolls.assign([100, 100])  # no athletes; (push-ups blocked) no medicine ball -> whistle
+	r = end_turn(b, 2)
+	check(not r.events.any(func(e): return e.type == "boss_attack" and e.attack == "push_ups"), "not twice in a row")
+	eq(b.move_budget, Fixture.ALL.sebba.move, "can move again")
 	done()
 
 

@@ -83,13 +83,14 @@ const TRAY_BOUNCES := 3
 const TRAY_HOP := 5
 ## The Gym Teacher's WHISTLE!: every player on the floor takes this and is
 ## pushed one tile away from him.
-const WHISTLE_DAMAGE := 26
+const WHISTLE_DAMAGE := 18
 const WHISTLE_PUSH := 1
 ## Push-Ups! (one player next to him): damage, and no moving on their next turn.
-const PUSH_UPS_DAMAGE := 40
+## Never used two turns in a row, so you always get a turn to move again.
+const PUSH_UPS_DAMAGE := 32
 ## Medicine Ball: everyone in line with him is rolled back up to this far
 ## (all the way to the wall in his rooms), slamming into whatever stops them.
-const MEDICINE_BALL_DAMAGE := 22
+const MEDICINE_BALL_DAMAGE := 18
 const MEDICINE_BALL_PUSH := 6
 ## The final boss: once he has lost this much HP the fight moves to space,
 ## where he's angry for good and uses these attacks instead.
@@ -824,7 +825,7 @@ func _boss_act(f: Fighter) -> Array:
 	if f.own_turns >= 2 and not helpers.is_empty() and helpers.all(func(o): return not o.alive()) \
 			and _roll(1, 100) <= SUMMON_CHANCE:
 		_summon(f, helpers, events)
-	elif not ring.is_empty() and boss_id == "gym_teacher" and _roll(1, 100) <= 70:
+	elif not ring.is_empty() and boss_id == "gym_teacher" and _boss_last != "push_ups" and _roll(1, 100) <= 70:
 		# Push-Ups!: one player next to him drops and gives him twenty
 		var p: Fighter = ring[_roll(0, ring.size() - 1)]
 		events.append({"type": "boss_attack", "fighter": f.id, "attack": names.ring, "tiles": [p.pos], "target": p.id})
