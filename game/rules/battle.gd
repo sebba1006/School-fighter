@@ -74,10 +74,11 @@ const ANGRY_BONUS := 5
 ## (players who step in one slip). Mystery Meat (someone next to her): damage,
 ## Dizzy and no attack on their next turn. Tray Frisbee bounces from player to
 ## player (the nearest one not hit yet, up to TRAY_HOP tiles away).
+## Mystery Meat is never used two turns in a row, so you always get to hit back.
 const GRAVY_PUDDLES := 3
 const GRAVY_MAX := 3  # gravy puddles on the floor at once (older ones stay until stepped in)
-const MYSTERY_MEAT_DAMAGE := 27
-const TRAY_DAMAGE := 22
+const MYSTERY_MEAT_DAMAGE := 20
+const TRAY_DAMAGE := 16
 const TRAY_BOUNCES := 3
 const TRAY_HOP := 5
 ## The Gym Teacher's WHISTLE!: every player on the floor takes this and is
@@ -135,6 +136,8 @@ var boss_mode := false
 var boss_id := ""
 ## The final fight has moved to space.
 var space := false
+## The boss's last attack (Mystery Meat isn't used twice in a row).
+var _boss_last := ""
 ## Health apples on the floor (boss fights): Vector2i -> HP they heal.
 var apples := {}
 var _apples_dropped := 0
@@ -707,7 +710,13 @@ func _begin_turn() -> Array:
 		if f.is_boss and not f.angry and f.hp * 100 <= f.max_hp * ANGRY_PCT:
 			f.angry = true
 			events.append({"type": "angry", "fighter": f.id, "bonus": ANGRY_BONUS})
-		events.append_array(_boss_act(f) if f.is_boss else _teacher_act(f))
+		var acted := _boss_act(f) if f.is_boss else _teacher_act(f)
+		if f.is_boss:
+			_boss_last = ""
+			for e in acted:
+				if e.type == "boss_attack" or e.type == "summon":
+					_boss_last = e.get("attack", "summon")
+		events.append_array(acted)
 		_check_round_end(events)
 		if phase == Phase.TURN:
 			events.append_array(_end_turn())
@@ -823,13 +832,12 @@ func _boss_act(f: Fighter) -> Array:
 		if _deal(f, p, PUSH_UPS_DAMAGE + rage, ctx) and p.alive():
 			p.no_move_next = true
 			events.append({"type": "status", "fighter": p.id, "status": "push_ups"})
-	elif not ring.is_empty() and boss_id == "lunch_lady" and _roll(1, 100) <= 70:
-		# Mystery Meat: one player next to her eats it
+	elif not ring.is_empty() and boss_id == "lunch_lady" and _boss_last != "mystery_meat" and _roll(1, 100) <= 70:
+		# Mystery Meat: one player next to her eats it (no attack on their next turn)
 		var p: Fighter = ring[_roll(0, ring.size() - 1)]
 		events.append({"type": "boss_attack", "fighter": f.id, "attack": names.ring, "tiles": [p.pos], "target": p.id})
 		ctx.ranged = false
 		if _deal(f, p, MYSTERY_MEAT_DAMAGE + rage, ctx) and p.alive():
-			_apply_status(ctx, p, "dizzy")
 			p.no_attack_next = true
 			events.append({"type": "status", "fighter": p.id, "status": "mystery_meat"})
 	elif not ring.is_empty() and _roll(1, 100) <= 70:
@@ -1297,7 +1305,7 @@ func forfeit(fighter_id: int) -> Array:
 ## A fingerprint of everything that matters in the battle. The server sends it
 ## with every move so clients can tell if their copy got out of sync.
 func state_hash() -> int:
-	var parts := [phase, round_number, turn_index, move_budget, path.size(), _rng.state, _last_team, _team_last, box, _turn_count, zone_rings, _apples_dropped, space]
+	var parts := [phase, round_number, turn_index, move_budget, path.size(), _rng.state, _last_team, _team_last, box, _turn_count, zone_rings, _apples_dropped, space, _boss_last]
 	for f in fighters:
 		parts.append_array([f.hp, f.pos.x, f.pos.y, f.meter, f.shield.get("kind", ""), f.shield.get("amount", 0),
 			f.dizzy_next, f.rage_turns, f.sugar_active, f.no_attack_next, f.no_attack_now, f.forfeited, f.item, f.guard, f.own_turns, f.ready_at, f.angry, f.zone_safe, f.no_move_next])
