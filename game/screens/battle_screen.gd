@@ -1215,6 +1215,7 @@ func _space_cutscene(e: Dictionary) -> void:
 	_build_board()
 	_layout()
 	Audio.play("super")
+	Audio.set_space_music()
 	fade = create_tween()
 	fade.tween_property(white, "color:a", 0.0, 0.6)
 	fade.tween_callback(white.queue_free)
@@ -1836,6 +1837,8 @@ func _rebuild_from_state() -> void:
 	_hp_shown.clear()
 	_close_overlay()
 	_build_board()
+	if battle.space:
+		Audio.set_space_music()
 	_refresh()
 	if battle.phase == Battle.Phase.MATCH_OVER:
 		_show_overlay({"winner_team": battle.match_winner, "wins": battle.round_wins, "round": battle.round_number}, true)
