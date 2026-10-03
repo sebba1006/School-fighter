@@ -1972,7 +1972,8 @@ func _refresh_panels() -> void:
 		if f.is_minion:
 			if not busy:
 				_hp_shown[f.id] = f.hp
-			fighter_views[f.id].hp_frac = float(_hp_shown.get(f.id, f.hp)) / f.max_hp
+			if f.id < fighter_views.size():  # online, the board is built when round 1 starts
+				fighter_views[f.id].hp_frac = float(_hp_shown.get(f.id, f.hp)) / f.max_hp
 			continue
 		var p: Dictionary = panels[f.id]
 		# While a move is animating, bars show HP as of the last hit shown so far
