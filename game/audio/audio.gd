@@ -165,6 +165,10 @@ static func _wave(kind: String, phase: float) -> float:
 			return 1.0 if p < 0.25 else -1.0
 		"tri":
 			return 4.0 * absf(p - 0.5) - 1.0
+		"saw":
+			return 2.0 * p - 1.0
+		"pulse":  # thin, buzzy square
+			return 1.0 if p < 0.125 else -1.0
 	return sin(TAU * p)
 
 
@@ -192,9 +196,11 @@ func _wav(samples: PackedFloat32Array, rate := RATE, loop := false) -> AudioStre
 # ---------------------------------------------------------------- music
 
 ## The songs. Lead and bass are MIDI notes per eighth note (-1 = rest), 8 bars.
-## Boss fights switch to "boss" by themselves; the MUSIC button picks the rest.
-const MUSIC_LIST := ["school", "hype", "chill", "boss"]
-const MUSIC_TITLES := {"school": "SCHOOL", "hype": "HYPE", "chill": "CHILL", "boss": "BOSS"}
+## Boss fights switch to "boss" by themselves (and to "space" when the final
+## boss takes the fight to space); the MUSIC button picks the rest.
+const MUSIC_LIST := ["school", "hype", "chill", "arcade", "lunch", "spooky", "boss", "space"]
+const MUSIC_TITLES := {"school": "SCHOOL", "hype": "HYPE", "chill": "CHILL", "arcade": "ARCADE",
+	"lunch": "LUNCH BREAK", "spooky": "SPOOKY", "boss": "BOSS", "space": "SPACE"}
 
 
 ## One bar = 8 eighth notes. `chord` notes are repeated to fill the bar.
@@ -243,6 +249,64 @@ static func _song(id: String) -> Dictionary:
 			for r in [40, 40, 36, 38, 40, 40, 36, 35]:
 				bass.append_array(_bar([r, r + 12]))  # pumping octaves
 			return {"bpm": 180.0, "lead": lead, "lead_wave": "square", "lead_vol": 0.11, "bass": bass, "bass_wave": "square", "bass_vol": 0.10, "kick": true, "snare": true, "hat": 0.05}
+		"arcade":
+			# D - Bm - G - A, fast and bouncy, a thin buzzy lead like an old arcade game
+			var lead := [
+				74, 78, 81, 86, 81, 78, 74, 78,
+				71, 74, 78, 83, 78, 74, 71, 74,
+				67, 71, 74, 79, 74, 71, 67, 71,
+				69, 73, 76, 81, 79, 76, 73, 69,
+				86, -1, 85, 83, 81, -1, 78, 81,
+				83, -1, 81, 78, 74, -1, 71, 74,
+				79, 81, 83, 86, 83, 81, 79, 76,
+				81, 78, 76, 73, 69, 73, 76, 81,
+			]
+			var bass := []
+			for r in [38, 35, 31, 33, 38, 35, 31, 33]:
+				bass.append_array(_bar([r, r + 12, r + 7, r + 12]))
+			return {"bpm": 168.0, "lead": lead, "lead_wave": "pulse", "lead_vol": 0.13, "bass": bass, "bass_wave": "square", "bass_vol": 0.08, "kick": true, "snare": true, "hat": 0.04}
+		"lunch":
+			# C - A7 - Dm7 - G7, a happy shuffle for lunch break
+			var lead := [
+				72, -1, 76, 79, -1, 76, 72, -1,
+				73, -1, 76, 79, -1, 81, 79, 76,
+				74, -1, 77, 81, -1, 77, 74, 72,
+				71, 74, 77, 79, 77, 74, 71, -1,
+				72, 72, 76, -1, 79, 79, 81, 79,
+				76, -1, 73, -1, 69, 73, 76, -1,
+				77, 76, 74, 72, 74, 77, 81, 77,
+				79, -1, 77, 74, 71, 67, 71, 74,
+			]
+			var bass := []
+			for r in [36, 33, 38, 31, 36, 33, 38, 31]:
+				bass.append_array(_bar([r, -1, r + 7, r + 9, r + 12, -1, r + 7, r + 4]))  # walking bass
+			return {"bpm": 124.0, "lead": lead, "lead_wave": "tri", "lead_vol": 0.17, "bass": bass, "bass_vol": 0.20, "kick": true, "snare": false, "hat": 0.03}
+		"spooky":
+			# D minor with a creepy half-step, slow and sneaky (the school at night)
+			var lead := [
+				74, -1, -1, 73, 74, -1, 77, -1,
+				76, -1, -1, 75, 76, -1, 74, -1,
+				74, -1, 70, -1, 69, -1, 65, -1,
+				64, -1, 65, -1, 69, -1, 73, -1,
+				74, 77, 81, 77, 74, 77, 82, 77,
+				73, 76, 81, 76, 73, 76, 79, 76,
+				70, 74, 77, 74, 69, 73, 76, 73,
+				74, -1, -1, -1, 62, -1, 61, -1,
+			]
+			var bass := []
+			for r in [38, 37, 34, 33, 38, 37, 34, 33]:
+				bass.append_array(_bar([r, -1, -1, -1, r, -1, r + 7, -1]))
+			return {"bpm": 108.0, "lead": lead, "lead_wave": "sine", "lead_vol": 0.20, "bass": bass, "bass_wave": "tri", "bass_vol": 0.20, "kick": false, "snare": false, "hat": 0.0}
+		"space":
+			# A minor, fast spacey arpeggios over a heavy saw bass: the final fight in space
+			var lead := []
+			for ch in [[69, 72, 76, 81, 84, 81, 76, 72], [65, 69, 72, 77, 81, 77, 72, 69], [67, 71, 74, 79, 83, 79, 74, 71], [64, 68, 71, 76, 80, 76, 71, 68]]:
+				lead.append_array(ch)
+			lead.append_array([81, -1, 84, 88, 86, 84, 81, 79, 77, -1, 81, 84, 86, 84, 81, 77, 79, -1, 83, 86, 88, 86, 83, 79, 80, 83, 86, 88, 92, 88, 86, 83])
+			var bass := []
+			for r in [33, 29, 31, 28, 33, 29, 31, 28]:
+				bass.append_array(_bar([r, r, r + 12, r]))
+			return {"bpm": 176.0, "lead": lead, "lead_wave": "tri", "lead_vol": 0.15, "bass": bass, "bass_wave": "saw", "bass_vol": 0.10, "kick": true, "snare": true, "hat": 0.05}
 	# "school": the original theme, Am - F - C - G
 	var lead := [
 		69, 72, 76, 72, 79, 76, 72, 76,
@@ -286,6 +350,14 @@ static func set_boss_music(on: bool) -> void:
 	if instance == null:
 		return
 	instance._music_override = "boss" if on else ""
+	instance._start_music()
+
+
+## The final boss took the fight to space: the space theme until the fight ends.
+static func set_space_music() -> void:
+	if instance == null:
+		return
+	instance._music_override = "space"
 	instance._start_music()
 
 
