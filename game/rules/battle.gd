@@ -77,6 +77,10 @@ const GRAVY_PUDDLES := 3
 const GRAVY_MAX := 3  # gravy puddles on the floor at once (older ones stay until stepped in)
 const FOOD_FIGHT_DAMAGE := 18
 const FOOD_SPLASH_DAMAGE := 8
+## The Gym Teacher's WHISTLE!: every player on the floor takes this and is
+## pushed one tile away from him.
+const WHISTLE_DAMAGE := 13
+const WHISTLE_PUSH := 1
 const APPLE_EVERY := 150  # an apple drops each time he loses this much HP
 const APPLE_HEAL := 60
 ## Host setting: everyone gets this much extra HP (0 = original).
@@ -812,6 +816,14 @@ func _boss_act(f: Fighter) -> Array:
 				_knockback(ctx, p, _away(f, p), MEGAPHONE_PUSH)
 		if boss_id == "lunch_lady":
 			_spill_gravy(f, tiles, events)
+	elif boss_id == "gym_teacher":
+		# WHISTLE!: everyone hears it, everyone gets pushed back
+		var tiles: Array = targets.map(func(o): return o.pos)
+		events.append({"type": "boss_attack", "fighter": f.id, "attack": names.far, "tiles": tiles})
+		ctx.ranged = true
+		for p in targets:
+			if p.alive() and _deal(f, p, WHISTLE_DAMAGE + rage, ctx) and p.alive():
+				_knockback(ctx, p, _away(f, p), WHISTLE_PUSH)
 	elif boss_id == "lunch_lady":
 		# Food Fight!: a tray of food at one player, splashing whoever is next to them
 		var p: Fighter = targets[_roll(0, targets.size() - 1)]

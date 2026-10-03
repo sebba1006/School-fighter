@@ -128,7 +128,7 @@ func _boss_won(winner) -> void:
 		if not p.has("cpu"):
 			humans += 1
 	_add_to_set("bosses", battle.boss_id)
-	var pre := "ll_" if battle.boss_id == "lunch_lady" else ""
+	var pre: String = A.TROPHY_PREFIX.get(battle.boss_id, "")
 	if humans == 1:
 		_trophy(pre + "solo")
 	if humans >= 2:

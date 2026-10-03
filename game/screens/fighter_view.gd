@@ -38,7 +38,7 @@ func setup(p_char_id: String, p_team_color: Color) -> void:
 	char_id = p_char_id
 	team_color = p_team_color
 	big = Characters.BOSSES.has(char_id)
-	minion = char_id == "teacher" or char_id == "cook"
+	minion = char_id in ["teacher", "cook", "athlete"]
 	if big:
 		_frames = [PixelArt.boss_sprite(char_id, false), PixelArt.boss_sprite(char_id, true)]
 	else:

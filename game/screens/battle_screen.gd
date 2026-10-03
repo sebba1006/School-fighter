@@ -1113,9 +1113,11 @@ func _use_item_anim(e: Dictionary, events: Array, i: int) -> void:
 ## The Principal's attack: name popup, the hit tiles flash red, screen shake.
 func _boss_attack_anim(e: Dictionary) -> void:
 	var names := {"ruler_slam": "RULER SLAM!", "megaphone": "MEGAPHONE YELL!", "detention": "DETENTION!", "scold": "SCOLD!",
-		"ladle": "LADLE SMACK!", "gravy": "GRAVY SPLASH!", "food_fight": "FOOD FIGHT!", "spatula": "SPATULA SLAP!"}
+		"ladle": "LADLE SMACK!", "gravy": "GRAVY SPLASH!", "food_fight": "FOOD FIGHT!", "spatula": "SPATULA SLAP!",
+		"clipboard": "CLIPBOARD SMACK!", "dodgeball": "DODGEBALL BARRAGE!", "whistle": "WHISTLE!", "tackle": "TACKLE!"}
 	var sounds := {"ruler_slam": "slam", "megaphone": "woof", "detention": "ko", "scold": "hit",
-		"ladle": "slam", "gravy": "splash", "food_fight": "ko", "spatula": "hit"}
+		"ladle": "slam", "gravy": "splash", "food_fight": "ko", "spatula": "hit",
+		"clipboard": "slam", "dodgeball": "whoosh", "whistle": "whistle", "tackle": "hit"}
 	var v = fighter_views[e.fighter]
 	var teacher: bool = battle.fighters[e.fighter].is_minion
 	_popup(v, names.get(e.attack, "!"), UiTheme.HIT, -40 if teacher else -80)
@@ -1136,7 +1138,7 @@ func _boss_attack_anim(e: Dictionary) -> void:
 	if e.attack == "detention" and e.has("target"):
 		_popup(fighter_views[e.target], "DETENTION!", UiTheme.HIT, -44)
 	if not teacher:
-		await _shake(4 if e.attack == "ruler_slam" or e.attack == "ladle" else 2)
+		await _shake(4 if e.attack in ["ruler_slam", "ladle", "clipboard", "whistle"] else 2)
 	else:
 		await get_tree().create_timer(0.15).timeout
 	var tw := create_tween().set_parallel()

@@ -220,8 +220,8 @@ func test_friends_trophy_and_ko() -> void:
 
 
 func test_trophy_list_has_one_per_fighter() -> void:
-	eq(A.trophy_list().size(), A.TROPHIES.size() + preload("res://rules/characters.gd").ALL.size() + A.LUNCH_TROPHIES.size(),
-		"3 + one per fighter + the Lunch Lady's 3")
+	eq(A.trophy_list().size(), A.TROPHIES.size() + preload("res://rules/characters.gd").ALL.size() + A.LUNCH_TROPHIES.size() + A.GYM_TROPHIES.size(),
+		"3 + one per fighter + 3 for each later boss")
 	eq(A.goal(A.by_id("trophy_master")), A.trophy_list().size(), "trophy master needs them all")
 	done()
 
@@ -278,4 +278,27 @@ func test_beating_the_lunch_lady_gives_her_trophies() -> void:
 	check(not t.new_trophies.has("solo"), "not the Principal's trophy")
 	check(not t.new_trophies.has("with_sebba"), "fighter trophies are the Principal's")
 	check(t.new_unlocks.has("not_a_scratch"), "nobody KO'd counts for any boss")
+	done()
+
+
+
+func test_gym_teacher_unlocks_after_the_lunch_lady() -> void:
+	var data := _fresh()
+	data.sets["bosses"] = ["principal"]
+	check(not A.boss_unlocked(data, "gym_teacher"), "locked until the Lunch Lady is beaten")
+	data.sets["trophies"] = ["ll_solo"]
+	check(A.boss_unlocked(data, "gym_teacher"), "her trophy unlocks him")
+	done()
+
+
+func test_beating_the_gym_teacher_gives_his_trophies() -> void:
+	var cfg := _boss_cfg(["sebba", "mike", "leon"], [false, false, true])
+	cfg.boss = "gym_teacher"
+	var b := Battle.new(cfg)
+	b.start_round()
+	var t := Tracker.new(_fresh(), b, cfg, [0], true)
+	t.feed({"type": "match_end", "winner_team": 0, "wins": {}})
+	for id in ["gt_friends", "gt_untouchable"]:
+		check(t.new_trophies.has(id), "trophy " + id)
+	check(t.data.sets.bosses.has("gym_teacher"), "remembered as beaten")
 	done()

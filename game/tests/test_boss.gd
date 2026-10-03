@@ -268,3 +268,26 @@ func test_food_fight_splashes_neighbours() -> void:
 	eq(h0 - b.fighters[0].hp, Battle.FOOD_FIGHT_DAMAGE, "target hit")
 	eq(h1 - b.fighters[1].hp, Battle.FOOD_SPLASH_DAMAGE, "neighbour splashed")
 	done()
+
+
+
+func test_gym_teacher_whistle_hits_everyone() -> void:
+	var players := []
+	for c in ["sebba", "mike", "leon"]:
+		players.append({"char": c, "team": 0})
+	var b := Battle.new({"boss": "gym_teacher", "players": players, "seed": 3, "characters": Fixture.ALL})
+	b.start_round()
+	eq(b.map_def.name, "The Gym", "in his gym")
+	check(b.fighters.filter(func(f): return f.is_minion).all(func(f): return f.char_id == "athlete"), "athletes")
+	put(b, 0, 0, 1)
+	put(b, 1, 10, 0)
+	put(b, 2, 2, 8)
+	b.forced_rolls.assign([0])  # nobody close or in line: the whistle
+	end_turn(b, 0)
+	end_turn(b, 1)
+	var hps := [b.fighters[0].hp, b.fighters[1].hp, b.fighters[2].hp]
+	var r := end_turn(b, 2)
+	check(r.events.any(func(e): return e.type == "boss_attack" and e.attack == "whistle"), "whistle")
+	for i in 3:
+		check(hps[i] - b.fighters[i].hp >= Battle.WHISTLE_DAMAGE, "player %d hit" % i)
+	done()

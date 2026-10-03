@@ -144,6 +144,30 @@ const COOK := {
 	"super": {"id": "none", "name": "-", "type": "boss"},
 }
 
+## The Gym Teacher: the third boss (unlocked by beating the Lunch Lady).
+const GYM_TEACHER := {
+	"name": "The Gym Teacher", "short": "Gym Teacher", "hp": 2250, "move": 0,
+	"attacks": [
+		{"id": "clipboard", "name": "Clipboard Smack", "type": "boss"},
+		{"id": "dodgeball", "name": "Dodgeball Barrage", "type": "boss"},
+		{"id": "whistle", "name": "Whistle!", "type": "boss"},
+		{"id": "glare", "name": "Glare", "type": "boss"},
+	],
+	"super": {"id": "none", "name": "-", "type": "boss"},
+}
+
+## The athletes the Gym Teacher calls in.
+const ATHLETE := {
+	"name": "Athlete", "short": "Athlete", "hp": 40, "move": 3,
+	"attacks": [
+		{"id": "tackle", "name": "Tackle", "type": "boss"},
+		{"id": "tackle", "name": "Tackle", "type": "boss"},
+		{"id": "tackle", "name": "Tackle", "type": "boss"},
+		{"id": "tackle", "name": "Tackle", "type": "boss"},
+	],
+	"super": {"id": "none", "name": "-", "type": "boss"},
+}
+
 ## Every boss, in unlock order: the rules for each one's turn live in
 ## Battle._boss_act; here are its fighter, room, helpers and attack names.
 const BOSSES := {
@@ -153,4 +177,7 @@ const BOSSES := {
 	"lunch_lady": {"def": LUNCH_LADY, "minion": "cook", "minion_def": COOK,
 		"ring": "ladle", "lane": "gravy", "far": "food_fight",
 		"summon": "KITCHEN, HELP ME!", "summon_banner": "COOKS INCOMING!", "minion_attack": "spatula"},
+	"gym_teacher": {"def": GYM_TEACHER, "minion": "athlete", "minion_def": ATHLETE,
+		"ring": "clipboard", "lane": "dodgeball", "far": "whistle",
+		"summon": "TEAM, HUDDLE UP!", "summon_banner": "ATHLETES INCOMING!", "minion_attack": "tackle"},
 }

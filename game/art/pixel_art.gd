@@ -96,6 +96,8 @@ const LOOKS := {
 	"snorre": {"legs": 9, "hair": "hairChestnut", "hair_style": "messy", "shirt": "teeWhite", "sleeve": "teeWhite", "pants": "pantsGray", "shoes": "shoeBrown", "sword": true, "mouth": "smile", "pupil": 0},
 	"leon": {"legs": 11, "hair": "hairLightBrown", "hair_style": "swoop", "shirt": "teeBlue", "sleeve": "teeBlue", "pants": "pantsLightGray", "shoes": "shoeBlack", "mouth": "smile", "pupil": 1},
 	"mike": {"legs": 11, "hair": "hairDark", "hair_style": "short", "shirt": "hoodie", "sleeve": "hoodie", "hoodie": true, "pants": "pantsBlack", "shoes": "shoeBlack", "slingshot": true, "mouth": "smirk", "pupil": 1},
+	# the athletes the Gym Teacher calls: red jersey, white stripe, sweatband
+	"athlete": {"legs": 12, "hair": "hairBlond", "hair_style": "headband", "shirt": "red", "sleeve": "red", "stripe": "teeWhite", "pants": "pantsBlack", "shoes": "shoeRed", "mouth": "smirk", "pupil": 0},
 	# the cooks the Lunch Lady calls: tall white chef's hat and apron
 	"cook": {"legs": 12, "hair": "hairBrown", "hair_style": "chef", "shirt": "apron", "sleeve": "apron", "stripe": "dressPink", "pants": "pantsGray", "shoes": "shoeBlack", "mouth": "smirk", "pupil": 1},
 	# the teachers the Principal summons: green shirt and red tie
@@ -265,6 +267,10 @@ static func _character_image(c: Dictionary, bob: bool) -> Image:
 		"short":
 			p.rect(17, hcy - 3, 21, hcy - 3, h)
 			p.px(21, hcy - 2, h)
+		"headband":  # short spiky hair with a white sweatband
+			for x in [11, 14, 17, 20]:
+				p.px(x, top - 2, h)
+			p.rect(8, hcy - 4, 23, hcy - 3, "teeWhite")
 		"chef":  # a tall white chef's hat over short hair
 			p.rect(9, top - 6, 22, hcy - 4, "chefHat")
 			p.ell(12, top - 6, 4, 3, "chefHat")
@@ -414,7 +420,74 @@ static func boss(bob := false) -> Texture2D:
 
 ## Any boss's big sprite by id ("principal" or "lunch_lady").
 static func boss_sprite(id: String, bob := false) -> Texture2D:
-	return lunch_lady(bob) if id == "lunch_lady" else boss(bob)
+	match id:
+		"lunch_lady":
+			return lunch_lady(bob)
+		"gym_teacher":
+			return gym_teacher(bob)
+	return boss(bob)
+
+
+## The Gym Teacher: 96x128. Red cap, big mustache, blue tracksuit with white
+## stripes, a whistle on a cord, and a clipboard in his hand.
+static func gym_teacher(bob := false) -> Texture2D:
+	var key := "gym_teacher_%s" % bob
+	if not _cache.has(key):
+		var p := Painter.new(96, 128)
+		var u := 1 if bob else 0
+		# sneakers and tracksuit trousers with a stripe
+		p.rect(26, 119, 45, 126, "teeWhite")
+		p.rect(51, 119, 70, 126, "teeWhite")
+		p.rect(26, 124, 45, 126, "red")
+		p.rect(51, 124, 70, 126, "red")
+		p.rect(30, 92, 45, 119, "teeBlue")
+		p.rect(51, 92, 66, 119, "teeBlue")
+		p.rect(30, 92, 31, 119, "teeWhite")
+		p.rect(65, 92, 66, 119, "teeWhite")
+		# jacket: broad shoulders, white shoulder stripes, zip
+		p.rect(16, 52 + u, 80, 96, "teeBlue")
+		p.rect(16, 52 + u, 80, 55 + u, "teeWhite")
+		p.rect(47, 56 + u, 49, 96, "steel")
+		# arms: the left one holds a clipboard, the right one is on his hip
+		p.rect(5, 56 + u, 16, 88, "teeBlue")
+		p.rect(5, 56 + u, 6, 88, "teeWhite")
+		p.rect(2, 70 + u, 20, 94 + u, "wood")  # clipboard
+		p.rect(4, 74 + u, 18, 92 + u, "teeWhite")
+		for y in [78, 82, 86]:
+			p.rect(6, y + u, 15, y + u, "pantsGray")
+		p.rect(8, 68 + u, 14, 71 + u, "steel")
+		p.rect(80, 56 + u, 91, 84, "teeBlue")
+		p.rect(90, 56 + u, 91, 84, "teeWhite")
+		p.rect(81, 84, 91, 91, "skin")
+		# whistle on a cord
+		for i in 10:
+			p.px(41 + i / 2, 54 + i + u, "string")
+			p.px(55 - i / 2, 54 + i + u, "string")
+		p.rect(45, 64 + u, 51, 68 + u, "steel")
+		p.rect(51, 65 + u, 53, 66 + u, "steel")
+		# neck, head, cap with a brim
+		p.rect(40, 44 + u, 56, 53 + u, "skin")
+		p.ell(48, 30 + u, 19, 20, "skin")
+		p.ell(48, 15 + u, 20, 9, "red")
+		p.rect(28, 15 + u, 68, 19 + u, "red")
+		p.rect(46, 9 + u, 50, 11 + u, "teeWhite")  # cap badge
+		p.rect(46, 19 + u, 76, 22 + u, "bikeRed")  # brim sticking out to the side
+		p.rect(26, 26 + u, 29, 33 + u, "skin")
+		p.rect(67, 26 + u, 70, 33 + u, "skin")
+		# eyes, eyebrows, big brown mustache, open shouting mouth
+		p.rect(35, 24 + u, 44, 25 + u, "hairDark")
+		p.rect(52, 24 + u, 61, 25 + u, "hairDark")
+		p.rect(37, 27 + u, 43, 31 + u, "eye")
+		p.rect(53, 27 + u, 59, 31 + u, "eye")
+		p.rect(40, 28 + u, 42, 31 + u, "pupil")
+		p.rect(54, 28 + u, 56, 31 + u, "pupil")
+		p.rect(46, 32 + u, 50, 36 + u, "skin")
+		p.rect(36, 37 + u, 60, 41 + u, "hairDark")
+		p.rect(34, 40 + u, 37, 43 + u, "hairDark")
+		p.rect(59, 40 + u, 62, 43 + u, "hairDark")
+		p.rect(44, 42 + u, 52, 46 + u, "mouth")
+		_cache[key] = ImageTexture.create_from_image(p.bake())
+	return _cache[key]
 
 
 ## The Lunch Lady: 96x128 like the Principal. Red curly hair under a hairnet,
@@ -593,6 +666,9 @@ static func floor_tile(alt := false, style := "lino") -> Texture2D:
 		elif style == "lab":
 			a = Color("e3e6ea")
 			b = Color("d3d8de")
+		elif style == "gym":  # polished wooden gym floor
+			a = Color("dcae6c")
+			b = Color("cf9f5e")
 		for y in TILE:
 			for x in TILE:
 				var col: Color
@@ -611,6 +687,13 @@ static func floor_tile(alt := false, style := "lino") -> Texture2D:
 					col = Color("e6cf8f") if (x * 5 + y * 11 + (3 if alt else 0)) % 17 != 0 else Color("c9ae68")
 					if (x * 13 + y * 7) % 29 == 0:
 						col = Color("f3e2b0")
+				elif style == "gym":
+					# long planks, with a painted court line along one edge of every other tile
+					col = a if (int(y / 8.0) + (1 if alt else 0)) % 2 == 0 else b
+					if y % 8 == 0:
+						col = col.darkened(0.12)
+					if alt and x == 3:
+						col = Color("e8eef2")
 				elif style == "lab":
 					var check := (int(x / 16.0) + int(y / 16.0) + (1 if alt else 0)) % 2 == 0
 					col = a if check else b
