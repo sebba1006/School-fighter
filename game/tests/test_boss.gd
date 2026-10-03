@@ -366,3 +366,48 @@ func test_black_hole_pulls_everyone_in() -> void:
 		var d1: int = absi(b.fighters[i].pos.x - boss.pos.x) + absi(b.fighters[i].pos.y - boss.pos.y)
 		check(d1 < d0, "player %d pulled closer" % i)
 	done()
+
+
+
+func _gym_battle() -> Battle:
+	var players := []
+	for c in ["sebba", "mike", "leon"]:
+		players.append({"char": c, "team": 0})
+	var b := Battle.new({"boss": "gym_teacher", "players": players, "seed": 3, "characters": Fixture.ALL})
+	b.start_round()
+	return b
+
+
+func test_push_ups_stop_your_next_move() -> void:
+	var b := _gym_battle()
+	var boss := b.boss()
+	put(b, 0, boss.pos.x - 2, boss.pos.y)  # right next to him
+	put(b, 1, 0, 0)
+	put(b, 2, 10, 8)
+	b.forced_rolls.assign([1, 0])  # push-ups, on player 0
+	end_turn(b, 0)
+	end_turn(b, 1)
+	var hp0 := b.fighters[0].hp
+	var r := end_turn(b, 2)
+	check(r.events.any(func(e): return e.type == "boss_attack" and e.attack == "push_ups"), "push-ups")
+	eq(hp0 - b.fighters[0].hp, Battle.PUSH_UPS_DAMAGE, "damage")
+	eq(b.current().id, 0, "player 0's turn")
+	eq(b.move_budget, 0, "can't move this turn")
+	check(b.attack_blocked_reason(0, 0) == "", "can still attack")
+	done()
+
+
+func test_medicine_ball_rolls_you_to_the_wall() -> void:
+	var b := _gym_battle()
+	var boss := b.boss()
+	put(b, 0, boss.pos.x - 3, boss.pos.y)  # in line, 2 tiles from the wall... (x = 2)
+	put(b, 1, 0, 0)
+	put(b, 2, 10, 8)
+	b.forced_rolls.assign([1])  # (nobody next to him) medicine ball
+	end_turn(b, 0)
+	end_turn(b, 1)
+	var r := end_turn(b, 2)
+	check(r.events.any(func(e): return e.type == "boss_attack" and e.attack == "medicine_ball"), "medicine ball")
+	eq(b.fighters[0].pos, Vector2i(0, boss.pos.y), "rolled all the way to the wall")
+	check(r.events.any(func(e): return e.type == "slam" and e.fighter == 0), "slammed into the wall")
+	done()

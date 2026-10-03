@@ -82,8 +82,14 @@ const TRAY_BOUNCES := 3
 const TRAY_HOP := 5
 ## The Gym Teacher's WHISTLE!: every player on the floor takes this and is
 ## pushed one tile away from him.
-const WHISTLE_DAMAGE := 13
+const WHISTLE_DAMAGE := 26
 const WHISTLE_PUSH := 1
+## Push-Ups! (one player next to him): damage, and no moving on their next turn.
+const PUSH_UPS_DAMAGE := 40
+## Medicine Ball: everyone in line with him is rolled back up to this far
+## (all the way to the wall in his rooms), slamming into whatever stops them.
+const MEDICINE_BALL_DAMAGE := 22
+const MEDICINE_BALL_PUSH := 6
 ## The final boss: once he has lost this much HP the fight moves to space,
 ## where he's angry for good and uses these attacks instead.
 const FINAL_SPACE_AT := 500
@@ -684,7 +690,8 @@ func _begin_turn() -> Array:
 				events.append_array(_end_turn())
 			return events
 	f.own_turns += 1
-	move_budget = maxi(0, f.move - (1 if f.dizzy_next else 0))
+	move_budget = 0 if f.no_move_next else maxi(0, f.move - (1 if f.dizzy_next else 0))
+	f.no_move_next = false
 	for o in fighters:
 		o.dizzy_now = false
 	f.dizzy_now = f.dizzy_next
@@ -808,6 +815,14 @@ func _boss_act(f: Fighter) -> Array:
 	if f.own_turns >= 2 and not helpers.is_empty() and helpers.all(func(o): return not o.alive()) \
 			and _roll(1, 100) <= SUMMON_CHANCE:
 		_summon(f, helpers, events)
+	elif not ring.is_empty() and boss_id == "gym_teacher" and _roll(1, 100) <= 70:
+		# Push-Ups!: one player next to him drops and gives him twenty
+		var p: Fighter = ring[_roll(0, ring.size() - 1)]
+		events.append({"type": "boss_attack", "fighter": f.id, "attack": names.ring, "tiles": [p.pos], "target": p.id})
+		ctx.ranged = false
+		if _deal(f, p, PUSH_UPS_DAMAGE + rage, ctx) and p.alive():
+			p.no_move_next = true
+			events.append({"type": "status", "fighter": p.id, "status": "push_ups"})
 	elif not ring.is_empty() and boss_id == "lunch_lady" and _roll(1, 100) <= 70:
 		# Mystery Meat: one player next to her eats it
 		var p: Fighter = ring[_roll(0, ring.size() - 1)]
@@ -838,9 +853,11 @@ func _boss_act(f: Fighter) -> Array:
 					tiles.append(Vector2i(x, y))
 		events.append({"type": "boss_attack", "fighter": f.id, "attack": names.lane, "tiles": tiles})
 		ctx.ranged = true
+		var damage := MEDICINE_BALL_DAMAGE if boss_id == "gym_teacher" else MEGAPHONE_DAMAGE
+		var push := MEDICINE_BALL_PUSH if boss_id == "gym_teacher" else MEGAPHONE_PUSH
 		for p in lane:
-			if p.alive() and _deal(f, p, MEGAPHONE_DAMAGE + rage, ctx) and p.alive():
-				_knockback(ctx, p, _away(f, p), MEGAPHONE_PUSH)
+			if p.alive() and _deal(f, p, damage + rage, ctx) and p.alive():
+				_knockback(ctx, p, _away(f, p), push)
 		if boss_id == "lunch_lady":
 			_spill_gravy(f, tiles, events)
 	elif boss_id == "gym_teacher":
@@ -1283,7 +1300,7 @@ func state_hash() -> int:
 	var parts := [phase, round_number, turn_index, move_budget, path.size(), _rng.state, _last_team, _team_last, box, _turn_count, zone_rings, _apples_dropped, space]
 	for f in fighters:
 		parts.append_array([f.hp, f.pos.x, f.pos.y, f.meter, f.shield.get("kind", ""), f.shield.get("amount", 0),
-			f.dizzy_next, f.rage_turns, f.sugar_active, f.no_attack_next, f.no_attack_now, f.forfeited, f.item, f.guard, f.own_turns, f.ready_at, f.angry, f.zone_safe])
+			f.dizzy_next, f.rage_turns, f.sugar_active, f.no_attack_next, f.no_attack_now, f.forfeited, f.item, f.guard, f.own_turns, f.ready_at, f.angry, f.zone_safe, f.no_move_next])
 	var tiles := obstacles.keys()
 	tiles.sort()
 	for t in tiles:

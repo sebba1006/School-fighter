@@ -148,8 +148,8 @@ const COOK := {
 const GYM_TEACHER := {
 	"name": "The Gym Teacher", "short": "Gym Teacher", "hp": 2250, "move": 0,
 	"attacks": [
-		{"id": "clipboard", "name": "Clipboard Smack", "type": "boss"},
-		{"id": "dodgeball", "name": "Dodgeball Barrage", "type": "boss"},
+		{"id": "push_ups", "name": "Push-Ups!", "type": "boss"},
+		{"id": "medicine_ball", "name": "Medicine Ball", "type": "boss"},
 		{"id": "whistle", "name": "Whistle!", "type": "boss"},
 		{"id": "glare", "name": "Glare", "type": "boss"},
 	],
@@ -192,7 +192,7 @@ const BOSSES := {
 		"ring": "mystery_meat", "lane": "gravy", "far": "tray",
 		"summon": "KITCHEN, HELP ME!", "summon_banner": "COOKS INCOMING!", "minion_attack": "spatula"},
 	"gym_teacher": {"def": GYM_TEACHER, "minion": "athlete", "minion_def": ATHLETE,
-		"ring": "clipboard", "lane": "dodgeball", "far": "whistle",
+		"ring": "push_ups", "lane": "medicine_ball", "far": "whistle",
 		"summon": "TEAM, HUDDLE UP!", "summon_banner": "ATHLETES INCOMING!", "minion_attack": "tackle"},
 	"final_principal": {"def": FINAL_PRINCIPAL, "minion": "teacher", "minion_def": TEACHER,
 		"ring": "ruler_slam", "lane": "megaphone", "far": "detention",
