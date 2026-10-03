@@ -73,6 +73,12 @@ const PAL := {
 	"suit": ["4a4f5c", "343844", "626879"],
 	"greyHair": ["b9b9bd", "8f8f95", "dadade"],
 	"apple": ["d9363b", "a3232a", "f06a6d"],
+	"gravy": ["8a5a2b", "6a4220", "b07a45"],
+	"hairnet": ["d9d4c7", "b3ad9f", "f0ece2"],
+	"curlyRed": ["b5502e", "8a3a1f", "d4734d"],
+	"dressPink": ["d9829b", "b0607a", "efa6ba"],
+	"apron": ["f1f1ec", "cfd0c8", "ffffff"],
+	"chefHat": ["f4f4f0", "d2d3cc", "ffffff"],
 	"eye": "ffffff",
 	"pupil": "1a1420",
 	"mouth": "7a2e2e",
@@ -90,6 +96,8 @@ const LOOKS := {
 	"snorre": {"legs": 9, "hair": "hairChestnut", "hair_style": "messy", "shirt": "teeWhite", "sleeve": "teeWhite", "pants": "pantsGray", "shoes": "shoeBrown", "sword": true, "mouth": "smile", "pupil": 0},
 	"leon": {"legs": 11, "hair": "hairLightBrown", "hair_style": "swoop", "shirt": "teeBlue", "sleeve": "teeBlue", "pants": "pantsLightGray", "shoes": "shoeBlack", "mouth": "smile", "pupil": 1},
 	"mike": {"legs": 11, "hair": "hairDark", "hair_style": "short", "shirt": "hoodie", "sleeve": "hoodie", "hoodie": true, "pants": "pantsBlack", "shoes": "shoeBlack", "slingshot": true, "mouth": "smirk", "pupil": 1},
+	# the cooks the Lunch Lady calls: tall white chef's hat and apron
+	"cook": {"legs": 12, "hair": "hairBrown", "hair_style": "chef", "shirt": "apron", "sleeve": "apron", "stripe": "dressPink", "pants": "pantsGray", "shoes": "shoeBlack", "mouth": "smirk", "pupil": 1},
 	# the teachers the Principal summons: green shirt and red tie
 	"teacher": {"legs": 13, "hair": "hairDark", "hair_style": "neat", "shirt": "leaf", "sleeve": "leaf", "tie": "red", "pants": "pantsGray", "shoes": "shoeBrown", "glasses": true, "mouth": "flat", "pupil": 0},
 }
@@ -257,6 +265,11 @@ static func _character_image(c: Dictionary, bob: bool) -> Image:
 		"short":
 			p.rect(17, hcy - 3, 21, hcy - 3, h)
 			p.px(21, hcy - 2, h)
+		"chef":  # a tall white chef's hat over short hair
+			p.rect(9, top - 6, 22, hcy - 4, "chefHat")
+			p.ell(12, top - 6, 4, 3, "chefHat")
+			p.ell(19, top - 6, 4, 3, "chefHat")
+			p.ell(15.5, top - 8, 4, 3, "chefHat")
 		"swoop":
 			# fringe swept to one side with a little flick on top
 			p.rect(10, hcy - 3, 16, hcy - 3, h)
@@ -399,6 +412,64 @@ static func boss(bob := false) -> Texture2D:
 	return _cache[key]
 
 
+## Any boss's big sprite by id ("principal" or "lunch_lady").
+static func boss_sprite(id: String, bob := false) -> Texture2D:
+	return lunch_lady(bob) if id == "lunch_lady" else boss(bob)
+
+
+## The Lunch Lady: 96x128 like the Principal. Red curly hair under a hairnet,
+## pink dress, big white apron with a gravy stain, and a ladle in her hand.
+static func lunch_lady(bob := false) -> Texture2D:
+	var key := "lunch_lady_%s" % bob
+	if not _cache.has(key):
+		var p := Painter.new(96, 128)
+		var u := 1 if bob else 0
+		# shoes, legs, wide dress
+		p.rect(30, 120, 44, 126, "shoeBlack")
+		p.rect(52, 120, 66, 126, "shoeBlack")
+		p.rect(33, 104, 43, 120, "skin")
+		p.rect(53, 104, 63, 120, "skin")
+		p.ell(48, 86 + u, 32, 24, "dressPink")
+		p.rect(16, 54 + u, 80, 104, "dressPink")
+		# apron with a gravy stain, and its strings
+		p.rect(28, 60 + u, 68, 106, "apron")
+		p.rect(24, 58 + u, 72, 60 + u, "apron")
+		p.ell(56, 88 + u, 5, 4, "gravy")
+		p.ell(36, 76 + u, 3, 2, "gravy")
+		p.rect(40, 70 + u, 56, 74 + u, "apron")
+		# arms: the left one on her hip, the right one holds the ladle up
+		p.rect(6, 56 + u, 17, 84, "dressPink")
+		p.rect(6, 84, 17, 92, "skin")
+		p.rect(79, 56 + u, 90, 80, "dressPink")
+		p.rect(80, 80, 91, 88, "skin")
+		p.rect(84, 26 + u, 87, 82, "steel")  # ladle handle
+		p.ell(85.5, 22 + u, 8, 6, "steel")  # ladle bowl
+		p.ell(85.5, 20 + u, 6, 3, "gravy")
+		# neck and head, red curls under a hairnet
+		p.rect(40, 46 + u, 56, 54 + u, "skin")
+		p.ell(48, 30 + u, 20, 21, "skin")
+		p.ell(48, 12 + u, 22, 10, "curlyRed")
+		for x in [26, 30, 64, 68]:
+			p.ell(x, 24 + u, 4, 6, "curlyRed")
+		p.ell(48, 10 + u, 21, 8, "hairnet")
+		for x in range(30, 68, 5):  # net lines
+			p.rect(x, 4 + u, x, 16 + u, "curlyRed")
+		# eyes with heavy eyeshadow, a mole, big frown with lipstick
+		p.rect(36, 26 + u, 44, 29 + u, "dressPink")
+		p.rect(52, 26 + u, 60, 29 + u, "dressPink")
+		p.rect(37, 28 + u, 43, 32 + u, "eye")
+		p.rect(53, 28 + u, 59, 32 + u, "eye")
+		p.rect(40, 29 + u, 42, 32 + u, "pupil")
+		p.rect(54, 29 + u, 56, 32 + u, "pupil")
+		p.rect(46, 33 + u, 50, 38 + u, "skin")
+		p.rect(58, 37 + u, 59, 38 + u, "pupil")  # mole
+		p.rect(41, 43 + u, 55, 44 + u, "red")
+		p.px(40, 45 + u, "red")
+		p.px(56, 45 + u, "red")
+		_cache[key] = ImageTexture.create_from_image(p.bake())
+	return _cache[key]
+
+
 ## A trophy cup (24x24): gold if won, a dark grey shape if not yet.
 static func trophy(won: bool) -> Texture2D:
 	var key := "trophy_%s" % won
@@ -493,15 +564,17 @@ static func mystery_box() -> Texture2D:
 
 
 ## A water puddle lying on a floor tile.
-static func puddle() -> Texture2D:
-	if not _cache.has("puddle"):
+static func puddle(gravy := false) -> Texture2D:
+	var key := "puddle_%s" % gravy
+	if not _cache.has(key):
+		var m := "gravy" if gravy else "puddle"
 		var p := Painter.new(TILE, TILE)
-		p.ell(15, 17, 12, 7, "puddle")
-		p.ell(24, 21, 5, 4, "puddle")
-		p.ell(8, 12, 4, 3, "puddle")
-		p.rect(10, 14, 13, 14, "teeWhite")  # shine
-		_cache["puddle"] = ImageTexture.create_from_image(p.bake())
-	return _cache["puddle"]
+		p.ell(15, 17, 12, 7, m)
+		p.ell(24, 21, 5, 4, m)
+		p.ell(8, 12, 4, 3, m)
+		p.rect(10, 14, 13, 14, "apron" if gravy else "teeWhite")  # shine
+		_cache[key] = ImageTexture.create_from_image(p.bake())
+	return _cache[key]
 
 
 # ---------------------------------------------------------------- tiles

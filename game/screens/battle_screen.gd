@@ -15,6 +15,7 @@ signal leave_requested
 
 const Battle = preload("res://rules/battle.gd")
 const Maps = preload("res://rules/maps.gd")
+const Characters = preload("res://rules/characters.gd")
 const PixelArt = preload("res://art/pixel_art.gd")
 const UiTheme = preload("res://ui/ui_theme.gd")
 const Joystick = preload("res://ui/joystick.gd")
@@ -188,9 +189,9 @@ func set_host(v: bool) -> void:
 
 func _name_of(f) -> String:
 	if f.is_boss:
-		return "THE PRINCIPAL"
+		return f.def.name.to_upper()
 	if f.is_minion:
-		return "TEACHER"
+		return f.def.name.to_upper()
 	if online():
 		return "%s (%s)" % [str(config.players[f.id].get("name", "?")).to_upper(), f.def.name.to_upper()]
 	if _is_cpu(f.id):
@@ -318,6 +319,7 @@ func _build_hud() -> void:
 		boss_bar.z_index = 3500
 		boss_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		boss_bar.apple_every = Battle.APPLE_EVERY
+		boss_bar.boss_name = battle.boss().def.name.to_upper()
 		add_child(boss_bar)
 	round_label = UiTheme.label("", 8, UiTheme.CHALK_DIM)
 	round_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1110,8 +1112,10 @@ func _use_item_anim(e: Dictionary, events: Array, i: int) -> void:
 
 ## The Principal's attack: name popup, the hit tiles flash red, screen shake.
 func _boss_attack_anim(e: Dictionary) -> void:
-	var names := {"ruler_slam": "RULER SLAM!", "megaphone": "MEGAPHONE YELL!", "detention": "DETENTION!", "scold": "SCOLD!"}
-	var sounds := {"ruler_slam": "slam", "megaphone": "woof", "detention": "ko", "scold": "hit"}
+	var names := {"ruler_slam": "RULER SLAM!", "megaphone": "MEGAPHONE YELL!", "detention": "DETENTION!", "scold": "SCOLD!",
+		"ladle": "LADLE SMACK!", "gravy": "GRAVY SPLASH!", "food_fight": "FOOD FIGHT!", "spatula": "SPATULA SLAP!"}
+	var sounds := {"ruler_slam": "slam", "megaphone": "woof", "detention": "ko", "scold": "hit",
+		"ladle": "slam", "gravy": "splash", "food_fight": "ko", "spatula": "hit"}
 	var v = fighter_views[e.fighter]
 	var teacher: bool = battle.fighters[e.fighter].is_minion
 	_popup(v, names.get(e.attack, "!"), UiTheme.HIT, -40 if teacher else -80)
@@ -1132,7 +1136,7 @@ func _boss_attack_anim(e: Dictionary) -> void:
 	if e.attack == "detention" and e.has("target"):
 		_popup(fighter_views[e.target], "DETENTION!", UiTheme.HIT, -44)
 	if not teacher:
-		await _shake(4 if e.attack == "ruler_slam" else 2)
+		await _shake(4 if e.attack == "ruler_slam" or e.attack == "ladle" else 2)
 	else:
 		await get_tree().create_timer(0.15).timeout
 	var tw := create_tween().set_parallel()
@@ -1192,9 +1196,10 @@ func _big_banner(text: String, color: Color) -> void:
 ## TEACHERS, HELP ME!: the teachers pop in next to him in a puff of dust.
 func _summon_anim(e: Dictionary) -> void:
 	var v = fighter_views[e.fighter]
-	_popup(v, "TEACHERS, HELP ME!", UiTheme.HIT, -80)
+	var info: Dictionary = Characters.BOSSES[battle.boss_id]
+	_popup(v, info.summon, UiTheme.HIT, -80)
 	Audio.play("turn")
-	_big_banner("TEACHERS INCOMING!", UiTheme.HIT)
+	_big_banner(info.summon_banner, UiTheme.HIT)
 	_shake(4)
 	await v.lunge(Vector2i.DOWN).finished
 	for s in e.teachers:
@@ -1236,7 +1241,8 @@ func _add_box(t: Vector2i, drop := false) -> void:
 
 func _add_puddle(t: Vector2i, grow := false) -> void:
 	var sp := Sprite2D.new()
-	sp.texture = PixelArt.puddle()
+	var owner: int = battle.puddles.get(t, -1)
+	sp.texture = PixelArt.puddle(owner >= 0 and battle.fighters[owner].is_boss)  # the Lunch Lady's gravy
 	sp.centered = false
 	sp.position = Vector2(t.x * TILE, t.y * TILE)
 	sp.modulate = Color(1, 1, 1, 0.9)
@@ -1609,7 +1615,8 @@ func _show_overlay(e: Dictionary, is_match: bool) -> void:
 	if e.winner_team == -1:
 		title_text = "ROUND %d IS A DRAW" % e["round"]
 	if battle.boss_mode:
-		title_text = "THE PRINCIPAL WINS!" if e.winner_team == Battle.BOSS_TEAM else "YOU BEAT THE PRINCIPAL!"
+		var boss_name: String = battle.boss().def.name.to_upper()
+		title_text = "%s WINS!" % boss_name if e.winner_team == Battle.BOSS_TEAM else "YOU BEAT %s!" % boss_name
 	var title := UiTheme.label(title_text, 16, UiTheme.GOLD, true)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(title)
@@ -2178,6 +2185,7 @@ class BossBar extends Control:
 	var max_hp := 1
 	var angry := false
 	var apple_every := 150
+	var boss_name := "THE PRINCIPAL"
 	var _label := Label.new()
 
 	func _ready() -> void:
@@ -2193,7 +2201,7 @@ class BossBar extends Control:
 		hp = p_hp
 		max_hp = maxi(1, p_max)
 		angry = p_angry
-		_label.text = "THE PRINCIPAL  %d / %d%s" % [maxi(0, hp), max_hp, "  - ANGRY!" if angry else ""]
+		_label.text = "%s  %d / %d%s" % [boss_name, maxi(0, hp), max_hp, "  - ANGRY!" if angry else ""]
 		queue_redraw()
 
 	func _process(_d: float) -> void:

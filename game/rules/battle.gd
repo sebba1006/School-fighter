@@ -70,6 +70,13 @@ const SUMMON_CHANCE := 40  # % per turn once all teachers are gone
 ## Below this much HP (%) he gets ANGRY: his attacks do ANGRY_BONUS more damage.
 const ANGRY_PCT := 25
 const ANGRY_BONUS := 5
+## The Lunch Lady: Gravy Splash leaves this many gravy puddles in her lanes
+## (players who step in one slip), and Food Fight! also splashes the players
+## right next to its target.
+const GRAVY_PUDDLES := 3
+const GRAVY_MAX := 3  # gravy puddles on the floor at once (older ones stay until stepped in)
+const FOOD_FIGHT_DAMAGE := 18
+const FOOD_SPLASH_DAMAGE := 8
 const APPLE_EVERY := 150  # an apple drops each time he loses this much HP
 const APPLE_HEAL := 60
 ## Host setting: everyone gets this much extra HP (0 = original).
@@ -102,6 +109,8 @@ var box := NO_BOX
 var _turn_count := 0
 var shrink_on := false
 var boss_mode := false
+## Which boss (a key of Characters.BOSSES) in a boss fight.
+var boss_id := ""
 ## Health apples on the floor (boss fights): Vector2i -> HP they heal.
 var apples := {}
 var _apples_dropped := 0
@@ -150,10 +159,16 @@ var _last_team := -1
 func _init(config: Dictionary) -> void:
 	items_on = config.get("items", false) == true
 	shrink_on = config.get("shrink", false) == true
-	boss_mode = config.get("boss", false) == true
+	var which = config.get("boss", false)
+	# true (the Principal, the first boss) or a boss id
+	if which is String and Characters.BOSSES.has(which):
+		boss_id = which
+	elif typeof(which) == TYPE_BOOL and which:
+		boss_id = "principal"
+	boss_mode = boss_id != ""
 	if boss_mode:
-		var m = config.get("map")  # always the Principal's Office unless a test passes a map
-		map_def = m if m is Dictionary else Maps.BOSS_ROOM
+		var m = config.get("map")  # always the boss's own room unless a test passes a map
+		map_def = m if m is Dictionary else Maps.BOSS_ROOMS[boss_id]
 		rounds_total = 1
 	else:
 		map_def = config.map if config.map is Dictionary else Maps.ALL[config.map]
@@ -176,13 +191,14 @@ func _init(config: Dictionary) -> void:
 		if not teams.has(team):
 			teams.append(team)
 	if boss_mode:
-		var boss := Fighter.new(players.size(), "principal", BOSS_TEAM, Characters.BOSS)
+		var info: Dictionary = Characters.BOSSES[boss_id]
+		var boss := Fighter.new(players.size(), boss_id, BOSS_TEAM, info.def)
 		boss.is_boss = true
 		fighters.append(boss)
 		teams.append(BOSS_TEAM)
-		# the teachers wait off the board (knocked out) until he summons them
+		# the helpers (teachers / cooks) wait off the board (knocked out) until summoned
 		for k in TEACHERS:
-			var t := Fighter.new(fighters.size(), "teacher", BOSS_TEAM, Characters.TEACHER)
+			var t := Fighter.new(fighters.size(), info.minion, BOSS_TEAM, info.minion_def)
 			t.is_minion = true
 			fighters.append(t)
 	teams.sort()
@@ -765,6 +781,7 @@ func _boss_act(f: Fighter) -> Array:
 		return events
 	var ctx := {"attacker": f, "dir": Vector2i.ZERO, "super": false, "events": events}
 	var rage := ANGRY_BONUS if f.angry else 0
+	var names: Dictionary = Characters.BOSSES[boss_id]
 	var helpers := fighters.filter(func(o): return o.is_minion)
 	if f.own_turns >= 2 and not helpers.is_empty() and helpers.all(func(o): return not o.alive()) \
 			and _roll(1, 100) <= SUMMON_CHANCE:
@@ -775,7 +792,7 @@ func _boss_act(f: Fighter) -> Array:
 			for dx in range(-2, 3):
 				if maxi(absi(dx), absi(dy)) == 2 and _in_bounds(f.pos + Vector2i(dx, dy)):
 					tiles.append(f.pos + Vector2i(dx, dy))
-		events.append({"type": "boss_attack", "fighter": f.id, "attack": "ruler_slam", "tiles": tiles})
+		events.append({"type": "boss_attack", "fighter": f.id, "attack": names.ring, "tiles": tiles})
 		ctx.ranged = false
 		for p in ring:
 			if p.alive() and _deal(f, p, RULER_DAMAGE + rage, ctx) and p.alive():
@@ -788,21 +805,49 @@ func _boss_act(f: Fighter) -> Array:
 				var inside := absi(d.x) <= BOSS_RADIUS and absi(d.y) <= BOSS_RADIUS
 				if not inside and (absi(d.x) <= BOSS_RADIUS or absi(d.y) <= BOSS_RADIUS):
 					tiles.append(Vector2i(x, y))
-		events.append({"type": "boss_attack", "fighter": f.id, "attack": "megaphone", "tiles": tiles})
+		events.append({"type": "boss_attack", "fighter": f.id, "attack": names.lane, "tiles": tiles})
 		ctx.ranged = true
 		for p in lane:
 			if p.alive() and _deal(f, p, MEGAPHONE_DAMAGE + rage, ctx) and p.alive():
 				_knockback(ctx, p, _away(f, p), MEGAPHONE_PUSH)
+		if boss_id == "lunch_lady":
+			_spill_gravy(f, tiles, events)
+	elif boss_id == "lunch_lady":
+		# Food Fight!: a tray of food at one player, splashing whoever is next to them
+		var p: Fighter = targets[_roll(0, targets.size() - 1)]
+		var tiles: Array = [p.pos]
+		for d in DIRS:
+			if _in_bounds(p.pos + d):
+				tiles.append(p.pos + d)
+		events.append({"type": "boss_attack", "fighter": f.id, "attack": names.far, "tiles": tiles, "target": p.id})
+		ctx.ranged = true
+		var splashed := targets.filter(func(o): return o != p and absi(o.pos.x - p.pos.x) + absi(o.pos.y - p.pos.y) == 1)
+		_deal(f, p, FOOD_FIGHT_DAMAGE + rage, ctx)
+		for o in splashed:
+			if o.alive():
+				_deal(f, o, FOOD_SPLASH_DAMAGE + rage, ctx)
 	else:
 		var p: Fighter = targets[_roll(0, targets.size() - 1)]
-		events.append({"type": "boss_attack", "fighter": f.id, "attack": "detention", "tiles": [p.pos], "target": p.id})
+		events.append({"type": "boss_attack", "fighter": f.id, "attack": names.far, "tiles": [p.pos], "target": p.id})
 		ctx.ranged = true
 		if _deal(f, p, DETENTION_DAMAGE + rage, ctx) and p.alive():
 			_apply_status(ctx, p, "dizzy")
 	return events
 
 
-## Calls the teachers in: each one appears on a free tile right next to him.
+## Gravy Splash: a few gravy puddles land on free tiles of the splashed lanes.
+func _spill_gravy(f: Fighter, lane_tiles: Array, events: Array) -> void:
+	var free: Array = lane_tiles.filter(func(t): return _walkable(t) and not puddles.has(t) and not apples.has(t) and t != box)
+	var already := puddles.values().filter(func(owner): return owner == f.id).size()
+	for i in mini(GRAVY_PUDDLES, GRAVY_MAX - already):
+		if free.is_empty():
+			return
+		var t: Vector2i = free.pop_at(_roll(0, free.size() - 1))
+		puddles[t] = f.id
+		events.append({"type": "puddle", "fighter": f.id, "at": t, "gravy": true})
+
+
+## Calls the helpers in: each one appears on a free tile right next to the boss.
 func _summon(f: Fighter, helpers: Array, events: Array) -> void:
 	var spots: Array[Vector2i] = []
 	for dy in range(-2, 3):
@@ -859,7 +904,7 @@ func _teacher_act(f: Fighter) -> Array:
 	if victim != null:
 		f.facing = victim.pos - f.pos
 		var ctx := {"attacker": f, "dir": f.facing, "super": false, "events": events, "ranged": false}
-		events.append({"type": "boss_attack", "fighter": f.id, "attack": "scold", "tiles": [victim.pos], "target": victim.id})
+		events.append({"type": "boss_attack", "fighter": f.id, "attack": Characters.BOSSES[boss_id].minion_attack, "tiles": [victim.pos], "target": victim.id})
 		_deal(f, victim, TEACHER_DAMAGE, ctx)
 	return events
 

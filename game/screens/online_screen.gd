@@ -13,6 +13,7 @@ const Config = preload("res://net/config.gd")
 const FighterInfo = preload("res://ui/fighter_info.gd")
 const FighterPicker = preload("res://ui/fighter_picker.gd")
 const Battle = preload("res://rules/battle.gd")
+const Achievements = preload("res://stats/achievements.gd")
 
 const TIMERS := [15, 30, 45, 60, 0]
 const ERRORS := {
@@ -277,14 +278,25 @@ func _show_lobby() -> void:
 			b.pressed.connect(func(): net.send({"t": "settings", "map": id}))
 			b.disabled = settings.get("boss", false)  # the boss has his own room
 			srow.add_child(b)
+		# BOSS cycles: off -> the Principal -> the Lunch Lady (once you've unlocked her) -> off
 		var boss_on: bool = settings.get("boss", false)
+		var boss_id: String = settings.get("boss_id", "principal")
 		var bb := Button.new()
-		bb.text = "BOSS ON" if boss_on else "BOSS"
+		bb.text = Characters.BOSSES[boss_id].def.short.to_upper() if boss_on else "BOSS"
 		bb.toggle_mode = true
 		bb.set_pressed_no_signal(boss_on)
 		bb.add_theme_color_override("font_color", UiTheme.HIT)
 		bb.add_theme_color_override("font_pressed_color", UiTheme.HIT)
-		bb.pressed.connect(func(): net.send({"t": "settings", "boss": not boss_on}))
+		bb.pressed.connect(func():
+			var order: Array = Characters.BOSSES.keys()
+			if not boss_on:
+				net.send({"t": "settings", "boss": true, "boss_id": order[0]})
+				return
+			var next := order.find(boss_id) + 1
+			if next < order.size() and Achievements.boss_unlocked(Achievements.load_data(), order[next]):
+				net.send({"t": "settings", "boss_id": order[next]})
+			else:
+				net.send({"t": "settings", "boss": false, "boss_id": order[0]}))
 		srow.add_child(bb)
 		srow = _row(_lobby_view)  # rounds and timer go on their own row
 		srow.add_child(UiTheme.label("ROUNDS", 8, UiTheme.CHALK_DIM))
@@ -334,7 +346,8 @@ func _show_lobby() -> void:
 		srow.add_child(pub)
 	else:
 		if settings.get("boss", false):
-			srow.add_child(UiTheme.label("BOSS FIGHT VS THE PRINCIPAL!   TIMER %s   ITEMS %s" % [
+			srow.add_child(UiTheme.label("BOSS FIGHT VS %s!   TIMER %s   ITEMS %s" % [
+				Characters.BOSSES[settings.get("boss_id", "principal")].def.name.to_upper(),
 				_timer_text(settings.timer), "ON" if settings.get("items", true) else "OFF"], 8, UiTheme.HIT))
 		else:
 			srow.add_child(UiTheme.label("MAP %s   ROUNDS %d   TIMER %s   ITEMS %s   %s   SHRINK %s" % [

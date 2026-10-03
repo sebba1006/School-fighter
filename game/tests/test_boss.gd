@@ -214,3 +214,57 @@ func test_angry_boss_hits_harder() -> void:
 	eq(before - b.fighters[0].hp, Battle.DETENTION_DAMAGE + Battle.ANGRY_BONUS, "angry detention damage")
 	check(boss.angry, "stays angry")
 	done()
+
+
+
+func _lunch_battle() -> Battle:
+	var players := []
+	for c in ["sebba", "mike", "leon"]:
+		players.append({"char": c, "team": 0})
+	var b := Battle.new({"boss": "lunch_lady", "players": players, "seed": 3, "characters": Fixture.ALL})
+	b.start_round()
+	return b
+
+
+func test_lunch_lady_setup() -> void:
+	var b := _lunch_battle()
+	eq(b.boss_id, "lunch_lady", "her fight")
+	eq(b.boss().char_id, "lunch_lady", "she's the boss")
+	eq(b.map_def.name, "The Kitchen", "in her kitchen")
+	check(b.fighters.filter(func(f): return f.is_minion).all(func(f): return f.char_id == "cook"), "cooks, not teachers")
+	done()
+
+
+func test_gravy_splash_leaves_puddles() -> void:
+	var b := _lunch_battle()
+	var boss := b.boss()
+	put(b, 0, boss.pos.x - 5, boss.pos.y)  # in line with her
+	put(b, 1, 0, 0)
+	put(b, 2, 10, 8)
+	b.forced_rolls.assign([1])  # (nobody next to her) gravy splash
+	end_turn(b, 0)
+	end_turn(b, 1)
+	var r := end_turn(b, 2)
+	check(r.events.any(func(e): return e.type == "boss_attack" and e.attack == "gravy"), "gravy splash")
+	var gravy: Array = r.events.filter(func(e): return e.type == "puddle" and e.get("gravy", false))
+	eq(gravy.size(), Battle.GRAVY_PUDDLES, "gravy puddles")
+	for e in gravy:
+		eq(b.puddles.get(e.at), boss.id, "her puddle")
+	done()
+
+
+func test_food_fight_splashes_neighbours() -> void:
+	var b := _lunch_battle()
+	put(b, 0, 0, 1)
+	put(b, 1, 1, 1)  # right next to player 0
+	put(b, 2, 10, 8)
+	b.forced_rolls.assign([0])  # nobody in line: food fight, at player 0
+	end_turn(b, 0)
+	end_turn(b, 1)
+	var h0 := b.fighters[0].hp
+	var h1 := b.fighters[1].hp
+	var r := end_turn(b, 2)
+	check(r.events.any(func(e): return e.type == "boss_attack" and e.attack == "food_fight"), "food fight")
+	eq(h0 - b.fighters[0].hp, Battle.FOOD_FIGHT_DAMAGE, "target hit")
+	eq(h1 - b.fighters[1].hp, Battle.FOOD_SPLASH_DAMAGE, "neighbour splashed")
+	done()

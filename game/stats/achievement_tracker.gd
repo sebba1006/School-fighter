@@ -127,14 +127,17 @@ func _boss_won(winner) -> void:
 	for p in config.players:
 		if not p.has("cpu"):
 			humans += 1
+	_add_to_set("bosses", battle.boss_id)
+	var pre := "ll_" if battle.boss_id == "lunch_lady" else ""
 	if humans == 1:
-		_trophy("solo")
+		_trophy(pre + "solo")
 	if humans >= 2:
-		_trophy("friends")
+		_trophy(pre + "friends")
 	if battle.fighters.all(func(f): return f.team == Battle.BOSS_TEAM or f.alive()):
-		_trophy("untouchable")
+		_trophy(pre + "untouchable")
 		_unlock("not_a_scratch")
-	_trophy("with_" + winner.char_id)
+	if battle.boss_id == "principal":
+		_trophy("with_" + winner.char_id)
 	_add_to_set("fighters", winner.char_id)
 	changed = true
 

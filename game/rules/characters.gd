@@ -118,3 +118,39 @@ const TEACHER := {
 	],
 	"super": {"id": "none", "name": "-", "type": "boss"},
 }
+
+## The Lunch Lady: the second boss (unlocked by beating the Principal). Same
+## size and rules as him, her own attacks (see Battle._boss_act).
+const LUNCH_LADY := {
+	"name": "The Lunch Lady", "short": "Lunch Lady", "hp": 2250, "move": 0,
+	"attacks": [
+		{"id": "ladle", "name": "Ladle Smack", "type": "boss"},
+		{"id": "gravy", "name": "Gravy Splash", "type": "boss"},
+		{"id": "food_fight", "name": "Food Fight!", "type": "boss"},
+		{"id": "glare", "name": "Glare", "type": "boss"},
+	],
+	"super": {"id": "none", "name": "-", "type": "boss"},
+}
+
+## The cooks the Lunch Lady calls for help.
+const COOK := {
+	"name": "Cook", "short": "Cook", "hp": 40, "move": 3,
+	"attacks": [
+		{"id": "spatula", "name": "Spatula Slap", "type": "boss"},
+		{"id": "spatula", "name": "Spatula Slap", "type": "boss"},
+		{"id": "spatula", "name": "Spatula Slap", "type": "boss"},
+		{"id": "spatula", "name": "Spatula Slap", "type": "boss"},
+	],
+	"super": {"id": "none", "name": "-", "type": "boss"},
+}
+
+## Every boss, in unlock order: the rules for each one's turn live in
+## Battle._boss_act; here are its fighter, room, helpers and attack names.
+const BOSSES := {
+	"principal": {"def": BOSS, "minion": "teacher", "minion_def": TEACHER,
+		"ring": "ruler_slam", "lane": "megaphone", "far": "detention",
+		"summon": "TEACHERS, HELP ME!", "summon_banner": "TEACHERS INCOMING!", "minion_attack": "scold"},
+	"lunch_lady": {"def": LUNCH_LADY, "minion": "cook", "minion_def": COOK,
+		"ring": "ladle", "lane": "gravy", "far": "food_fight",
+		"summon": "KITCHEN, HELP ME!", "summon_banner": "COOKS INCOMING!", "minion_attack": "spatula"},
+}

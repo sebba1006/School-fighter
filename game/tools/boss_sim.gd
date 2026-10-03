@@ -1,6 +1,6 @@
 extends SceneTree
 ## Boss fight check: three CPU players fight the Principal many times.
-##   godot --headless --path game -s res://tools/boss_sim.gd -- [matches=60] [noise=4]
+##   godot --headless --path game -s res://tools/boss_sim.gd -- [matches=60] [noise=4] [boss=principal]
 
 const Battle = preload("res://rules/battle.gd")
 const Characters = preload("res://rules/characters.gd")
@@ -11,6 +11,7 @@ func _init() -> void:
 	var args := OS.get_cmdline_user_args()
 	var n := int(args[0]) if not args.is_empty() else 60
 	var noise := float(args[1]) if args.size() > 1 else 4.0
+	var boss: String = args[2] if args.size() > 2 else "principal"
 	var chars: Array = Characters.ALL.keys()
 	var wins := 0
 	var turns_total := 0
@@ -22,7 +23,7 @@ func _init() -> void:
 		var pool := chars.duplicate()
 		for i in 3:
 			team.append({"char": pool.pop_at((m * 7 + i * 3) % pool.size()), "team": 0})
-		var b := Battle.new({"boss": true, "players": team, "seed": m})
+		var b := Battle.new({"boss": boss, "players": team, "seed": m})
 		b.start_round()
 		var turns := 0
 		while b.phase == Battle.Phase.TURN and turns < 600:

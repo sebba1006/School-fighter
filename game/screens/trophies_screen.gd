@@ -33,7 +33,7 @@ func _ready() -> void:
 	back.pressed.connect(func(): back_requested.emit())
 	head.add_child(back)
 	head.add_child(UiTheme.label("TROPHIES", 16, UiTheme.CHALK, true))
-	head.add_child(UiTheme.label("%d / %d WON - BEAT THE PRINCIPAL IN BOSS FIGHT TO EARN THEM" % [won.size(), all.size()], 8, UiTheme.GOLD))
+	head.add_child(UiTheme.label("%d / %d WON - BEAT THE BOSSES IN BOSS FIGHT TO EARN THEM" % [won.size(), all.size()], 8, UiTheme.GOLD))
 	outer.add_child(head)
 
 	var scroll := ScrollContainer.new()

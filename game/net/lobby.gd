@@ -31,7 +31,7 @@ var host := ""  # token of the host
 ## [{"token", "pid", "name", "char", "team", "ready", "connected", "gone_since"}]
 var members: Array = []
 ## public: listed in the server's open-lobby list (otherwise code only)
-var settings := {"map": "classroom", "rounds": 3, "timer": 30, "items": true, "public": true, "bonus_hp": 0, "shrink": false, "four": "2v2", "boss": false}
+var settings := {"map": "classroom", "rounds": 3, "timer": 30, "items": true, "public": true, "bonus_hp": 0, "shrink": false, "four": "2v2", "boss": false, "boss_id": "principal"}
 var battle: Battle = null
 var config := {}
 var fighter_of := {}  # token -> fighter id
@@ -197,6 +197,8 @@ func handle(token: String, msg: Dictionary, now: int) -> void:
 				settings.four = msg.four
 			if msg.get("boss") is bool:
 				settings.boss = msg.boss
+			if msg.get("boss_id") is String and Characters.BOSSES.has(msg.boss_id):
+				settings.boss_id = msg.boss_id
 			if msg.get("bonus_hp") is int and Battle.BONUS_HP_CHOICES.has(msg.bonus_hp):
 				settings.bonus_hp = msg.bonus_hp
 			_broadcast_state()
@@ -311,11 +313,11 @@ func _start_match() -> String:
 		free.shuffle()
 		while players.size() < BOSS_TEAM_SIZE:
 			players.append({"char": free.pop_back(), "team": 0, "name": "CPU", "cpu": "normal"})
-		config = {"boss": true, "timer": settings.timer, "items": settings.items, "seed": randi(), "players": players}
+		config = {"boss": settings.boss_id, "timer": settings.timer, "items": settings.items, "seed": randi(), "players": players}
 	else:
 		config = {"map": settings.map, "rounds": settings.rounds, "timer": settings.timer, "items": settings.items, "bonus_hp": settings.bonus_hp, "shrink": settings.shrink, "seed": randi(), "players": players}
 	battle = Battle.new(config)
-	print("lobby %s: match started, %d players on %s" % [code, n, "the boss" if settings.boss else settings.map])
+	print("lobby %s: match started, %d players on %s" % [code, n, settings.boss_id if settings.boss else settings.map])
 	ops.clear()
 	_turn_key = ""
 	for m in members:
