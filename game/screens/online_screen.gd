@@ -49,9 +49,14 @@ var _open_list: VBoxContainer
 var _next_list := 0
 
 
-func setup(p_net: Node, state := {}) -> void:
+## From BOSS FIGHT -> WITH FRIENDS ONLINE: the lobby you create starts with this boss on.
+var _boss_for_new_lobby := ""
+
+
+func setup(p_net: Node, state := {}, boss_id := "") -> void:
 	net = p_net
 	lobby = state
+	_boss_for_new_lobby = boss_id
 
 
 func _ready() -> void:
@@ -88,6 +93,8 @@ func _ready() -> void:
 		if net.status == "offline":
 			net.go_online(net.url, net.player_name)
 	_on_status(net.status)
+	if _boss_for_new_lobby != "" and lobby.is_empty():
+		_set_status("BOSS FIGHT WITH FRIENDS: CREATE A LOBBY, THEN SEND THE CODE TO YOUR FRIENDS", false)
 
 
 # ---------------------------------------------------------------- entry view
@@ -424,6 +431,11 @@ func _on_message(msg: Dictionary) -> void:
 		"lobby":
 			lobby = msg
 			_set_status("", false)
+			if _boss_for_new_lobby != "":
+				# turn the boss on in the lobby you just made (as its host)
+				if msg.get("host_pid", -1) == msg.get("you_pid", -2) and msg.members.size() == 1:
+					net.send({"t": "settings", "boss": true, "boss_id": _boss_for_new_lobby})
+				_boss_for_new_lobby = ""
 			_show_lobby()
 		"left":
 			lobby = {}

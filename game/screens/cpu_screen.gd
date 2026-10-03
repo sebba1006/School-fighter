@@ -5,6 +5,8 @@ extends Control
 
 signal start_requested(config: Dictionary)
 signal back_requested
+## Boss mode: play the chosen boss online with friends instead of CPUs.
+signal online_boss_requested(boss_id: String)
 
 const Characters = preload("res://rules/characters.gd")
 const Maps = preload("res://rules/maps.gd")
@@ -40,6 +42,7 @@ var _boss_note: Label
 var _boss_row: HBoxContainer  # which boss (later ones unlock in order)
 var _boss_buttons := {}
 var boss_id := "principal"
+var _friends_button: Button
 var _rounds_label: Label
 var _info: Label
 
@@ -169,6 +172,14 @@ func _ready() -> void:
 	start.custom_minimum_size = Vector2(160, 30)
 	start.pressed.connect(_start)
 	buttons.add_child(start)
+	_friends_button = Button.new()
+	_friends_button.text = "WITH FRIENDS ONLINE"
+	_friends_button.custom_minimum_size = Vector2(150, 30)
+	_friends_button.add_theme_color_override("font_color", UiTheme.HIT)
+	_friends_button.pressed.connect(func():
+		Audio.play("click")
+		online_boss_requested.emit(boss_id))
+	buttons.add_child(_friends_button)
 
 	_rebuild_slots()
 	_refresh()
@@ -253,6 +264,7 @@ func _refresh() -> void:
 		c.visible = mode != "boss"
 	_boss_note.visible = mode == "boss"
 	_boss_row.visible = mode == "boss"
+	_friends_button.visible = mode == "boss"
 	for id in _boss_buttons:
 		_boss_buttons[id].set_pressed_no_signal(id == boss_id)
 	_boss_note.text = "YOU + 2 CPU TEAMMATES VS %s (%d HP)  -  EVERYONE GETS +250 HP  -  CPUS ON NORMAL" % [

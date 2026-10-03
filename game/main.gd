@@ -146,12 +146,13 @@ func show_cpu(mode := "1v1") -> void:
 	s.set_mode(mode)
 	s.start_requested.connect(show_battle)
 	s.back_requested.connect(show_menu)
+	s.online_boss_requested.connect(func(id): show_online(_lobby if client.status == "online" else {}, id))
 	_swap(s)
 
 
-func show_online(state := {}) -> void:
+func show_online(state := {}, boss_id := "") -> void:
 	var o := OnlineScreen.new()
-	o.setup(client, state)
+	o.setup(client, state, boss_id)
 	o.back_requested.connect(func():
 		client.send({"t": "leave"})
 		client.go_offline()
