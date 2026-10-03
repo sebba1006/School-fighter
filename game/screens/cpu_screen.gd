@@ -5,6 +5,8 @@ extends Control
 
 signal start_requested(config: Dictionary)
 signal back_requested
+## Boss mode: play the chosen boss online with friends instead of CPUs.
+signal online_boss_requested(boss_id: String)
 
 const Characters = preload("res://rules/characters.gd")
 const Maps = preload("res://rules/maps.gd")
@@ -14,6 +16,7 @@ const FighterInfo = preload("res://ui/fighter_info.gd")
 const FighterPicker = preload("res://ui/fighter_picker.gd")
 const Battle = preload("res://rules/battle.gd")
 const Audio = preload("res://audio/audio.gd")
+const Achievements = preload("res://stats/achievements.gd")
 
 const MODES := {"1v1": "1V1", "ffa": "1V1V1", "ffa4": "1V1V1V1", "2v2": "2V2", "boss": "BOSS"}
 const LEVELS := {"easy": "EASY", "normal": "NORMAL", "hard": "HARD"}
@@ -36,6 +39,10 @@ var _picker: FighterPicker
 var _map_buttons := {}
 var _normal_only: Array[Control] = []  # hidden in a boss fight (no map, rounds, HP or shrink)
 var _boss_note: Label
+var _boss_row: HBoxContainer  # which boss (later ones unlock in order)
+var _boss_buttons := {}
+var boss_id := "principal"
+var _friends_button: Button
 var _rounds_label: Label
 var _info: Label
 
@@ -89,7 +96,20 @@ func _ready() -> void:
 	_info.custom_minimum_size.y = 40
 	col.add_child(_info)
 
-	_boss_note = UiTheme.label("BOSS FIGHT: YOU + 2 CPU TEAMMATES VS THE PRINCIPAL (2250 HP)  -  EVERYONE GETS +250 HP  -  CPUS ON NORMAL", 8, UiTheme.HIT)
+	_boss_row = _row(col)
+	_boss_row.add_child(UiTheme.label("BOSS", 8, UiTheme.CHALK_DIM))
+	var saved := Achievements.load_data()
+	for id in Characters.BOSSES:
+		var b := _toggle(Characters.BOSSES[id].def.short.to_upper())
+		b.custom_minimum_size = Vector2(110, 20)
+		if not Achievements.boss_unlocked(saved, id):
+			b.disabled = true
+			b.text = "LOCKED: BEAT %s" % Characters.BOSSES.values()[Characters.BOSSES.keys().find(id) - 1].def.short.to_upper()
+			b.custom_minimum_size.x = 170
+		b.pressed.connect(func(): boss_id = id; _refresh())
+		_boss_buttons[id] = b
+		_boss_row.add_child(b)
+	_boss_note = UiTheme.label("", 8, UiTheme.HIT)
 	_boss_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(_boss_note)
 	var options := _row(col)
@@ -152,6 +172,14 @@ func _ready() -> void:
 	start.custom_minimum_size = Vector2(160, 30)
 	start.pressed.connect(_start)
 	buttons.add_child(start)
+	_friends_button = Button.new()
+	_friends_button.text = "WITH FRIENDS ONLINE"
+	_friends_button.custom_minimum_size = Vector2(150, 30)
+	_friends_button.add_theme_color_override("font_color", UiTheme.HIT)
+	_friends_button.pressed.connect(func():
+		Audio.play("click")
+		online_boss_requested.emit(boss_id))
+	buttons.add_child(_friends_button)
 
 	_rebuild_slots()
 	_refresh()
@@ -235,6 +263,12 @@ func _refresh() -> void:
 	for c in _normal_only:
 		c.visible = mode != "boss"
 	_boss_note.visible = mode == "boss"
+	_boss_row.visible = mode == "boss"
+	_friends_button.visible = mode == "boss"
+	for id in _boss_buttons:
+		_boss_buttons[id].set_pressed_no_signal(id == boss_id)
+	_boss_note.text = "YOU + 2 CPU TEAMMATES VS %s (%d HP)  -  EVERYONE GETS +250 HP  -  CPUS ON NORMAL" % [
+		Characters.BOSSES[boss_id].def.name.to_upper(), Characters.BOSSES[boss_id].def.hp]
 
 
 func _start() -> void:
@@ -252,7 +286,7 @@ func _start() -> void:
 			p["cpu"] = "normal" if mode == "boss" else level
 		players.append(p)
 	if mode == "boss":
-		start_requested.emit({"boss": true, "items": items, "players": players, "seed": randi()})
+		start_requested.emit({"boss": boss_id, "items": items, "players": players, "seed": randi()})
 		return
 	start_requested.emit({"map": map_id, "rounds": rounds, "items": items, "bonus_hp": bonus_hp, "shrink": shrink, "players": players, "seed": randi()})
 

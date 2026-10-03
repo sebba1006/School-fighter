@@ -3,6 +3,7 @@ extends Node2D
 ## and a bouncing arrow over whoever's turn it is.
 
 const PixelArt = preload("res://art/pixel_art.gd")
+const Characters = preload("res://rules/characters.gd")
 const TILE := 32
 
 var char_id: String
@@ -36,10 +37,10 @@ var _frame := 0
 func setup(p_char_id: String, p_team_color: Color) -> void:
 	char_id = p_char_id
 	team_color = p_team_color
-	big = char_id == "principal"
-	minion = char_id == "teacher"
+	big = Characters.BOSSES.has(char_id)
+	minion = char_id in ["teacher", "cook", "athlete"]
 	if big:
-		_frames = [PixelArt.boss(false), PixelArt.boss(true)]
+		_frames = [PixelArt.boss_sprite(char_id, false), PixelArt.boss_sprite(char_id, true)]
 	else:
 		_frames = [PixelArt.character(char_id, false), PixelArt.character(char_id, true)]
 	_sprite.texture = _frames[0]

@@ -44,8 +44,8 @@ static func plan(b: Battle, noise := 0.0) -> Dictionary:
 	var apple := _apple_in_reach(b, f, spots)
 	if apple != NO_TILE:
 		spots = [apple]
-	else:
-		# leave apples for whoever needs them: don't stand on or walk over one
+	elif not b.apples.is_empty() or not b.puddles.is_empty():
+		# leave apples for whoever needs them, and keep out of enemy puddles
 		spots = spots.filter(func(t): return t == f.pos or not _path(b, t).is_empty())
 	var home := f.pos
 	var best := {"score": 0.0}
@@ -105,6 +105,10 @@ static func plan(b: Battle, noise := 0.0) -> Dictionary:
 	if Battle.BOX_ITEMS.has(f.item) and (best.score < 14.0 or hurt) and best.score < KO_BONUS and _nearest(home, enemies) <= 4 \
 			and b.attack_blocked_reason(f.id, Battle.ITEM_SLOT) == "":
 		best = {"score": 14.0, "pos": home, "intents": [{"type": "attack", "slot": Battle.ITEM_SLOT}]}
+	# Hall Pass: use it when standing where the detention zone will be next turn.
+	if f.item == "hall_pass" and f.zone_safe == 0 and best.score < KO_BONUS and b.in_zone(home, 1) \
+			and b.attack_blocked_reason(f.id, Battle.ITEM_SLOT) == "":
+		best = {"score": 16.0, "pos": home, "intents": [{"type": "attack", "slot": Battle.ITEM_SLOT}]}
 	# Mystery box in reach and nothing great to do: go get it.
 	if b.box != Battle.NO_BOX and best.score < 12.0 and f.item == "" and not _path(b, b.box).is_empty():
 		return {"path": _path(b, b.box), "intents": [{"type": "end_turn"}]}
@@ -210,9 +214,23 @@ const NO_TILE := Vector2i(-99, -99)
 ## ([] if there's no way around: pick somewhere else).
 static func _path(b: Battle, t: Vector2i) -> Array[Vector2i]:
 	var f := b.current()
+	var avoid := _wet(b, f)  # never walk into an enemy's puddle (you'd slip)
 	if not b.apples.is_empty() and f.hp >= f.max_hp * APPLE_WANT:
-		return [] as Array[Vector2i] if b.apples.has(t) else b.path_to(t, b.apples)
-	return b.path_to(t)
+		if b.apples.has(t):
+			return [] as Array[Vector2i]
+		avoid.merge(b.apples)
+	if avoid.has(t):
+		return [] as Array[Vector2i]
+	return b.path_to(t, avoid) if not avoid.is_empty() else b.path_to(t)
+
+
+## Puddles `f` would slip in (enemies' water, the Lunch Lady's gravy).
+static func _wet(b: Battle, f) -> Dictionary:
+	var out := {}
+	for t in b.puddles:
+		if b.fighters[b.puddles[t]].team != f.team:
+			out[t] = true
+	return out
 
 
 ## The closest health apple this fighter can walk onto this turn, if it's
@@ -253,8 +271,8 @@ static func _toward(b: Battle, enemies: Array) -> Vector2i:
 	var best_d := _nearest(f.pos, enemies) + (20 if b.in_zone(f.pos, 1) else 0)
 	var skip_apples := f.hp >= f.max_hp * APPLE_WANT
 	for t in b.reachable_tiles():
-		if skip_apples and not b.apples.is_empty() and _path(b, t).is_empty():
-			continue  # only reachable over an apple
+		if (skip_apples and not b.apples.is_empty() or not b.puddles.is_empty()) and _path(b, t).is_empty():
+			continue  # only reachable over an apple or through a puddle
 		var d := _nearest(t, enemies) + (20 if b.in_zone(t, 1) else 0)
 		if d < best_d and d >= 1:
 			best = t

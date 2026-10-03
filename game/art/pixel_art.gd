@@ -73,6 +73,12 @@ const PAL := {
 	"suit": ["4a4f5c", "343844", "626879"],
 	"greyHair": ["b9b9bd", "8f8f95", "dadade"],
 	"apple": ["d9363b", "a3232a", "f06a6d"],
+	"gravy": ["8a5a2b", "6a4220", "b07a45"],
+	"hairnet": ["d9d4c7", "b3ad9f", "f0ece2"],
+	"curlyRed": ["b5502e", "8a3a1f", "d4734d"],
+	"dressPink": ["d9829b", "b0607a", "efa6ba"],
+	"apron": ["f1f1ec", "cfd0c8", "ffffff"],
+	"chefHat": ["f4f4f0", "d2d3cc", "ffffff"],
 	"eye": "ffffff",
 	"pupil": "1a1420",
 	"mouth": "7a2e2e",
@@ -90,6 +96,10 @@ const LOOKS := {
 	"snorre": {"legs": 9, "hair": "hairChestnut", "hair_style": "messy", "shirt": "teeWhite", "sleeve": "teeWhite", "pants": "pantsGray", "shoes": "shoeBrown", "sword": true, "mouth": "smile", "pupil": 0},
 	"leon": {"legs": 11, "hair": "hairLightBrown", "hair_style": "swoop", "shirt": "teeBlue", "sleeve": "teeBlue", "pants": "pantsLightGray", "shoes": "shoeBlack", "mouth": "smile", "pupil": 1},
 	"mike": {"legs": 11, "hair": "hairDark", "hair_style": "short", "shirt": "hoodie", "sleeve": "hoodie", "hoodie": true, "pants": "pantsBlack", "shoes": "shoeBlack", "slingshot": true, "mouth": "smirk", "pupil": 1},
+	# the athletes the Gym Teacher calls: red jersey, white stripe, sweatband
+	"athlete": {"legs": 12, "hair": "hairBlond", "hair_style": "headband", "shirt": "red", "sleeve": "red", "stripe": "teeWhite", "pants": "pantsBlack", "shoes": "shoeRed", "mouth": "smirk", "pupil": 0},
+	# the cooks the Lunch Lady calls: tall white chef's hat and apron
+	"cook": {"legs": 12, "hair": "hairBrown", "hair_style": "chef", "shirt": "apron", "sleeve": "apron", "stripe": "dressPink", "pants": "pantsGray", "shoes": "shoeBlack", "mouth": "smirk", "pupil": 1},
 	# the teachers the Principal summons: green shirt and red tie
 	"teacher": {"legs": 13, "hair": "hairDark", "hair_style": "neat", "shirt": "leaf", "sleeve": "leaf", "tie": "red", "pants": "pantsGray", "shoes": "shoeBrown", "glasses": true, "mouth": "flat", "pupil": 0},
 }
@@ -257,6 +267,15 @@ static func _character_image(c: Dictionary, bob: bool) -> Image:
 		"short":
 			p.rect(17, hcy - 3, 21, hcy - 3, h)
 			p.px(21, hcy - 2, h)
+		"headband":  # short spiky hair with a white sweatband
+			for x in [11, 14, 17, 20]:
+				p.px(x, top - 2, h)
+			p.rect(8, hcy - 4, 23, hcy - 3, "teeWhite")
+		"chef":  # a tall white chef's hat over short hair
+			p.rect(9, top - 6, 22, hcy - 4, "chefHat")
+			p.ell(12, top - 6, 4, 3, "chefHat")
+			p.ell(19, top - 6, 4, 3, "chefHat")
+			p.ell(15.5, top - 8, 4, 3, "chefHat")
 		"swoop":
 			# fringe swept to one side with a little flick on top
 			p.rect(10, hcy - 3, 16, hcy - 3, h)
@@ -399,6 +418,131 @@ static func boss(bob := false) -> Texture2D:
 	return _cache[key]
 
 
+## Any boss's big sprite by id ("principal" or "lunch_lady").
+static func boss_sprite(id: String, bob := false) -> Texture2D:
+	match id:
+		"lunch_lady":
+			return lunch_lady(bob)
+		"gym_teacher":
+			return gym_teacher(bob)
+	return boss(bob)
+
+
+## The Gym Teacher: 96x128. Red cap, big mustache, blue tracksuit with white
+## stripes, a whistle on a cord, and a clipboard in his hand.
+static func gym_teacher(bob := false) -> Texture2D:
+	var key := "gym_teacher_%s" % bob
+	if not _cache.has(key):
+		var p := Painter.new(96, 128)
+		var u := 1 if bob else 0
+		# sneakers and tracksuit trousers with a stripe
+		p.rect(26, 119, 45, 126, "teeWhite")
+		p.rect(51, 119, 70, 126, "teeWhite")
+		p.rect(26, 124, 45, 126, "red")
+		p.rect(51, 124, 70, 126, "red")
+		p.rect(30, 92, 45, 119, "teeBlue")
+		p.rect(51, 92, 66, 119, "teeBlue")
+		p.rect(30, 92, 31, 119, "teeWhite")
+		p.rect(65, 92, 66, 119, "teeWhite")
+		# jacket: broad shoulders, white shoulder stripes, zip
+		p.rect(16, 52 + u, 80, 96, "teeBlue")
+		p.rect(16, 52 + u, 80, 55 + u, "teeWhite")
+		p.rect(47, 56 + u, 49, 96, "steel")
+		# arms: the left one holds a clipboard, the right one is on his hip
+		p.rect(5, 56 + u, 16, 88, "teeBlue")
+		p.rect(5, 56 + u, 6, 88, "teeWhite")
+		p.rect(2, 70 + u, 20, 94 + u, "wood")  # clipboard
+		p.rect(4, 74 + u, 18, 92 + u, "teeWhite")
+		for y in [78, 82, 86]:
+			p.rect(6, y + u, 15, y + u, "pantsGray")
+		p.rect(8, 68 + u, 14, 71 + u, "steel")
+		p.rect(80, 56 + u, 91, 84, "teeBlue")
+		p.rect(90, 56 + u, 91, 84, "teeWhite")
+		p.rect(81, 84, 91, 91, "skin")
+		# whistle on a cord
+		for i in 10:
+			p.px(41 + i / 2, 54 + i + u, "string")
+			p.px(55 - i / 2, 54 + i + u, "string")
+		p.rect(45, 64 + u, 51, 68 + u, "steel")
+		p.rect(51, 65 + u, 53, 66 + u, "steel")
+		# neck, head, cap with a brim
+		p.rect(40, 44 + u, 56, 53 + u, "skin")
+		p.ell(48, 30 + u, 19, 20, "skin")
+		p.ell(48, 15 + u, 20, 9, "red")
+		p.rect(28, 15 + u, 68, 19 + u, "red")
+		p.rect(46, 9 + u, 50, 11 + u, "teeWhite")  # cap badge
+		p.rect(46, 19 + u, 76, 22 + u, "bikeRed")  # brim sticking out to the side
+		p.rect(26, 26 + u, 29, 33 + u, "skin")
+		p.rect(67, 26 + u, 70, 33 + u, "skin")
+		# eyes, eyebrows, big brown mustache, open shouting mouth
+		p.rect(35, 24 + u, 44, 25 + u, "hairDark")
+		p.rect(52, 24 + u, 61, 25 + u, "hairDark")
+		p.rect(37, 27 + u, 43, 31 + u, "eye")
+		p.rect(53, 27 + u, 59, 31 + u, "eye")
+		p.rect(40, 28 + u, 42, 31 + u, "pupil")
+		p.rect(54, 28 + u, 56, 31 + u, "pupil")
+		p.rect(46, 32 + u, 50, 36 + u, "skin")
+		p.rect(36, 37 + u, 60, 41 + u, "hairDark")
+		p.rect(34, 40 + u, 37, 43 + u, "hairDark")
+		p.rect(59, 40 + u, 62, 43 + u, "hairDark")
+		p.rect(44, 42 + u, 52, 46 + u, "mouth")
+		_cache[key] = ImageTexture.create_from_image(p.bake())
+	return _cache[key]
+
+
+## The Lunch Lady: 96x128 like the Principal. Red curly hair under a hairnet,
+## pink dress, big white apron with a gravy stain, and a ladle in her hand.
+static func lunch_lady(bob := false) -> Texture2D:
+	var key := "lunch_lady_%s" % bob
+	if not _cache.has(key):
+		var p := Painter.new(96, 128)
+		var u := 1 if bob else 0
+		# shoes, legs, wide dress
+		p.rect(30, 120, 44, 126, "shoeBlack")
+		p.rect(52, 120, 66, 126, "shoeBlack")
+		p.rect(33, 104, 43, 120, "skin")
+		p.rect(53, 104, 63, 120, "skin")
+		p.ell(48, 86 + u, 32, 24, "dressPink")
+		p.rect(16, 54 + u, 80, 104, "dressPink")
+		# apron with a gravy stain, and its strings
+		p.rect(28, 60 + u, 68, 106, "apron")
+		p.rect(24, 58 + u, 72, 60 + u, "apron")
+		p.ell(56, 88 + u, 5, 4, "gravy")
+		p.ell(36, 76 + u, 3, 2, "gravy")
+		p.rect(40, 70 + u, 56, 74 + u, "apron")
+		# arms: the left one on her hip, the right one holds the ladle up
+		p.rect(6, 56 + u, 17, 84, "dressPink")
+		p.rect(6, 84, 17, 92, "skin")
+		p.rect(79, 56 + u, 90, 80, "dressPink")
+		p.rect(80, 80, 91, 88, "skin")
+		p.rect(84, 26 + u, 87, 82, "steel")  # ladle handle
+		p.ell(85.5, 22 + u, 8, 6, "steel")  # ladle bowl
+		p.ell(85.5, 20 + u, 6, 3, "gravy")
+		# neck and head, red curls under a hairnet
+		p.rect(40, 46 + u, 56, 54 + u, "skin")
+		p.ell(48, 30 + u, 20, 21, "skin")
+		p.ell(48, 12 + u, 22, 10, "curlyRed")
+		for x in [26, 30, 64, 68]:
+			p.ell(x, 24 + u, 4, 6, "curlyRed")
+		p.ell(48, 10 + u, 21, 8, "hairnet")
+		for x in range(30, 68, 5):  # net lines
+			p.rect(x, 4 + u, x, 16 + u, "curlyRed")
+		# eyes with heavy eyeshadow, a mole, big frown with lipstick
+		p.rect(36, 26 + u, 44, 29 + u, "dressPink")
+		p.rect(52, 26 + u, 60, 29 + u, "dressPink")
+		p.rect(37, 28 + u, 43, 32 + u, "eye")
+		p.rect(53, 28 + u, 59, 32 + u, "eye")
+		p.rect(40, 29 + u, 42, 32 + u, "pupil")
+		p.rect(54, 29 + u, 56, 32 + u, "pupil")
+		p.rect(46, 33 + u, 50, 38 + u, "skin")
+		p.rect(58, 37 + u, 59, 38 + u, "pupil")  # mole
+		p.rect(41, 43 + u, 55, 44 + u, "red")
+		p.px(40, 45 + u, "red")
+		p.px(56, 45 + u, "red")
+		_cache[key] = ImageTexture.create_from_image(p.bake())
+	return _cache[key]
+
+
 ## A trophy cup (24x24): gold if won, a dark grey shape if not yet.
 static func trophy(won: bool) -> Texture2D:
 	var key := "trophy_%s" % won
@@ -459,6 +603,15 @@ static func item_icon(id: String) -> Texture2D:
 				p.rect(2, 2, 13, 7, "steel")
 				p.ell(8, 7, 3.5, 3.5, "teeBlue")
 				p.ell(8, 7, 1.5, 1.5, "teeWhite")
+			"hall_pass":  # a yellow card on a red lanyard, with a little stamp
+				p.rect(6, 0, 6, 3, "red")
+				p.rect(9, 0, 9, 3, "red")
+				p.rect(6, 0, 9, 0, "red")
+				p.rect(3, 4, 12, 14, "pencil")
+				p.rect(4, 5, 11, 5, "teeWhite")
+				p.rect(4, 7, 9, 7, "pantsBlack")
+				p.rect(4, 9, 8, 9, "pantsBlack")
+				p.ell(10, 12, 1.5, 1.5, "red")
 			"water":
 				p.rect(5, 4, 10, 14, "glass")
 				p.rect(6, 2, 9, 3, "glass")
@@ -484,15 +637,17 @@ static func mystery_box() -> Texture2D:
 
 
 ## A water puddle lying on a floor tile.
-static func puddle() -> Texture2D:
-	if not _cache.has("puddle"):
+static func puddle(gravy := false) -> Texture2D:
+	var key := "puddle_%s" % gravy
+	if not _cache.has(key):
+		var m := "gravy" if gravy else "puddle"
 		var p := Painter.new(TILE, TILE)
-		p.ell(15, 17, 12, 7, "puddle")
-		p.ell(24, 21, 5, 4, "puddle")
-		p.ell(8, 12, 4, 3, "puddle")
-		p.rect(10, 14, 13, 14, "teeWhite")  # shine
-		_cache["puddle"] = ImageTexture.create_from_image(p.bake())
-	return _cache["puddle"]
+		p.ell(15, 17, 12, 7, m)
+		p.ell(24, 21, 5, 4, m)
+		p.ell(8, 12, 4, 3, m)
+		p.rect(10, 14, 13, 14, "apron" if gravy else "teeWhite")  # shine
+		_cache[key] = ImageTexture.create_from_image(p.bake())
+	return _cache[key]
 
 
 # ---------------------------------------------------------------- tiles
@@ -511,6 +666,9 @@ static func floor_tile(alt := false, style := "lino") -> Texture2D:
 		elif style == "lab":
 			a = Color("e3e6ea")
 			b = Color("d3d8de")
+		elif style == "gym":  # polished wooden gym floor
+			a = Color("dcae6c")
+			b = Color("cf9f5e")
 		for y in TILE:
 			for x in TILE:
 				var col: Color
@@ -529,6 +687,13 @@ static func floor_tile(alt := false, style := "lino") -> Texture2D:
 					col = Color("e6cf8f") if (x * 5 + y * 11 + (3 if alt else 0)) % 17 != 0 else Color("c9ae68")
 					if (x * 13 + y * 7) % 29 == 0:
 						col = Color("f3e2b0")
+				elif style == "gym":
+					# long planks, with a painted court line along one edge of every other tile
+					col = a if (int(y / 8.0) + (1 if alt else 0)) % 2 == 0 else b
+					if y % 8 == 0:
+						col = col.darkened(0.12)
+					if alt and x == 3:
+						col = Color("e8eef2")
 				elif style == "lab":
 					var check := (int(x / 16.0) + int(y / 16.0) + (1 if alt else 0)) % 2 == 0
 					col = a if check else b

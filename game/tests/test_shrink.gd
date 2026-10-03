@@ -91,3 +91,36 @@ func test_turns_until_shrink_counts_down() -> void:
 	_pass_turns(b, Battle.SHRINK_EVERY * 10)
 	eq(b.turns_until_shrink(), -1, "no warning once it's as small as it gets")
 	done()
+
+
+func test_hall_pass_keeps_you_safe_for_two_turns() -> void:
+	var b := _battle(true)
+	b.zone_rings = 1
+	put(b, 0, 0, 3)  # Sebba on the edge, in the zone
+	put(b, 1, 8, 3)
+	b.fighters[0].item = "hall_pass"
+	var hp0 := hp(b, 0)
+	var r := b.apply(0, {"type": "attack", "slot": Battle.ITEM_SLOT})
+	check(r.ok, "used the hall pass")
+	check(r.events.any(func(e): return e.type == "status" and e.status == "hall_pass"), "hall pass status")
+	eq(b.fighters[0].item, "", "used up")
+	put(b, 1, 4, 3)  # Mike steps out of the zone
+	end_turn(b, 1)  # Sebba's 1st turn after: safe
+	eq(hp(b, 0), hp0, "safe turn 1")
+	end_turn(b, 0)
+	var r2 := end_turn(b, 1)  # Sebba's 2nd turn after: safe, and the pass ends
+	eq(hp(b, 0), hp0, "safe turn 2")
+	check(r2.events.any(func(e): return e.type == "status_end" and e.status == "hall_pass"), "pass runs out")
+	end_turn(b, 0)
+	end_turn(b, 1)  # 3rd turn: hurts again
+	eq(hp0 - hp(b, 0), Battle.ZONE_DAMAGE, "detention damage again")
+	done()
+
+
+func test_hall_pass_only_drops_when_shrinking() -> void:
+	var b := _battle(false)
+	check(not b._item_pool(Battle.ITEM_IDS).has("hall_pass"), "not without shrinking")
+	b.shrink_on = true
+	check(b._item_pool(Battle.ITEM_IDS).has("hall_pass"), "lockers can drop it")
+	check(b._item_pool(Battle.BOX_ITEMS).has("hall_pass"), "boxes can drop it")
+	done()

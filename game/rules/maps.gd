@@ -132,3 +132,46 @@ const BOSS_ROOM := {
 	"ffa_spawns": [[0, 1], [0, 3], [0, 5]],
 }
 
+## The Lunch Lady's kitchen (boss fights): counters along the top, stoves in
+## the corners, the same size and spawns as the Principal's Office.
+const KITCHEN := {
+	"name": "The Kitchen",
+	"floor": "cafeteria",
+	"boss": [5, 4],
+	"rows": [
+		"KKKKKKKKKKK",
+		"1..........",
+		".F.......F.",
+		"1..........",
+		"...........",
+		"1..........",
+		".F.......F.",
+		"...........",
+		"KKKKKKKKKKK",
+	],
+	"ffa_spawns": [[0, 1], [0, 3], [0, 5]],
+}
+
+## The Gym Teacher's gym (boss fights): benches in the corners, the same size
+## and spawns as the other boss rooms.
+const BOSS_GYM := {
+	"name": "The Gym",
+	"floor": "gym",
+	"boss": [5, 4],
+	"rows": [
+		"LLLLLLLLLLL",
+		"1..........",
+		".B.......B.",
+		"1..........",
+		"...........",
+		"1..........",
+		".B.......B.",
+		"...........",
+		"LLLLLLLLLLL",
+	],
+	"ffa_spawns": [[0, 1], [0, 3], [0, 5]],
+}
+
+## Boss id -> its room.
+const BOSS_ROOMS := {"principal": BOSS_ROOM, "lunch_lady": KITCHEN, "gym_teacher": BOSS_GYM}
+

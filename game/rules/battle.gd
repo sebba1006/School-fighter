@@ -33,6 +33,8 @@ const ITEMS := {
 	"water": {"id": "water", "name": "Water Bottle", "type": "spill"},
 	"melee_guard": {"id": "melee_guard", "name": "Melee Guard", "type": "self_guard", "guard": "melee"},
 	"ranged_guard": {"id": "ranged_guard", "name": "Ranged Guard", "type": "self_guard", "guard": "ranged"},
+	# only drops when the map shrinks: the detention zone can't hurt you for your next 2 turns
+	"hall_pass": {"id": "hall_pass", "name": "Hall Pass", "type": "self_pass", "turns": 2},
 }
 ## With items on, a mystery box appears every few turns (one at a time) on a
 ## free tile near the middle. Walking onto it gives a Melee Guard or a Ranged
@@ -68,6 +70,17 @@ const SUMMON_CHANCE := 40  # % per turn once all teachers are gone
 ## Below this much HP (%) he gets ANGRY: his attacks do ANGRY_BONUS more damage.
 const ANGRY_PCT := 25
 const ANGRY_BONUS := 5
+## The Lunch Lady: Gravy Splash leaves this many gravy puddles in her lanes
+## (players who step in one slip), and Food Fight! also splashes the players
+## right next to its target.
+const GRAVY_PUDDLES := 3
+const GRAVY_MAX := 3  # gravy puddles on the floor at once (older ones stay until stepped in)
+const FOOD_FIGHT_DAMAGE := 18
+const FOOD_SPLASH_DAMAGE := 8
+## The Gym Teacher's WHISTLE!: every player on the floor takes this and is
+## pushed one tile away from him.
+const WHISTLE_DAMAGE := 13
+const WHISTLE_PUSH := 1
 const APPLE_EVERY := 150  # an apple drops each time he loses this much HP
 const APPLE_HEAL := 60
 ## Host setting: everyone gets this much extra HP (0 = original).
@@ -78,7 +91,7 @@ const AROUND: Array[Vector2i] = [
 	Vector2i(-1, -1), Vector2i(0, -1), Vector2i(1, -1), Vector2i(-1, 0),
 	Vector2i(1, 0), Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1),
 ]
-const SELF_TYPES := ["self_rage", "self_block", "self_sugar", "self_guard"]
+const SELF_TYPES := ["self_rage", "self_block", "self_sugar", "self_guard", "self_pass"]
 ## Attacks that can't reach someone hiding in a sandbox.
 const RANGED_TYPES := ["projectile", "line", "lob"]
 
@@ -100,6 +113,8 @@ var box := NO_BOX
 var _turn_count := 0
 var shrink_on := false
 var boss_mode := false
+## Which boss (a key of Characters.BOSSES) in a boss fight.
+var boss_id := ""
 ## Health apples on the floor (boss fights): Vector2i -> HP they heal.
 var apples := {}
 var _apples_dropped := 0
@@ -148,10 +163,16 @@ var _last_team := -1
 func _init(config: Dictionary) -> void:
 	items_on = config.get("items", false) == true
 	shrink_on = config.get("shrink", false) == true
-	boss_mode = config.get("boss", false) == true
+	var which = config.get("boss", false)
+	# true (the Principal, the first boss) or a boss id
+	if which is String and Characters.BOSSES.has(which):
+		boss_id = which
+	elif typeof(which) == TYPE_BOOL and which:
+		boss_id = "principal"
+	boss_mode = boss_id != ""
 	if boss_mode:
-		var m = config.get("map")  # always the Principal's Office unless a test passes a map
-		map_def = m if m is Dictionary else Maps.BOSS_ROOM
+		var m = config.get("map")  # always the boss's own room unless a test passes a map
+		map_def = m if m is Dictionary else Maps.BOSS_ROOMS[boss_id]
 		rounds_total = 1
 	else:
 		map_def = config.map if config.map is Dictionary else Maps.ALL[config.map]
@@ -174,13 +195,14 @@ func _init(config: Dictionary) -> void:
 		if not teams.has(team):
 			teams.append(team)
 	if boss_mode:
-		var boss := Fighter.new(players.size(), "principal", BOSS_TEAM, Characters.BOSS)
+		var info: Dictionary = Characters.BOSSES[boss_id]
+		var boss := Fighter.new(players.size(), boss_id, BOSS_TEAM, info.def)
 		boss.is_boss = true
 		fighters.append(boss)
 		teams.append(BOSS_TEAM)
-		# the teachers wait off the board (knocked out) until he summons them
+		# the helpers (teachers / cooks) wait off the board (knocked out) until summoned
 		for k in TEACHERS:
-			var t := Fighter.new(fighters.size(), "teacher", BOSS_TEAM, Characters.TEACHER)
+			var t := Fighter.new(fighters.size(), info.minion, BOSS_TEAM, info.minion_def)
 			t.is_minion = true
 			fighters.append(t)
 	teams.sort()
@@ -260,8 +282,9 @@ func _move(f: Fighter, dir) -> Dictionary:
 	if to == box:
 		# Picked up: the steps so far can't be undone (no walking back off it).
 		box = NO_BOX
-		f.item = BOX_ITEMS[_roll(0, BOX_ITEMS.size() - 1)]
-		events.append({"type": "item", "fighter": f.id, "item": f.item, "at": to})
+		var pool := _item_pool(BOX_ITEMS)
+		f.item = pool[_roll(0, pool.size() - 1)]
+		events.append({"type": "item", "fighter": f.id, "item": f.item, "at": to, "from_box": true})
 		move_budget -= path.size()
 		path.clear()
 		turn_start_pos = f.pos
@@ -453,6 +476,9 @@ func _resolve(ctx: Dictionary, atk: Dictionary, dist: int) -> void:
 			var kind: String = atk.guard
 			f.guard = {"kind": kind, "pct": _roll(GUARD_PCT[0], GUARD_PCT[1]), "turns": _roll(GUARD_TURNS[0], GUARD_TURNS[1])}
 			ctx.events.append({"type": "status", "fighter": f.id, "status": "guard", "kind": kind, "pct": f.guard.pct, "turns": f.guard.turns})
+		"self_pass":
+			f.zone_safe = atk.turns
+			ctx.events.append({"type": "status", "fighter": f.id, "status": "hall_pass", "turns": f.zone_safe})
 		"self_sugar":
 			f.sugar_active = true
 			f.sugar_multiplier = atk.multiplier
@@ -596,7 +622,8 @@ func _damage_obstacle(ctx: Dictionary, tile: Vector2i, amount: int) -> void:
 		ctx.events.append({"type": "obstacle_broken", "at": tile, "obstacle": o.type})
 		var f: Fighter = ctx.attacker
 		if items_on and o.type == "L" and f.alive() and _roll(1, 100) <= ITEM_CHANCE:
-			f.item = ITEM_IDS[_roll(0, ITEM_IDS.size() - 1)]
+			var pool := _item_pool(ITEM_IDS)
+			f.item = pool[_roll(0, pool.size() - 1)]
 			ctx.events.append({"type": "item", "fighter": f.id, "item": f.item, "at": tile})
 
 
@@ -623,7 +650,14 @@ func _begin_turn() -> Array:
 		if box != NO_BOX and in_zone(box):
 			box = NO_BOX
 			events.append({"type": "box_gone"})
-	if in_zone(f.pos) and f.alive() and not f.is_boss:
+	var safe := f.zone_safe > 0  # Hall Pass
+	if safe:
+		f.zone_safe -= 1
+		if in_zone(f.pos):
+			events.append({"type": "zone_safe", "fighter": f.id})
+		if f.zone_safe == 0:
+			events.append({"type": "status_end", "fighter": f.id, "status": "hall_pass"})
+	if in_zone(f.pos) and f.alive() and not f.is_boss and not safe:
 		var lost := mini(ZONE_DAMAGE, f.hp)
 		f.hp -= lost
 		events.append({"type": "damage", "fighter": f.id, "amount": lost, "absorbed": 0, "guarded": 0, "hp": f.hp, "zone": true})
@@ -682,6 +716,11 @@ func in_zone(t: Vector2i, extra := 0) -> bool:
 ## (Classroom: 2 rings, Hallway: 1).
 func max_zone_rings() -> int:
 	return maxi(1, (mini(width, height) - 1) / 2 - 1)
+
+
+## Items that can drop: `base`, plus the Hall Pass when the map shrinks.
+func _item_pool(base: Array) -> Array:
+	return base + ["hall_pass"] if shrink_on else base
 
 
 ## Drops the mystery box on a free tile, preferring the middle of the map.
@@ -746,6 +785,7 @@ func _boss_act(f: Fighter) -> Array:
 		return events
 	var ctx := {"attacker": f, "dir": Vector2i.ZERO, "super": false, "events": events}
 	var rage := ANGRY_BONUS if f.angry else 0
+	var names: Dictionary = Characters.BOSSES[boss_id]
 	var helpers := fighters.filter(func(o): return o.is_minion)
 	if f.own_turns >= 2 and not helpers.is_empty() and helpers.all(func(o): return not o.alive()) \
 			and _roll(1, 100) <= SUMMON_CHANCE:
@@ -756,7 +796,7 @@ func _boss_act(f: Fighter) -> Array:
 			for dx in range(-2, 3):
 				if maxi(absi(dx), absi(dy)) == 2 and _in_bounds(f.pos + Vector2i(dx, dy)):
 					tiles.append(f.pos + Vector2i(dx, dy))
-		events.append({"type": "boss_attack", "fighter": f.id, "attack": "ruler_slam", "tiles": tiles})
+		events.append({"type": "boss_attack", "fighter": f.id, "attack": names.ring, "tiles": tiles})
 		ctx.ranged = false
 		for p in ring:
 			if p.alive() and _deal(f, p, RULER_DAMAGE + rage, ctx) and p.alive():
@@ -769,21 +809,57 @@ func _boss_act(f: Fighter) -> Array:
 				var inside := absi(d.x) <= BOSS_RADIUS and absi(d.y) <= BOSS_RADIUS
 				if not inside and (absi(d.x) <= BOSS_RADIUS or absi(d.y) <= BOSS_RADIUS):
 					tiles.append(Vector2i(x, y))
-		events.append({"type": "boss_attack", "fighter": f.id, "attack": "megaphone", "tiles": tiles})
+		events.append({"type": "boss_attack", "fighter": f.id, "attack": names.lane, "tiles": tiles})
 		ctx.ranged = true
 		for p in lane:
 			if p.alive() and _deal(f, p, MEGAPHONE_DAMAGE + rage, ctx) and p.alive():
 				_knockback(ctx, p, _away(f, p), MEGAPHONE_PUSH)
+		if boss_id == "lunch_lady":
+			_spill_gravy(f, tiles, events)
+	elif boss_id == "gym_teacher":
+		# WHISTLE!: everyone hears it, everyone gets pushed back
+		var tiles: Array = targets.map(func(o): return o.pos)
+		events.append({"type": "boss_attack", "fighter": f.id, "attack": names.far, "tiles": tiles})
+		ctx.ranged = true
+		for p in targets:
+			if p.alive() and _deal(f, p, WHISTLE_DAMAGE + rage, ctx) and p.alive():
+				_knockback(ctx, p, _away(f, p), WHISTLE_PUSH)
+	elif boss_id == "lunch_lady":
+		# Food Fight!: a tray of food at one player, splashing whoever is next to them
+		var p: Fighter = targets[_roll(0, targets.size() - 1)]
+		var tiles: Array = [p.pos]
+		for d in DIRS:
+			if _in_bounds(p.pos + d):
+				tiles.append(p.pos + d)
+		events.append({"type": "boss_attack", "fighter": f.id, "attack": names.far, "tiles": tiles, "target": p.id})
+		ctx.ranged = true
+		var splashed := targets.filter(func(o): return o != p and absi(o.pos.x - p.pos.x) + absi(o.pos.y - p.pos.y) == 1)
+		_deal(f, p, FOOD_FIGHT_DAMAGE + rage, ctx)
+		for o in splashed:
+			if o.alive():
+				_deal(f, o, FOOD_SPLASH_DAMAGE + rage, ctx)
 	else:
 		var p: Fighter = targets[_roll(0, targets.size() - 1)]
-		events.append({"type": "boss_attack", "fighter": f.id, "attack": "detention", "tiles": [p.pos], "target": p.id})
+		events.append({"type": "boss_attack", "fighter": f.id, "attack": names.far, "tiles": [p.pos], "target": p.id})
 		ctx.ranged = true
 		if _deal(f, p, DETENTION_DAMAGE + rage, ctx) and p.alive():
 			_apply_status(ctx, p, "dizzy")
 	return events
 
 
-## Calls the teachers in: each one appears on a free tile right next to him.
+## Gravy Splash: a few gravy puddles land on free tiles of the splashed lanes.
+func _spill_gravy(f: Fighter, lane_tiles: Array, events: Array) -> void:
+	var free: Array = lane_tiles.filter(func(t): return _walkable(t) and not puddles.has(t) and not apples.has(t) and t != box)
+	var already := puddles.values().filter(func(owner): return owner == f.id).size()
+	for i in mini(GRAVY_PUDDLES, GRAVY_MAX - already):
+		if free.is_empty():
+			return
+		var t: Vector2i = free.pop_at(_roll(0, free.size() - 1))
+		puddles[t] = f.id
+		events.append({"type": "puddle", "fighter": f.id, "at": t, "gravy": true})
+
+
+## Calls the helpers in: each one appears on a free tile right next to the boss.
 func _summon(f: Fighter, helpers: Array, events: Array) -> void:
 	var spots: Array[Vector2i] = []
 	for dy in range(-2, 3):
@@ -840,7 +916,7 @@ func _teacher_act(f: Fighter) -> Array:
 	if victim != null:
 		f.facing = victim.pos - f.pos
 		var ctx := {"attacker": f, "dir": f.facing, "super": false, "events": events, "ranged": false}
-		events.append({"type": "boss_attack", "fighter": f.id, "attack": "scold", "tiles": [victim.pos], "target": victim.id})
+		events.append({"type": "boss_attack", "fighter": f.id, "attack": Characters.BOSSES[boss_id].minion_attack, "tiles": [victim.pos], "target": victim.id})
 		_deal(f, victim, TEACHER_DAMAGE, ctx)
 	return events
 
@@ -1096,7 +1172,7 @@ func state_hash() -> int:
 	var parts := [phase, round_number, turn_index, move_budget, path.size(), _rng.state, _last_team, _team_last, box, _turn_count, zone_rings, _apples_dropped]
 	for f in fighters:
 		parts.append_array([f.hp, f.pos.x, f.pos.y, f.meter, f.shield.get("kind", ""), f.shield.get("amount", 0),
-			f.dizzy_next, f.rage_turns, f.sugar_active, f.no_attack_next, f.no_attack_now, f.forfeited, f.item, f.guard, f.own_turns, f.ready_at, f.angry])
+			f.dizzy_next, f.rage_turns, f.sugar_active, f.no_attack_next, f.no_attack_now, f.forfeited, f.item, f.guard, f.own_turns, f.ready_at, f.angry, f.zone_safe])
 	var tiles := obstacles.keys()
 	tiles.sort()
 	for t in tiles:

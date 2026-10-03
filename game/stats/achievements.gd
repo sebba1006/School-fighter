@@ -36,7 +36,7 @@ const LIST := [
 	{"id": "online_legend", "name": "Online Legend", "desc": "Win 25 online matches", "counter": "online_wins", "goal": 25},
 	# boss league: collecting trophies from beating the Principal
 	{"id": "boss_slayer", "name": "Boss Slayer", "desc": "Win your first trophy", "set": "trophies", "goal": 1},
-	{"id": "not_a_scratch", "name": "Not A Scratch", "desc": "Get the Untouchable trophy"},
+	{"id": "not_a_scratch", "name": "Not A Scratch", "desc": "Beat a boss with nobody KO'd"},
 	{"id": "trophy_collector", "name": "Trophy Collector", "desc": "Collect 3 trophies", "set": "trophies", "goal": 3},
 	{"id": "trophy_hunter", "name": "Trophy Hunter", "desc": "Collect 6 trophies", "set": "trophies", "goal": 6},
 	{"id": "trophy_master", "name": "Trophy Master", "desc": "Collect every trophy", "set": "trophies"},
@@ -49,6 +49,20 @@ const TROPHIES := [
 	{"id": "friends", "name": "Friends Win", "desc": "Beat him with 2-3 real players"},
 	{"id": "untouchable", "name": "Untouchable", "desc": "Beat him with nobody KO'd"},
 ]
+## The Lunch Lady's trophies (shown after the fighter trophies).
+const LUNCH_TROPHIES := [
+	{"id": "ll_solo", "name": "Lunch Lady: Solo", "desc": "Beat the Lunch Lady with 2 CPU teammates", "boss": "lunch_lady"},
+	{"id": "ll_friends", "name": "Lunch Lady: Friends", "desc": "Beat her with 2-3 real players", "boss": "lunch_lady"},
+	{"id": "ll_untouchable", "name": "Lunch Lady: Clean Plate", "desc": "Beat her with nobody KO'd", "boss": "lunch_lady"},
+]
+## The Gym Teacher's trophies.
+const GYM_TROPHIES := [
+	{"id": "gt_solo", "name": "Gym Teacher: Solo", "desc": "Beat the Gym Teacher with 2 CPU teammates", "boss": "gym_teacher"},
+	{"id": "gt_friends", "name": "Gym Teacher: Friends", "desc": "Beat him with 2-3 real players", "boss": "gym_teacher"},
+	{"id": "gt_untouchable", "name": "Gym Teacher: No Laps", "desc": "Beat him with nobody KO'd", "boss": "gym_teacher"},
+]
+## Trophy id prefix for each boss's own trophies (the Principal's have none).
+const TROPHY_PREFIX := {"principal": "", "lunch_lady": "ll_", "gym_teacher": "gt_"}
 ## The list is split into leagues of 5, easiest first.
 const LEAGUES := [
 	{"name": "BRONZE LEAGUE", "color": Color("cd8a4e")},
@@ -136,8 +150,26 @@ static func trophy_list() -> Array:
 	var out: Array = TROPHIES.duplicate()
 	for id in Characters.ALL:
 		var n: String = Characters.ALL[id].name
-		out.append({"id": "with_" + id, "name": "%s Trophy" % n, "desc": "Beat him as %s" % n, "fighter": id})
+		out.append({"id": "with_" + id, "name": "%s Trophy" % n, "desc": "Beat the Principal as %s" % n, "fighter": id})
+	out.append_array(LUNCH_TROPHIES)
+	out.append_array(GYM_TROPHIES)
 	return out
+
+
+## Bosses unlock in order: the Principal is always open; each next one opens
+## once you've beaten the one before (any trophy from it counts too).
+static func boss_unlocked(data: Dictionary, id: String) -> bool:
+	var order: Array = Characters.BOSSES.keys()
+	var i := order.find(id)
+	if i <= 0:
+		return i == 0
+	var before: String = order[i - 1]
+	if data.sets.get("bosses", []).has(before):
+		return true
+	for t in data.sets.get("trophies", []):
+		if trophy_by_id(t).get("boss", "principal") == before:
+			return true
+	return false
 
 
 static func trophy_by_id(id: String) -> Dictionary:
