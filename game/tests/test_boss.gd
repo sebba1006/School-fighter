@@ -283,8 +283,14 @@ func test_mystery_meat_stops_your_next_attack() -> void:
 	var r := end_turn(b, 2)
 	check(r.events.any(func(e): return e.type == "boss_attack" and e.attack == "mystery_meat"), "mystery meat")
 	eq(hp0 - b.fighters[0].hp, Battle.MYSTERY_MEAT_DAMAGE, "damage")
-	check(b.fighters[0].dizzy_now, "dizzy on their turn")
+	check(not b.fighters[0].dizzy_now, "not dizzy any more")
 	check(b.fighters[0].no_attack_now, "can't attack on their turn")
+	# her next turn: never Mystery Meat again right away
+	end_turn(b, 0)
+	end_turn(b, 1)
+	b.forced_rolls.assign([100, 100, 0])  # no cooks; (mystery meat blocked) no gravy; tray at player 0
+	r = end_turn(b, 2)
+	check(not r.events.any(func(e): return e.type == "boss_attack" and e.attack == "mystery_meat"), "not twice in a row")
 	done()
 
 
