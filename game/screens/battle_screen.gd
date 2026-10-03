@@ -60,6 +60,7 @@ const STATUS_TEXT := {
 	"rage": ["RAGE!", UiTheme.HIT],
 	"block": ["BLOCK", UiTheme.CHALK],
 	"sugar_rush": ["SUGAR RUSH!", UiTheme.GOLD],
+	"hall_pass": ["HALL PASS! 2 TURNS SAFE", UiTheme.GOLD],
 }
 
 var config: Dictionary
@@ -978,7 +979,7 @@ func _play(events: Array) -> void:
 				_popup_at(_tile_center(e.at) + Vector2(0, -20), "MYSTERY BOX!", UiTheme.GOLD)
 				await get_tree().create_timer(0.35).timeout
 			"item":
-				if Battle.BOX_ITEMS.has(e.item) and box_node != null:
+				if (e.get("from_box", false) or Battle.BOX_ITEMS.has(e.item)) and box_node != null:
 					box_node.queue_free()
 					box_node = null
 				Audio.play("pickup")
@@ -1020,6 +1021,11 @@ func _play(events: Array) -> void:
 				await fighter_views[e.fighter].knock_out().finished
 				if battle.fighters[e.fighter].is_minion:
 					fighter_views[e.fighter].visible = false
+			"zone_safe":
+				Audio.play("block")
+				_popup(fighter_views[e.fighter], "HALL PASS!", UiTheme.GOLD, -36)
+				fighter_views[e.fighter].flash(UiTheme.GOLD)
+				await get_tree().create_timer(0.3).timeout
 			"status" when e.status == "guard":
 				Audio.play("block")
 				_popup(fighter_views[e.fighter], "%s GUARD -%d%%" % [e.kind.to_upper(), e.pct], UiTheme.CHALK, -36)
@@ -1072,8 +1078,8 @@ func _use_item_anim(e: Dictionary, events: Array, i: int) -> void:
 	if atk.type == "spill":
 		await v.lunge(e.dir).finished
 		return
-	if atk.type == "self_guard":
-		return  # the "guard" status event shows it
+	if atk.type == "self_guard" or atk.type == "self_pass":
+		return  # the status event shows it
 	var from: Vector2 = v.position + Vector2(0, -16)
 	var to: Vector2 = from + Vector2(e.dir) * TILE * atk["range"]
 	for j in range(i + 1, events.size()):
@@ -1890,6 +1896,8 @@ func _refresh() -> void:
 				item_info.text = "PUDDLE: SLIP + DIZZY"
 			"self_guard":
 				item_info.text = "-20-45% DMG"
+			"self_pass":
+				item_info.text = "NO DETENTION DMG 2 TURNS"
 			_:
 				item_info.text = FighterInfo.attack_info(it)
 		item_button.disabled = busy or not in_turn or battle.attack_blocked_reason(bf.id, Battle.ITEM_SLOT) != ""
@@ -1986,6 +1994,8 @@ func _refresh_panels() -> void:
 			st.append("CRASH")
 		if not f.guard.is_empty():
 			st.append("%s GUARD" % ("MELEE" if f.guard.kind == "melee" else "RANGED"))
+		if f.zone_safe > 0:
+			st.append("PASS")
 		if f.item != "":
 			st.append(Battle.ITEMS[f.item].name.to_upper())
 		if f.dizzy_next or f.dizzy_now:

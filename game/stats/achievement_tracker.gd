@@ -64,7 +64,7 @@ func feed(e: Dictionary) -> void:
 			if _mine(e.get("by", -1)) and _foes(e.by, e.fighter):
 				_unlock("slippery")
 		"item":
-			if Battle.BOX_ITEMS.has(e.item) and _mine(e.fighter):
+			if (e.get("from_box", false) or Battle.BOX_ITEMS.has(e.item)) and _mine(e.fighter):
 				_count("boxes")
 		"obstacle_broken":
 			if e.obstacle == "L" and _mine(_attacker):

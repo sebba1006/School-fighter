@@ -33,6 +33,8 @@ const ITEMS := {
 	"water": {"id": "water", "name": "Water Bottle", "type": "spill"},
 	"melee_guard": {"id": "melee_guard", "name": "Melee Guard", "type": "self_guard", "guard": "melee"},
 	"ranged_guard": {"id": "ranged_guard", "name": "Ranged Guard", "type": "self_guard", "guard": "ranged"},
+	# only drops when the map shrinks: the detention zone can't hurt you for your next 2 turns
+	"hall_pass": {"id": "hall_pass", "name": "Hall Pass", "type": "self_pass", "turns": 2},
 }
 ## With items on, a mystery box appears every few turns (one at a time) on a
 ## free tile near the middle. Walking onto it gives a Melee Guard or a Ranged
@@ -78,7 +80,7 @@ const AROUND: Array[Vector2i] = [
 	Vector2i(-1, -1), Vector2i(0, -1), Vector2i(1, -1), Vector2i(-1, 0),
 	Vector2i(1, 0), Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1),
 ]
-const SELF_TYPES := ["self_rage", "self_block", "self_sugar", "self_guard"]
+const SELF_TYPES := ["self_rage", "self_block", "self_sugar", "self_guard", "self_pass"]
 ## Attacks that can't reach someone hiding in a sandbox.
 const RANGED_TYPES := ["projectile", "line", "lob"]
 
@@ -260,8 +262,9 @@ func _move(f: Fighter, dir) -> Dictionary:
 	if to == box:
 		# Picked up: the steps so far can't be undone (no walking back off it).
 		box = NO_BOX
-		f.item = BOX_ITEMS[_roll(0, BOX_ITEMS.size() - 1)]
-		events.append({"type": "item", "fighter": f.id, "item": f.item, "at": to})
+		var pool := _item_pool(BOX_ITEMS)
+		f.item = pool[_roll(0, pool.size() - 1)]
+		events.append({"type": "item", "fighter": f.id, "item": f.item, "at": to, "from_box": true})
 		move_budget -= path.size()
 		path.clear()
 		turn_start_pos = f.pos
@@ -453,6 +456,9 @@ func _resolve(ctx: Dictionary, atk: Dictionary, dist: int) -> void:
 			var kind: String = atk.guard
 			f.guard = {"kind": kind, "pct": _roll(GUARD_PCT[0], GUARD_PCT[1]), "turns": _roll(GUARD_TURNS[0], GUARD_TURNS[1])}
 			ctx.events.append({"type": "status", "fighter": f.id, "status": "guard", "kind": kind, "pct": f.guard.pct, "turns": f.guard.turns})
+		"self_pass":
+			f.zone_safe = atk.turns
+			ctx.events.append({"type": "status", "fighter": f.id, "status": "hall_pass", "turns": f.zone_safe})
 		"self_sugar":
 			f.sugar_active = true
 			f.sugar_multiplier = atk.multiplier
@@ -596,7 +602,8 @@ func _damage_obstacle(ctx: Dictionary, tile: Vector2i, amount: int) -> void:
 		ctx.events.append({"type": "obstacle_broken", "at": tile, "obstacle": o.type})
 		var f: Fighter = ctx.attacker
 		if items_on and o.type == "L" and f.alive() and _roll(1, 100) <= ITEM_CHANCE:
-			f.item = ITEM_IDS[_roll(0, ITEM_IDS.size() - 1)]
+			var pool := _item_pool(ITEM_IDS)
+			f.item = pool[_roll(0, pool.size() - 1)]
 			ctx.events.append({"type": "item", "fighter": f.id, "item": f.item, "at": tile})
 
 
@@ -623,7 +630,14 @@ func _begin_turn() -> Array:
 		if box != NO_BOX and in_zone(box):
 			box = NO_BOX
 			events.append({"type": "box_gone"})
-	if in_zone(f.pos) and f.alive() and not f.is_boss:
+	var safe := f.zone_safe > 0  # Hall Pass
+	if safe:
+		f.zone_safe -= 1
+		if in_zone(f.pos):
+			events.append({"type": "zone_safe", "fighter": f.id})
+		if f.zone_safe == 0:
+			events.append({"type": "status_end", "fighter": f.id, "status": "hall_pass"})
+	if in_zone(f.pos) and f.alive() and not f.is_boss and not safe:
 		var lost := mini(ZONE_DAMAGE, f.hp)
 		f.hp -= lost
 		events.append({"type": "damage", "fighter": f.id, "amount": lost, "absorbed": 0, "guarded": 0, "hp": f.hp, "zone": true})
@@ -682,6 +696,11 @@ func in_zone(t: Vector2i, extra := 0) -> bool:
 ## (Classroom: 2 rings, Hallway: 1).
 func max_zone_rings() -> int:
 	return maxi(1, (mini(width, height) - 1) / 2 - 1)
+
+
+## Items that can drop: `base`, plus the Hall Pass when the map shrinks.
+func _item_pool(base: Array) -> Array:
+	return base + ["hall_pass"] if shrink_on else base
 
 
 ## Drops the mystery box on a free tile, preferring the middle of the map.
@@ -1096,7 +1115,7 @@ func state_hash() -> int:
 	var parts := [phase, round_number, turn_index, move_budget, path.size(), _rng.state, _last_team, _team_last, box, _turn_count, zone_rings, _apples_dropped]
 	for f in fighters:
 		parts.append_array([f.hp, f.pos.x, f.pos.y, f.meter, f.shield.get("kind", ""), f.shield.get("amount", 0),
-			f.dizzy_next, f.rage_turns, f.sugar_active, f.no_attack_next, f.no_attack_now, f.forfeited, f.item, f.guard, f.own_turns, f.ready_at, f.angry])
+			f.dizzy_next, f.rage_turns, f.sugar_active, f.no_attack_next, f.no_attack_now, f.forfeited, f.item, f.guard, f.own_turns, f.ready_at, f.angry, f.zone_safe])
 	var tiles := obstacles.keys()
 	tiles.sort()
 	for t in tiles:

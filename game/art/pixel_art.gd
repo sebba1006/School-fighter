@@ -459,6 +459,15 @@ static func item_icon(id: String) -> Texture2D:
 				p.rect(2, 2, 13, 7, "steel")
 				p.ell(8, 7, 3.5, 3.5, "teeBlue")
 				p.ell(8, 7, 1.5, 1.5, "teeWhite")
+			"hall_pass":  # a yellow card on a red lanyard, with a little stamp
+				p.rect(6, 0, 6, 3, "red")
+				p.rect(9, 0, 9, 3, "red")
+				p.rect(6, 0, 9, 0, "red")
+				p.rect(3, 4, 12, 14, "pencil")
+				p.rect(4, 5, 11, 5, "teeWhite")
+				p.rect(4, 7, 9, 7, "pantsBlack")
+				p.rect(4, 9, 8, 9, "pantsBlack")
+				p.ell(10, 12, 1.5, 1.5, "red")
 			"water":
 				p.rect(5, 4, 10, 14, "glass")
 				p.rect(6, 2, 9, 3, "glass")

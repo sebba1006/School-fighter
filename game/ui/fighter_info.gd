@@ -15,6 +15,8 @@ static func attack_info(atk: Dictionary) -> String:
 			return "BLOCKS NEXT HIT" + (", %d-TURN WAIT" % atk.cooldown if atk.has("cooldown") else "")
 		"self_sugar":
 			return "X%s DMG THIS TURN" % str(atk.multiplier)
+		"self_pass":
+			return "NO DETENTION DMG %d TURNS" % atk.turns
 		"shockwave":
 			parts.append("%d / %d DMG" % [atk.inner_damage, atk.outer_damage])
 		"dash":

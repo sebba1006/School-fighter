@@ -33,6 +33,8 @@ var own_turns := 0
 var ready_at := {}
 ## Melee / Ranged Guard in use: {"kind": "melee" | "ranged", "pct": 20-45, "turns": n} or {}.
 var guard := {}
+## Hall Pass: own turns left with no detention zone damage.
+var zone_safe := 0
 ## Item held ("" = none; see Battle.ITEMS). Lost at the end of the round.
 var item := ""
 ## For the victory screen: damage dealt and KOs over the whole match.
@@ -73,6 +75,7 @@ func reset_for_round() -> void:
 	no_attack_now = false
 	item = ""
 	guard = {}
+	zone_safe = 0
 	own_turns = 0
 	ready_at = {}
 	angry = false

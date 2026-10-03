@@ -105,6 +105,10 @@ static func plan(b: Battle, noise := 0.0) -> Dictionary:
 	if Battle.BOX_ITEMS.has(f.item) and (best.score < 14.0 or hurt) and best.score < KO_BONUS and _nearest(home, enemies) <= 4 \
 			and b.attack_blocked_reason(f.id, Battle.ITEM_SLOT) == "":
 		best = {"score": 14.0, "pos": home, "intents": [{"type": "attack", "slot": Battle.ITEM_SLOT}]}
+	# Hall Pass: use it when standing where the detention zone will be next turn.
+	if f.item == "hall_pass" and f.zone_safe == 0 and best.score < KO_BONUS and b.in_zone(home, 1) \
+			and b.attack_blocked_reason(f.id, Battle.ITEM_SLOT) == "":
+		best = {"score": 16.0, "pos": home, "intents": [{"type": "attack", "slot": Battle.ITEM_SLOT}]}
 	# Mystery box in reach and nothing great to do: go get it.
 	if b.box != Battle.NO_BOX and best.score < 12.0 and f.item == "" and not _path(b, b.box).is_empty():
 		return {"path": _path(b, b.box), "intents": [{"type": "end_turn"}]}
