@@ -10,9 +10,10 @@ const MAX_LEVEL := 100
 const XP_BASE := 40
 const XP_WIN := 40
 const XP_PER_DAMAGE := 0.25
+const XP_DAMAGE_MAX := 40  # damage XP stops here (boss fights deal a LOT of damage)
 const XP_PER_KO := 15
 const XP_BOSS_WIN := 40
-const XP_MAX_PER_MATCH := 250
+const XP_MAX_PER_MATCH := 160
 
 ## Skins: 0 is the normal look; the rest unlock at these levels (the last one is gold).
 const SKIN_LEVELS := [1, 25, 50, 75, 100]
@@ -33,9 +34,10 @@ const TAGS := [
 static var enabled := true
 
 
-## XP needed to go from `level` to the next one (62 at level 1, 258 at 99).
+## XP needed to go from `level` to the next one (82 at level 1, 278 at 99):
+## about 140 matches to level 100.
 static func xp_to_next(level: int) -> int:
-	return 60 + 2 * level
+	return 80 + 2 * level
 
 
 ## Total XP needed to reach `level` from level 1.
@@ -59,7 +61,7 @@ static func level_info(xp: int) -> Dictionary:
 
 
 static func xp_for_match(won: bool, damage: int, kos: int, boss_win: bool) -> int:
-	var xp := XP_BASE + int(damage * XP_PER_DAMAGE) + kos * XP_PER_KO
+	var xp := XP_BASE + mini(int(damage * XP_PER_DAMAGE), XP_DAMAGE_MAX) + kos * XP_PER_KO
 	if won:
 		xp += XP_WIN
 	if boss_win:
