@@ -1,6 +1,7 @@
 extends RefCounted
-## Fighter levels, saved on this device (user://progress.cfg): every match gives
-## XP to the fighters you played, up to level 100 (about 140 matches), and
+## Fighter levels, saved on this device (user://progress.cfg): VS CPU, boss and
+## online matches give XP to the fighter you played (local battles don't, you
+## could just let the other side win), up to level 100 (about 140 matches), and
 ## levels unlock skins and name tag colors for that fighter.
 
 const PATH := "user://progress.cfg"

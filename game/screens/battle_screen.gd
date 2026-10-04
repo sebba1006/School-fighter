@@ -1751,6 +1751,9 @@ func _tag_text(id: int) -> String:
 func _award_xp(winner_team: int) -> void:
 	if not _xp_lines.is_empty():
 		return
+	if not online() and not vs_cpu():
+		_xp_lines.append("LOCAL BATTLES DON'T GIVE XP - PLAY VS CPU OR ONLINE TO LEVEL UP")
+		return
 	for id in _my_fighters():
 		var f = battle.fighters[id]
 		var won: bool = f.team == winner_team
@@ -1767,6 +1770,8 @@ func _award_xp(winner_team: int) -> void:
 					_xp_lines.append("NEW %s" % u)
 		for ach in Achievements.unlock_mastery(f.char_id, r.to):
 			_toasts.append(ach)
+	if not _toasts.is_empty() and not _toast_busy:
+		_show_toasts()  # mastery achievements (nothing else would start the toasts now)
 
 
 ## "MVP (MOST DAMAGE): SEBBA - 87" and "MOST KOS: MIKE - 3" for the match.
