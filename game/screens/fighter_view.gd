@@ -4,6 +4,8 @@ extends Node2D
 
 const PixelArt = preload("res://art/pixel_art.gd")
 const Characters = preload("res://rules/characters.gd")
+const UiTheme = preload("res://ui/ui_theme.gd")
+const Progress = preload("res://stats/progress.gd")
 const TILE := 32
 
 var char_id: String
@@ -29,12 +31,14 @@ var hp_frac := 1.0:
 		queue_redraw()
 
 var _sprite := Sprite2D.new()
+var _tag: Label = null  # name tag over the head (players only)
+var _tag_id := "white"
 var _frames: Array[Texture2D] = []
 var _t := 0.0
 var _frame := 0
 
 
-func setup(p_char_id: String, p_team_color: Color) -> void:
+func setup(p_char_id: String, p_team_color: Color, skin := 0) -> void:
 	char_id = p_char_id
 	team_color = p_team_color
 	big = Characters.BOSSES.has(char_id)
@@ -42,11 +46,27 @@ func setup(p_char_id: String, p_team_color: Color) -> void:
 	if big:
 		_frames = [PixelArt.boss_sprite(char_id, false), PixelArt.boss_sprite(char_id, true)]
 	else:
-		_frames = [PixelArt.character(char_id, false), PixelArt.character(char_id, true)]
+		_frames = [PixelArt.character(char_id, false, skin), PixelArt.character(char_id, true, skin)]
 	_sprite.texture = _frames[0]
 	_sprite.centered = false
 	_sprite.position = Vector2(-32, -64) if big else Vector2(0, -16)
 	add_child(_sprite)
+
+
+## A colored name tag over the fighter's head ("YOU", "P1" or an online nickname).
+func set_tag(text: String, tag_id: String) -> void:
+	_tag_id = tag_id
+	if _tag == null:
+		_tag = UiTheme.label("", 8, Color.WHITE)
+		_tag.add_theme_constant_override("outline_size", 3)
+		_tag.add_theme_color_override("font_outline_color", Color("17121c"))
+		_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_tag.size = Vector2(96, 10)
+		_tag.position = Vector2(-32, -34)
+		_tag.z_index = 50
+		add_child(_tag)
+	_tag.text = text.to_upper()
+	_tag.add_theme_color_override("font_color", Progress.tag_by_id(tag_id).color)
 
 
 ## Back to standing normally (a new round after a knock-out).
@@ -120,6 +140,10 @@ func knock_out() -> Tween:
 
 
 func _process(delta: float) -> void:
+	if _tag != null:
+		_tag.visible = not knocked_out
+		if _tag_id == "rainbow":
+			_tag.add_theme_color_override("font_color", Color.from_hsv(fmod(Time.get_ticks_msec() / 1500.0, 1.0), 0.6, 1.0))
 	if knocked_out:
 		return
 	_t += delta

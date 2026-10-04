@@ -40,7 +40,19 @@ const LIST := [
 	{"id": "trophy_collector", "name": "Trophy Collector", "desc": "Collect 3 trophies", "set": "trophies", "goal": 3},
 	{"id": "trophy_hunter", "name": "Trophy Hunter", "desc": "Collect 6 trophies", "set": "trophies", "goal": 6},
 	{"id": "trophy_master", "name": "Trophy Master", "desc": "Collect every trophy", "set": "trophies"},
+	# legend league: the later bosses (7 achievements)
+	{"id": "slip_n_slide", "name": "Slip 'n' Slide", "desc": "Slip in the Lunch Lady's gravy"},
+	{"id": "lunch_is_served", "name": "Lunch Is Served", "desc": "Beat the Lunch Lady"},
+	{"id": "apple_a_day", "name": "Apple A Day", "desc": "Eat 10 health apples", "counter": "apples", "goal": 10},
+	{"id": "teachers_pet", "name": "Teacher's Pet", "desc": "KO 10 boss helpers", "counter": "helper_kos", "goal": 10},
+	{"id": "gym_class_hero", "name": "Gym Class Hero", "desc": "Beat the Gym Teacher"},
+	{"id": "to_infinity", "name": "To Infinity", "desc": "Beat the final boss in space"},
+	{"id": "schools_out", "name": "School's Out", "desc": "Beat all 4 bosses", "set": "bosses", "goal": 4},
 ]
+
+## FIGHTER MASTERY: 4 per fighter, for reaching these levels with them.
+const MASTERY_LEVELS := [25, 50, 75, 100]
+const MASTERY := {"name": "FIGHTER MASTERY", "color": Color("eef2e6")}
 
 ## Trophies for beating the Principal in different ways (plus one per fighter,
 ## see trophy_list()).
@@ -76,6 +88,7 @@ const LEAGUES := [
 	{"name": "GOLD LEAGUE", "color": Color("f2c14e")},
 	{"name": "DIAMOND LEAGUE", "color": Color("7fe3f2")},
 	{"name": "BOSS LEAGUE", "color": Color("e8575e")},
+	{"name": "LEGEND LEAGUE", "color": Color("b08cf0"), "size": 7},
 ]
 const PER_LEAGUE := 5
 const COMBO_DAMAGE := 30
@@ -128,7 +141,56 @@ static func by_id(id: String) -> Dictionary:
 	for a in LIST:
 		if a.id == id:
 			return a
+	for a in mastery_list():
+		if a.id == id:
+			return a
 	return {}
+
+
+## How many achievements a league holds (5, the legend league 7).
+static func league_size(league: int) -> int:
+	return LEAGUES[league].get("size", PER_LEAGUE)
+
+
+## Index in LIST of a league's first achievement.
+static func league_start(league: int) -> int:
+	var start := 0
+	for i in league:
+		start += league_size(i)
+	return start
+
+
+## The 4 FIGHTER MASTERY achievements of every fighter (Lv 25, 50, 75, 100).
+static func mastery_list() -> Array:
+	var out := []
+	for c in Characters.ALL:
+		var n: String = Characters.ALL[c].get("short", Characters.ALL[c].name)
+		for lv in MASTERY_LEVELS:
+			out.append({"id": "lv%d_%s" % [lv, c], "name": "%s Master" % n if lv == 100 else "%s Lv %d" % [n, lv],
+				"desc": "Get %s to level %d" % [n, lv], "char": c, "level": lv})
+	return out
+
+
+## The league box an achievement's popup uses (MASTERY for the level ones).
+static func toast_league(id: String) -> Dictionary:
+	if id.begins_with("lv"):
+		return MASTERY
+	return LEAGUES[league_of(id)]
+
+
+## A fighter reached `level`: unlocks (and saves) its mastery achievements up
+## to it, and returns the newly unlocked ids.
+static func unlock_mastery(char_id: String, level: int) -> Array:
+	var data := load_data()
+	var out := []
+	for lv in MASTERY_LEVELS:
+		var id := "lv%d_%s" % [lv, char_id]
+		if level >= lv and not data.unlocked.has(id):
+			data.unlocked[id] = true
+			out.append(id)
+	if not out.is_empty():
+		save_data(data)
+	return out
 
 
 ## How far along an achievement is: [done, goal] (goal 1 for one-off ones).
@@ -145,9 +207,14 @@ static func progress(data: Dictionary, a: Dictionary) -> Array:
 
 ## Which league (0 = bronze ... 3 = diamond) an achievement is in.
 static func league_of(id: String) -> int:
-	for i in LIST.size():
-		if LIST[i].id == id:
-			return i / PER_LEAGUE
+	var i := 0
+	for a in LIST:
+		if a.id == id:
+			break
+		i += 1
+	for league in LEAGUES.size():
+		if i < league_start(league) + league_size(league):
+			return league
 	return 0
 
 

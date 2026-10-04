@@ -16,8 +16,10 @@ const HowtoScreen = preload("res://screens/howto_screen.gd")
 const StatsScreen = preload("res://screens/stats_screen.gd")
 const AchievementsScreen = preload("res://screens/achievements_screen.gd")
 const TrophiesScreen = preload("res://screens/trophies_screen.gd")
+const FightersScreen = preload("res://screens/fighters_screen.gd")
 const Achievements = preload("res://stats/achievements.gd")
 const Stats = preload("res://stats/stats.gd")
+const Progress = preload("res://stats/progress.gd")
 
 const KEYS := {
 	"move_up": [KEY_W, KEY_UP],
@@ -59,6 +61,7 @@ func _ready() -> void:
 	if not persist_online:
 		Stats.enabled = false  # test runs don't touch the real stats
 		Achievements.enabled = false
+		Progress.enabled = false
 	if Audio.instance == null:
 		add_child(Audio.new())
 	client = Client.new()
@@ -123,6 +126,10 @@ func show_menu() -> void:
 		var a := AchievementsScreen.new()
 		a.back_requested.connect(show_menu)
 		_swap(a))
+	m.fighters_pressed.connect(func():
+		var fs := FightersScreen.new()
+		fs.back_requested.connect(show_menu)
+		_swap(fs))
 	m.trophies_pressed.connect(func():
 		var t := TrophiesScreen.new()
 		t.back_requested.connect(show_menu)

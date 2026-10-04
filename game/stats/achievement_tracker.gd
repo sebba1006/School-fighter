@@ -52,6 +52,8 @@ func feed(e: Dictionary) -> void:
 				if _turn_damage[_attacker] >= A.COMBO_DAMAGE:
 					_unlock("combo")
 		"ko":
+			if _mine(_attacker) and _enemy(e.fighter) and battle.fighters[e.fighter].is_minion and not e.get("fled", false):
+				_count("helper_kos")
 			if _mine(_attacker) and _enemy(e.fighter):
 				if _attack_kind == "super":
 					_unlock("coolness")
@@ -63,6 +65,11 @@ func feed(e: Dictionary) -> void:
 		"slip":
 			if _mine(e.get("by", -1)) and _foes(e.by, e.fighter):
 				_unlock("slippery")
+			if _mine(e.fighter) and battle.fighters[e.by].is_boss:
+				_unlock("slip_n_slide")
+		"heal":
+			if _mine(e.fighter) and e.has("at"):  # walked onto a health apple
+				_count("apples")
 		"item":
 			if (e.get("from_box", false) or Battle.BOX_ITEMS.has(e.item)) and _mine(e.fighter):
 				_count("boxes")
@@ -128,6 +135,13 @@ func _boss_won(winner) -> void:
 		if not p.has("cpu"):
 			humans += 1
 	_add_to_set("bosses", battle.boss_id)
+	match battle.boss_id:
+		"lunch_lady":
+			_unlock("lunch_is_served")
+		"gym_teacher":
+			_unlock("gym_class_hero")
+		"final_principal":
+			_unlock("to_infinity")
 	var pre: String = A.TROPHY_PREFIX.get(battle.boss_id, "")
 	if humans == 1:
 		_trophy(pre + "solo")

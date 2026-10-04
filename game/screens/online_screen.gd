@@ -14,6 +14,7 @@ const FighterInfo = preload("res://ui/fighter_info.gd")
 const FighterPicker = preload("res://ui/fighter_picker.gd")
 const Battle = preload("res://rules/battle.gd")
 const Achievements = preload("res://stats/achievements.gd")
+const Progress = preload("res://stats/progress.gd")
 
 const TIMERS := [15, 30, 45, 60, 0]
 const ERRORS := {
@@ -270,7 +271,7 @@ func _show_lobby() -> void:
 		if m.char != "" and m.pid != lobby.you_pid:
 			taken.append(m.char)
 	picker.show_state(me.get("char", ""), taken)
-	picker.picked.connect(func(id): net.send({"t": "pick", "char": id}))
+	picker.picked.connect(func(id): net.send({"t": "pick", "char": id, "skin": Progress.chosen_skin(id), "tag": Progress.chosen_tag(id)}))
 	_lobby_view.add_child(picker)
 
 	var settings: Dictionary = lobby.settings

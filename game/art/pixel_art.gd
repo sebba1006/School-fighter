@@ -110,6 +110,8 @@ static var _cache := {}
 # ---------------------------------------------------------------- painter
 
 class Painter:
+	## Skins: materials painted as other materials (e.g. "teeGray" -> "red").
+	static var remap := {}
 	var w: int
 	var h: int
 	var g := []
@@ -125,7 +127,7 @@ class Painter:
 
 	func px(x: int, y: int, m: String) -> void:
 		if x >= 0 and x < w and y >= 0 and y < h:
-			g[y][x] = m
+			g[y][x] = remap.get(m, m)
 
 	func rect(x0: int, y0: int, x1: int, y1: int, m: String) -> void:
 		for y in range(y0, y1 + 1):
@@ -176,11 +178,36 @@ class Painter:
 
 # ---------------------------------------------------------------- characters
 
-## `bob` is the second idle frame (upper body 1px lower).
-static func character(char_id: String, bob := false) -> Texture2D:
-	var key := "char_%s_%s" % [char_id, bob]
+## Skins (unlocked by levelling a fighter up): 0 = the normal look, then three
+## new outfits and a golden one. Each is a list of material swaps.
+const GOLD := {"teeGray": "guard", "teeBlack": "guard", "teeWhite": "guard", "teeBlue": "guard",
+	"hoodie": "guard", "pocket": "pencil", "red": "pencil", "pantsBlack": "foodYellow", "pantsGray": "foodYellow",
+	"pantsLightGray": "foodYellow", "shoeBlack": "guard", "shoeRed": "guard", "shoeBrown": "guard"}
+const SKINS := {
+	"sebba": [{}, {"teeGray": "teeBlue", "pantsBlack": "pantsGray"}, {"teeGray": "red", "shoeBlack": "shoeRed"},
+		{"teeGray": "leaf", "pantsBlack": "pantsLightGray", "shoeBlack": "shoeBrown"}, GOLD],
+	"william": [{}, {"teeBlack": "teeWhite", "red": "teeBlue", "shoeRed": "shoeBlack"},
+		{"teeBlack": "suit", "red": "slide", "shoeRed": "shoeBrown"}, {"teeBlack": "leaf", "red": "teeBlack"}, GOLD],
+	"snorre": [{}, {"teeWhite": "teeBlack", "pantsGray": "pantsBlack"}, {"teeWhite": "dressPink", "shoeBrown": "shoeRed"},
+		{"teeWhite": "teeBlue", "pantsGray": "pantsLightGray", "shoeBrown": "shoeBlack"}, GOLD],
+	"leon": [{}, {"teeBlue": "red", "pantsLightGray": "pantsBlack"}, {"teeBlue": "leaf", "shoeBlack": "shoeBrown"},
+		{"teeBlue": "slide", "pantsLightGray": "pantsGray", "shoeBlack": "shoeRed"}, GOLD],
+	"mike": [{}, {"hoodie": "red", "pocket": "bikeRed"}, {"hoodie": "teeBlue", "pocket": "ballBlue", "pantsBlack": "pantsGray"},
+		{"hoodie": "leaf", "pocket": "foodGreen", "shoeBlack": "shoeRed"}, GOLD],
+	"dogs": [{}, {"beagleTan": "hairDark", "beagleEar": "beagleBlack"}, {"beagleTan": "teeWhite", "beagleEar": "beagleBlack"},
+		{"beagleTan": "red", "beagleEar": "bikeRed"},
+		{"beagleTan": "guard", "beagleBlack": "foodYellow", "beagleEar": "pencil", "oldMuzzle": "slide"}],
+}
+
+
+## `bob` is the second idle frame (upper body 1px lower); `skin` is 0-4 (see SKINS).
+static func character(char_id: String, bob := false, skin := 0) -> Texture2D:
+	var key := "char_%s_%s_%d" % [char_id, bob, skin]
 	if not _cache.has(key):
+		var swaps: Array = SKINS.get(char_id, [{}])
+		Painter.remap = swaps[clampi(skin, 0, swaps.size() - 1)]
 		var img := _dogs_image(bob) if char_id == "dogs" else _character_image(LOOKS[char_id], bob)
+		Painter.remap = {}
 		_cache[key] = ImageTexture.create_from_image(img)
 	return _cache[key]
 
