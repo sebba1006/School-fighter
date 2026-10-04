@@ -194,8 +194,8 @@ const SKINS := {
 		{"teeBlue": "slide", "pantsLightGray": "pantsGray", "shoeBlack": "shoeRed"}, GOLD],
 	"mike": [{}, {"hoodie": "red", "pocket": "bikeRed"}, {"hoodie": "teeBlue", "pocket": "ballBlue", "pantsBlack": "pantsGray"},
 		{"hoodie": "leaf", "pocket": "foodGreen", "shoeBlack": "shoeRed"}, GOLD],
-	"dogs": [{}, {"beagleTan": "hairDark", "beagleEar": "beagleBlack"}, {"beagleTan": "ballOrange", "beagleEar": "hairChestnut"},
-		{"beagleTan": "pantsLightGray", "beagleBlack": "pantsGray", "beagleEar": "steelDark"},
+	"dogs": [{}, {"beagleTan": "hairDark", "beagleEar": "beagleBlack"}, {"beagleTan": "teeWhite", "beagleEar": "beagleBlack"},
+		{"beagleTan": "red", "beagleEar": "bikeRed"},
 		{"beagleTan": "guard", "beagleBlack": "foodYellow", "beagleEar": "pencil", "oldMuzzle": "slide"}],
 }
 
