@@ -18,7 +18,8 @@ func test_match_xp() -> void:
 	var lose := Progress.xp_for_match(false, 0, 0, false)
 	var win := Progress.xp_for_match(true, 200, 2, false)
 	eq(lose, Progress.XP_BASE, "just playing gives XP")
-	eq(win, Progress.XP_BASE + Progress.XP_WIN + 50 + 2 * Progress.XP_PER_KO, "winning, damage and KOs add up")
+	eq(win, Progress.XP_BASE + Progress.XP_WIN + 40 + 2 * Progress.XP_PER_KO, "winning, damage (max 40) and KOs add up")
+	eq(Progress.xp_for_match(false, 800, 0, false), Progress.XP_BASE + Progress.XP_DAMAGE_MAX, "huge boss-fight damage is capped")
 	check(Progress.xp_for_match(true, 5000, 9, true) <= Progress.XP_MAX_PER_MATCH, "capped")
 	done()
 
