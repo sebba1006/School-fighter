@@ -14,6 +14,7 @@ const Audio = preload("res://audio/audio.gd")
 var fighter := "sebba"
 var _picker: FighterPicker
 var _detail: VBoxContainer
+var _rainbow: Array[Control] = []  # the RAINBOW button (and your name, if it's picked): colors cycle
 
 
 func _ready() -> void:
@@ -56,6 +57,7 @@ func _fill() -> void:
 	_picker.show_state(fighter, [])
 	for c in _detail.get_children():
 		c.queue_free()
+	_rainbow.clear()
 	var info := Progress.level_info(Progress.xp(fighter))
 	var skin := Progress.chosen_skin(fighter)
 	var tag := Progress.chosen_tag(fighter)
@@ -66,6 +68,8 @@ func _fill() -> void:
 	_detail.add_child(top)
 	var name := UiTheme.label("%s  LV %d" % [Characters.ALL[fighter].name.to_upper(), info.level], 16, Progress.tag_by_id(tag).color, true)
 	top.add_child(name)
+	if tag == "rainbow":
+		_rainbow.append(name)
 	var bar := XpBar.new()
 	bar.value = 1.0 if info.need == 0 else float(info.into) / info.need
 	bar.custom_minimum_size = Vector2(200, 10)
@@ -123,6 +127,17 @@ func _fill() -> void:
 			Progress.choose_tag(fighter, t.id)
 			_fill())
 		trow.add_child(b)
+		if t.id == "rainbow" and open:
+			_rainbow.append(b)
+
+
+## The rainbow tag cycles through every color, like it does in battle.
+func _process(_d: float) -> void:
+	var c := Color.from_hsv(fmod(Time.get_ticks_msec() / 1500.0, 1.0), 0.6, 1.0)
+	for n in _rainbow:
+		if is_instance_valid(n):
+			for key in ["font_color", "font_pressed_color", "font_hover_color"]:
+				n.add_theme_color_override(key, c)
 
 
 ## "NEXT: NAME TAG BLUE AT LV 5" (or nothing once everything is unlocked).
