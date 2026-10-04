@@ -5,6 +5,7 @@ extends Control
 signal start_requested(config: Dictionary)
 signal back_requested
 
+const Progress = preload("res://stats/progress.gd")
 const Characters = preload("res://rules/characters.gd")
 const Maps = preload("res://rules/maps.gd")
 const PixelArt = preload("res://art/pixel_art.gd")
@@ -187,6 +188,8 @@ func _start() -> void:
 		"map": map_id,
 		"rounds": rounds,
 		"items": items, "bonus_hp": bonus_hp, "shrink": shrink,
-		"players": [{"char": picks[0], "team": 0}, {"char": picks[1], "team": 1}],
+		"players": [
+			{"char": picks[0], "team": 0, "skin": Progress.chosen_skin(picks[0]), "tag": Progress.chosen_tag(picks[0])},
+			{"char": picks[1], "team": 1, "skin": Progress.chosen_skin(picks[1]), "tag": Progress.chosen_tag(picks[1])}],
 		"seed": randi(),
 	})

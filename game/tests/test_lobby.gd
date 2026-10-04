@@ -336,3 +336,19 @@ func test_boss_fight_is_for_three_at_most() -> void:
 	lobby.handle("a", {"t": "start"}, 0)
 	eq(_last(_take(lobby, "a"), "error").get("code"), "boss_max_3", "4 is too many")
 	done()
+
+
+func test_skins_and_name_tags_reach_the_match() -> void:
+	var lobby := Lobby.new("TEST1")
+	lobby.add_member("a", "Pa", 0)
+	lobby.add_member("b", "Pb", 0)
+	lobby.handle("a", {"t": "pick", "char": "mike", "skin": 3, "tag": "gold"}, 0)
+	lobby.handle("b", {"t": "pick", "char": "leon", "skin": 99, "tag": "<script>"}, 0)
+	lobby.handle("b", {"t": "ready", "ready": true}, 0)
+	lobby.handle("a", {"t": "start"}, 0)
+	var players: Array = lobby.config.players
+	eq(players[0].skin, 3, "skin passed on")
+	eq(players[0].tag, "gold", "tag passed on")
+	eq(players[1].skin, 4, "skin clamped")
+	eq(players[1].tag, "white", "unknown tag ignored")
+	done()

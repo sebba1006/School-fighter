@@ -1113,7 +1113,7 @@ func _check_round_end(events: Array) -> void:
 		for m in fighters:
 			if m.is_minion and m.alive():
 				m.hp = 0
-				events.append({"type": "ko", "fighter": m.id})
+				events.append({"type": "ko", "fighter": m.id, "fled": true})
 	var alive_teams: Array[int] = []
 	for f in fighters:
 		if f.alive() and not alive_teams.has(f.team):

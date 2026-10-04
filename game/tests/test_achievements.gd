@@ -23,12 +23,12 @@ func _play(b: Battle, t: Tracker, r: Dictionary) -> void:
 		t.feed(e)
 
 
-func test_list_is_twenty_five_unique_achievements() -> void:
-	eq(A.LIST.size(), 25, "25 achievements (5 leagues)")
+func test_list_is_thirty_two_unique_achievements() -> void:
+	eq(A.LIST.size(), 32, "32 achievements (5 leagues of 5 + the legend league of 7)")
 	var ids := {}
 	for a in A.LIST:
 		ids[a.id] = true
-	eq(ids.size(), 25, "unique ids")
+	eq(ids.size(), 32, "unique ids")
 	eq(A.LIST[0].id, "first_win", "easiest first")
 	eq(A.LIST[19].id, "online_legend", "hardest last")
 	done()
@@ -171,7 +171,9 @@ func Maps_all_but(skip: String) -> Array:
 
 
 func test_four_leagues_of_five() -> void:
-	eq(A.LEAGUES.size() * A.PER_LEAGUE, A.LIST.size(), "every achievement is in a league")
+	eq(A.league_start(A.LEAGUES.size() - 1) + A.league_size(A.LEAGUES.size() - 1), A.LIST.size(), "every achievement is in a league")
+	eq(A.league_of("slip_n_slide"), 5, "legend league")
+	eq(A.league_of("schools_out"), 5, "legend league, hardest last")
 	eq(A.league_of("first_win"), 0, "bronze")
 	eq(A.league_of("combo"), 1, "silver")
 	eq(A.league_of("wall_slam"), 2, "gold")
@@ -301,4 +303,38 @@ func test_beating_the_gym_teacher_gives_his_trophies() -> void:
 	for id in ["gt_friends", "gt_untouchable"]:
 		check(t.new_trophies.has(id), "trophy " + id)
 	check(t.data.sets.bosses.has("gym_teacher"), "remembered as beaten")
+	done()
+
+
+
+func test_legend_league_from_boss_fights() -> void:
+	var cfg := _boss_cfg(["sebba", "mike", "leon"], [false, true, true])
+	cfg.boss = "lunch_lady"
+	var b := Battle.new(cfg)
+	b.start_round()
+	var data := _fresh()
+	data.sets["bosses"] = ["principal", "gym_teacher", "final_principal"]
+	var t := Tracker.new(data, b, cfg, [0], false)
+	var cook: int = b.fighters.filter(func(f): return f.is_minion)[0].id
+	for i in 10:
+		t.feed({"type": "attack", "fighter": 0})
+		t.feed({"type": "ko", "fighter": cook})
+	t.feed({"type": "ko", "fighter": cook, "fled": true})
+	eq(int(t.data.counters.get("helper_kos", 0)), 10, "fled helpers don't count")
+	check(t.new_unlocks.has("teachers_pet"), "10 helper KOs")
+	for i in 10:
+		t.feed({"type": "heal", "fighter": 0, "amount": 60, "hp": 100, "at": Vector2i(1, 1)})
+	check(t.new_unlocks.has("apple_a_day"), "10 apples")
+	t.feed({"type": "slip", "fighter": 0, "at": Vector2i(2, 2), "by": b.boss().id})
+	check(t.new_unlocks.has("slip_n_slide"), "slipped in gravy")
+	t.feed({"type": "match_end", "winner_team": 0, "wins": {}})
+	check(t.new_unlocks.has("lunch_is_served"), "beat the Lunch Lady")
+	check(t.new_unlocks.has("schools_out"), "all 4 bosses")
+	done()
+
+
+func test_mastery_achievements_for_levels() -> void:
+	eq(A.mastery_list().size(), preload("res://rules/characters.gd").ALL.size() * 4, "4 per fighter")
+	eq(A.by_id("lv100_snorre").name, "Snorre Master", "level 100 is the master one")
+	eq(A.toast_league("lv25_mike").name, "FIGHTER MASTERY", "its own popup color")
 	done()

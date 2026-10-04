@@ -17,6 +17,7 @@ const FighterPicker = preload("res://ui/fighter_picker.gd")
 const Battle = preload("res://rules/battle.gd")
 const Audio = preload("res://audio/audio.gd")
 const Achievements = preload("res://stats/achievements.gd")
+const Progress = preload("res://stats/progress.gd")
 
 const MODES := {"1v1": "1V1", "ffa": "1V1V1", "ffa4": "1V1V1V1", "2v2": "2V2", "boss": "BOSS"}
 const LEVELS := {"easy": "EASY", "normal": "NORMAL", "hard": "HARD"}
@@ -284,6 +285,9 @@ func _start() -> void:
 		var p := {"char": c, "team": _team(i)}
 		if i > 0:
 			p["cpu"] = "normal" if mode == "boss" else level
+		else:  # you: your skin and name tag for this fighter
+			p["skin"] = Progress.chosen_skin(c)
+			p["tag"] = Progress.chosen_tag(c)
 		players.append(p)
 	if mode == "boss":
 		start_requested.emit({"boss": boss_id, "items": items, "players": players, "seed": randi()})

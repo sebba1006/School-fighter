@@ -25,6 +25,7 @@ const Audio = preload("res://audio/audio.gd")
 const Stats = preload("res://stats/stats.gd")
 const Bot = preload("res://ai/bot.gd")
 const Achievements = preload("res://stats/achievements.gd")
+const Progress = preload("res://stats/progress.gd")
 const AchievementTracker = preload("res://stats/achievement_tracker.gd")
 
 const TILE := 32
@@ -138,6 +139,7 @@ var _my_damage := 0
 var _my_kos := 0
 var _my_supers := 0
 var _stats_saved := false
+var _xp_lines: Array = []  # "+115 XP - SEBBA LV 12", level ups and unlocks, for the victory screen
 var _cpu_running := false  # a CPU fighter is playing its turn
 var _ach: AchievementTracker = null
 var _toasts: Array = []  # achievement names waiting to be shown
@@ -277,7 +279,10 @@ func _build_board() -> void:
 	if fighter_views.is_empty():
 		for f in battle.fighters:
 			var v := FighterView.new()
-			v.setup(f.char_id, UiTheme.TEAM[battle.teams.find(f.team)])
+			var p: Dictionary = config.players[f.id] if f.id < config.players.size() else {}
+			v.setup(f.char_id, UiTheme.TEAM[battle.teams.find(f.team)], int(p.get("skin", 0)))
+			if p.has("tag") and not p.has("cpu"):
+				v.set_tag(_tag_text(f.id), str(p.tag))
 			board.add_child(v)
 			fighter_views.append(v)
 	for f in battle.fighters:
@@ -1071,6 +1076,7 @@ func _play(events: Array) -> void:
 			"match_end":
 				match_end = e
 				_record_stats(e.winner_team)
+				_award_xp(e.winner_team)
 	_save_achievements()
 	if not match_end.is_empty() or not round_end.is_empty():
 		Audio.play("win")
@@ -1317,15 +1323,7 @@ func _add_puddle(t: Vector2i, grow := false) -> void:
 ## CPU, and both players in a local battle.
 func _track(e: Dictionary) -> void:
 	if _ach == null:
-		var mine := []
-		if online():
-			mine = [my_fighter]
-		else:
-			for i in battle.fighters.size():
-				# not the CPUs, and in a boss fight not the Principal or his teachers
-				if not _is_cpu(i) and not (battle.boss_mode and battle.fighters[i].team == Battle.BOSS_TEAM):
-					mine.append(i)
-		_ach = AchievementTracker.new(Achievements.load_data(), battle, config, mine, online())
+		_ach = AchievementTracker.new(Achievements.load_data(), battle, config, _my_fighters(), online())
 	_ach.feed(e)
 	for id in _ach.new_trophies:
 		_toasts.append("trophy:" + id)
@@ -1351,7 +1349,7 @@ func _show_toasts() -> void:
 		var id: String = _toasts.pop_front()
 		var trophy := id.begins_with("trophy:")
 		var league: Dictionary = {"name": "TROPHY", "color": UiTheme.GOLD} if trophy \
-			else Achievements.LEAGUES[Achievements.league_of(id)]
+			else Achievements.toast_league(id)
 		Audio.play("super")
 		var box := PanelContainer.new()
 		var style := StyleBoxFlat.new()
@@ -1682,6 +1680,10 @@ func _show_overlay(e: Dictionary, is_match: bool) -> void:
 			var l := UiTheme.label(line, 8, UiTheme.GOLD)
 			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			col.add_child(l)
+		for line in _xp_lines:
+			var l := UiTheme.label(line, 8, UiTheme.HEAL if line.begins_with("LEVEL UP") or line.begins_with("NEW") else UiTheme.CHALK)
+			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			col.add_child(l)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 8)
@@ -1721,6 +1723,50 @@ func _show_overlay(e: Dictionary, is_match: bool) -> void:
 	overlay.size = overlay.get_combined_minimum_size()
 	overlay.position = Vector2(floorf((vs.x - overlay.size.x) / 2.0), floorf((vs.y - overlay.size.y) / 2.0))
 	_refresh()
+
+
+## The fighters played on this device: yours online, everyone but the CPUs
+## (and the boss's side) offline.
+func _my_fighters() -> Array:
+	if online():
+		return [my_fighter]
+	var mine := []
+	for i in battle.fighters.size():
+		if not _is_cpu(i) and not (battle.boss_mode and battle.fighters[i].team == Battle.BOSS_TEAM):
+			mine.append(i)
+	return mine
+
+
+## The name tag text: your online nickname, YOU against the CPU, or P1/P2.
+func _tag_text(id: int) -> String:
+	if online():
+		return str(config.players[id].get("name", "?"))
+	if vs_cpu():
+		return "YOU"
+	return "P%d" % (id + 1)
+
+
+## XP for the fighters played on this device (once per match), with level ups
+## and what they unlock (and the FIGHTER MASTERY achievements).
+func _award_xp(winner_team: int) -> void:
+	if not _xp_lines.is_empty():
+		return
+	for id in _my_fighters():
+		var f = battle.fighters[id]
+		var won: bool = f.team == winner_team
+		var gained := Progress.xp_for_match(won, f.match_damage, f.match_kos, won and battle.boss_mode)
+		var r := Progress.add_xp(f.char_id, gained)
+		var info := Progress.level_info(Progress.xp(f.char_id))
+		var name: String = Characters.ALL[f.char_id].get("short", f.def.name).to_upper()
+		var bar := "MAX" if info.need == 0 else "%d/%d" % [info.into, info.need]
+		_xp_lines.append("+%d XP - %s LV %d (%s)" % [r.xp, name, r.to, bar])
+		if r.to > r.from:
+			_xp_lines.append("LEVEL UP! %s IS LEVEL %d" % [name, r.to])
+			for l in range(r.from + 1, r.to + 1):
+				for u in Progress.unlocks_at(l):
+					_xp_lines.append("NEW %s" % u)
+		for ach in Achievements.unlock_mastery(f.char_id, r.to):
+			_toasts.append(ach)
 
 
 ## "MVP (MOST DAMAGE): SEBBA - 87" and "MOST KOS: MIKE - 3" for the match.

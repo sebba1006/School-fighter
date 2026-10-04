@@ -24,6 +24,7 @@ const EMOTE_COOLDOWN_MS := 1500
 ## Boss fights: the team is always 3; CPU teammates fill the empty spots and the
 ## server plays them, waiting a moment first so everyone can follow.
 const BOSS_TEAM_SIZE := 3
+const TAG_IDS := ["white", "blue", "green", "red", "purple", "gold", "rainbow"]
 const CPU_DELAY_MS := 900
 
 var code: String
@@ -169,6 +170,11 @@ func handle(token: String, msg: Dictionary, now: int) -> void:
 					return
 			m.char = c
 			m.ready = false
+			# the skin and name tag color unlocked on their device for this fighter
+			var skin = msg.get("skin", 0)
+			m.skin = clampi(int(skin), 0, 4) if skin is int or skin is float else 0
+			var tag = msg.get("tag", "white")
+			m.tag = tag if tag is String and tag in TAG_IDS else "white"
 			_broadcast_state()
 		"ready":
 			if in_match():
@@ -305,7 +311,8 @@ func _start_match() -> String:
 	for i in n:
 		var m: Dictionary = members[i]
 		var team: int = i if ffa else m.team
-		players.append({"char": m.char, "team": 0 if settings.boss else team, "name": m.name, "pid": m.pid})
+		players.append({"char": m.char, "team": 0 if settings.boss else team, "name": m.name, "pid": m.pid,
+			"skin": m.get("skin", 0), "tag": m.get("tag", "white")})
 		fighter_of[m.token] = i
 	if settings.boss:
 		# fill the team up to 3 with CPU teammates on fighters nobody picked
