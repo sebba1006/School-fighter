@@ -222,6 +222,10 @@ func _ready() -> void:
 	board.add_child(floor_layer)
 	board.add_child(zone_layer)
 	board.add_child(highlight)
+	var outline := BossOutline.new()
+	outline.layer = highlight
+	outline.z_index = 2500
+	board.add_child(outline)
 	_build_hud()
 	get_viewport().size_changed.connect(_layout)
 	if battle.boss_mode:
@@ -1981,6 +1985,16 @@ func _refresh() -> void:
 	if battle.phase == Battle.Phase.TURN and not busy:
 		tiles.append({"pos": f.pos, "kind": "current"})
 	highlight.tiles = tiles
+	# boss fights: outline the boss's 3x3 tiles (all of them are "him"), gold
+	# when the attack you're aiming would hit him
+	var boss_hit := false
+	var b = battle.boss() if battle.boss_mode else null
+	highlight.boss_at = b.pos if b != null and b.alive() else Vector2i(-99, -99)
+	if b != null and b.alive() and mode == "aim":
+		for t in tiles:
+			if t.kind in ["hit", "dizzy"] and absi(t.pos.x - b.pos.x) <= Battle.BOSS_RADIUS and absi(t.pos.y - b.pos.y) <= Battle.BOSS_RADIUS:
+				boss_hit = true
+	highlight.boss_targeted = boss_hit
 	highlight.queue_redraw()
 
 	if Time.get_ticks_msec() < _hint_error_until:
@@ -2011,6 +2025,9 @@ func _refresh() -> void:
 			txt = "%s: PRESS AGAIN OR USE" % atk.name.to_upper()
 		elif atk.type == "spill":
 			txt = "WATER BOTTLE: PICK WHERE TO SPILL (NEXT TO YOU), THEN USE"
+		if boss_hit:
+			txt = "%s HITS THE BOSS! TAP AGAIN OR PRESS USE" % atk.name.to_upper()
+			hint_label.add_theme_color_override("font_color", UiTheme.GOLD)
 		hint_label.text = txt
 
 
@@ -2133,8 +2150,16 @@ class HighlightLayer extends Node2D:
 		"self": Color("f2c14e"),
 	}
 	var tiles := []
+	## Boss fights: the boss's centre tile (his outline covers the 3x3 around it).
+	var boss_at := Vector2i(-99, -99)
+	var boss_targeted := false
 
 	func _draw() -> void:
+		if boss_at.x > -99:
+			var box := Rect2((boss_at.x - 1) * 32 + 1, (boss_at.y - 1) * 32 + 1, 94, 94)
+			var c := Color("f2c14e") if boss_targeted else Color("e8575e")
+			draw_rect(box, Color(c, 0.22 if boss_targeted else 0.10))
+			draw_rect(box, Color(c, 0.95), false, 3.0 if boss_targeted else 2.0)
 		for t in tiles:
 			var r := Rect2(t.pos.x * 32 + 1, t.pos.y * 32 + 1, 30, 30)
 			if t.kind == "current":
@@ -2281,3 +2306,25 @@ class BossBar extends Control:
 			if x > inner.position.x:
 				draw_line(Vector2(x, inner.position.y), Vector2(x, inner.end.y), Color(0, 0, 0, 0.45), 1.0)
 		draw_rect(Rect2(Vector2.ZERO, size), Color("e8575e") if not angry else c, false, 1.0)
+
+
+## Boss fights: corner brackets around the boss's 3x3 tiles, drawn above the
+## sprites so you can always see where he can be hit.
+class BossOutline extends Node2D:
+	var layer: HighlightLayer
+
+	func _process(_d: float) -> void:
+		queue_redraw()
+
+	func _draw() -> void:
+		if layer == null or layer.boss_at.x <= -99:
+			return
+		var box := Rect2((layer.boss_at.x - 1) * 32 + 1, (layer.boss_at.y - 1) * 32 + 1, 94, 94)
+		var c := Color("f2c14e") if layer.boss_targeted else Color("e8575e")
+		var a: float = 0.75 + 0.25 * sin(Time.get_ticks_msec() / 160.0) if layer.boss_targeted else 0.8
+		for k in [Vector2(0, 0), Vector2(1, 0), Vector2(0, 1), Vector2(1, 1)]:
+			var p: Vector2 = box.position + box.size * k
+			var sx := -1.0 if k.x > 0 else 1.0
+			var sy := -1.0 if k.y > 0 else 1.0
+			draw_line(p, p + Vector2(12 * sx, 0), Color(c, a), 3.0)
+			draw_line(p, p + Vector2(0, 12 * sy), Color(c, a), 3.0)
