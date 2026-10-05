@@ -225,7 +225,7 @@ const SKINS := {
 ## Skins that change more than colours: extra look keys per skin (a hat,
 ## headphones...), on top of the material swaps in SKINS.
 const SKIN_LOOKS := {
-	"halvor": [{}, {"hat": "beanie"}, {"hat": "cap"}, {"hat": "phones"}, {"hat": "crown"}],
+	"halvor": [{}, {"hat": "beanie"}, {"hat": "cap"}, {"hat": "phones"}, {}],
 }
 
 
@@ -407,12 +407,6 @@ static func _character_image(c: Dictionary, bob: bool) -> Image:
 			p.rect(23, hcy - 3, 25, hcy + 1, "phones")
 			p.rect(6, hcy - 2, 6, hcy, "red")
 			p.rect(25, hcy - 2, 25, hcy, "red")
-		"crown":  # a little golden crown for the golden skin
-			p.rect(11, top - 3, 20, top - 1, "guard")
-			for x in [11, 15, 16, 20]:
-				p.px(x, top - 4, "guard")
-			p.px(13, top - 2, "red")
-			p.px(18, top - 2, "teeBlue")
 	if c.get("glasses", false):
 		var fr: String = c.get("frame", "frame")
 		var fr2: String = c.get("frame2", fr)  # bridge and arms
