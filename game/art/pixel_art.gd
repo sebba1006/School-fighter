@@ -32,6 +32,14 @@ const PAL := {
 	"shoeBrown": ["5b3a26", "3f2718", "77513a"],
 	"shoeWhite": ["e6e8ec", "b9bdc5", "ffffff"],
 	"teeRoyal": ["3561b8", "244584", "5a86d6"],
+	"teeTeal": ["2f9488", "216d64", "4fb8aa"],
+	"hairBlack": ["2a2730", "1c1a20", "433f4a"],
+	"skinDark": ["7a4a2e", "5a341f", "96613f"],
+	"hoodieGray": ["5d606b", "454751", "777a86"],
+	"pocketGray": ["4e505a", "3c3e46", "5d606b"],
+	"frameGreen": "3fa34d",
+	"frameBlue": "3f78c9",
+	"cracker": ["e3b35e", "b98838", "f3d18c"],
 	"bomb": ["34343e", "1f1f26", "5a5a68"],
 	"blade": ["cfd6e0", "98a1b0", "ffffff"],
 	"guard": ["d4a640", "a07722", "f0cd6b"],
@@ -98,7 +106,8 @@ const LOOKS := {
 	"william": {"legs": 13, "hair": "hairBlond", "hair_style": "swept", "shirt": "teeBlack", "sleeve": "red", "stripe": "red", "pants": "pantsBlack", "shoes": "shoeRed", "glasses": true, "mouth": "smile", "pupil": 0},
 	"snorre": {"legs": 9, "hair": "hairChestnut", "hair_style": "messy", "shirt": "teeWhite", "sleeve": "teeWhite", "pants": "pantsGray", "shoes": "shoeBrown", "sword": true, "mouth": "smile", "pupil": 0},
 	"leon": {"legs": 11, "hair": "hairLightBrown", "hair_style": "swoop", "shirt": "teeBlue", "sleeve": "teeBlue", "pants": "pantsLightGray", "shoes": "shoeBlack", "mouth": "smile", "pupil": 1},
-	"halvor": {"legs": 11, "hair": "hairLightBrown", "hair_style": "curtains", "shirt": "teeRoyal", "sleeve": "teeRoyal", "pants": "pantsLightGray", "shoes": "shoeWhite", "plane": true, "mouth": "smirk", "pupil": 1},
+	"yacob": {"legs": 11, "hair": "hairBlack", "hair_style": "crop", "skin_tone": "skinDark", "shirt": "hoodieGray", "sleeve": "hoodieGray", "hoodie": true, "hood": false, "pocket": "pocketGray", "pants": "pantsBlack", "shoes": "shoeBlack", "glasses": true, "frame": "frameGreen", "frame2": "frameBlue", "mouth": "smile", "pupil": 0},
+	"halvor": {"legs": 11, "hair": "hairLightBrown", "hair_style": "normal", "shirt": "teeTeal", "sleeve": "teeTeal", "pants": "pantsLightGray", "shoes": "shoeWhite", "plane": true, "mouth": "smirk", "pupil": 1},
 	"mike": {"legs": 11, "hair": "hairDark", "hair_style": "short", "shirt": "hoodie", "sleeve": "hoodie", "hoodie": true, "pants": "pantsBlack", "shoes": "shoeBlack", "slingshot": true, "mouth": "smirk", "pupil": 1},
 	# the athletes the Gym Teacher calls: red jersey, white stripe, sweatband
 	"athlete": {"legs": 12, "hair": "hairBlond", "hair_style": "headband", "shirt": "red", "sleeve": "red", "stripe": "teeWhite", "pants": "pantsBlack", "shoes": "shoeRed", "mouth": "smirk", "pupil": 0},
@@ -187,7 +196,7 @@ class Painter:
 const GOLD := {"teeGray": "guard", "teeBlack": "guard", "teeWhite": "guard", "teeBlue": "guard",
 	"hoodie": "guard", "pocket": "pencil", "red": "pencil", "pantsBlack": "foodYellow", "pantsGray": "foodYellow",
 	"pantsLightGray": "foodYellow", "shoeBlack": "guard", "shoeRed": "guard", "shoeBrown": "guard",
-	"teeRoyal": "guard", "shoeWhite": "guard"}
+	"teeRoyal": "guard", "shoeWhite": "guard", "teeTeal": "guard", "hoodieGray": "guard", "pocketGray": "pencil"}
 const SKINS := {
 	"sebba": [{}, {"teeGray": "teeBlue", "pantsBlack": "pantsGray"}, {"teeGray": "red", "shoeBlack": "shoeRed"},
 		{"teeGray": "leaf", "pantsBlack": "pantsLightGray", "shoeBlack": "shoeBrown"}, GOLD],
@@ -199,8 +208,10 @@ const SKINS := {
 		{"teeBlue": "slide", "pantsLightGray": "pantsGray", "shoeBlack": "shoeRed"}, GOLD],
 	"mike": [{}, {"hoodie": "red", "pocket": "bikeRed"}, {"hoodie": "teeBlue", "pocket": "ballBlue", "pantsBlack": "pantsGray"},
 		{"hoodie": "leaf", "pocket": "foodGreen", "shoeBlack": "shoeRed"}, GOLD],
-	"halvor": [{}, {"teeRoyal": "teeBlack", "pantsLightGray": "pantsGray"}, {"teeRoyal": "leaf", "shoeWhite": "shoeBrown"},
-		{"teeRoyal": "red", "pantsLightGray": "pantsBlack", "shoeWhite": "shoeRed"}, GOLD],
+	"halvor": [{}, {"teeTeal": "teeBlack", "pantsLightGray": "pantsGray"}, {"teeTeal": "teeRoyal", "shoeWhite": "shoeBrown"},
+		{"teeTeal": "red", "pantsLightGray": "pantsBlack", "shoeWhite": "shoeRed"}, GOLD],
+	"yacob": [{}, {"hoodieGray": "leaf", "pocketGray": "foodGreen"}, {"hoodieGray": "red", "pocketGray": "bikeRed", "pantsBlack": "pantsGray"},
+		{"hoodieGray": "teeWhite", "pocketGray": "tableEdge", "shoeBlack": "shoeRed"}, GOLD],
 	"dogs": [{}, {"beagleTan": "hairDark", "beagleEar": "beagleBlack"}, {"beagleTan": "teeWhite", "beagleEar": "beagleBlack"},
 		{"beagleTan": "red", "beagleEar": "bikeRed"},
 		{"beagleTan": "guard", "beagleBlack": "foodYellow", "beagleEar": "pencil", "oldMuzzle": "slide"}],
@@ -212,7 +223,10 @@ static func character(char_id: String, bob := false, skin := 0) -> Texture2D:
 	var key := "char_%s_%s_%d" % [char_id, bob, skin]
 	if not _cache.has(key):
 		var swaps: Array = SKINS.get(char_id, [{}])
-		Painter.remap = swaps[clampi(skin, 0, swaps.size() - 1)]
+		var remap: Dictionary = swaps[clampi(skin, 0, swaps.size() - 1)].duplicate()
+		if LOOKS.get(char_id, {}).has("skin_tone"):
+			remap["skin"] = LOOKS[char_id].skin_tone
+		Painter.remap = remap
 		var img := _dogs_image(bob) if char_id == "dogs" else _character_image(LOOKS[char_id], bob)
 		Painter.remap = {}
 		_cache[key] = ImageTexture.create_from_image(img)
@@ -240,7 +254,7 @@ static func _character_image(c: Dictionary, bob: bool) -> Image:
 					p.px(x + o[0], y + o[1], "guard")
 			x += 1
 			y += 1
-	if c.get("hoodie", false):
+	if c.get("hoodie", false) and c.get("hood", true):
 		p.ell(16, tt - 1, 10, 3, "hoodie")
 
 	p.rect(10, pants_top, 21, 44, c.pants)
@@ -267,9 +281,12 @@ static func _character_image(c: Dictionary, bob: bool) -> Image:
 		p.rect(15, tt + 1, 16, tt + 6, c.tie)
 		p.px(15, tt + 7, c.tie)
 	if hoodie:
-		p.rect(12, tt + 6, 19, tt + 8, "pocket")
-		p.rect(14, tt + 1, 14, tt + 3, "string")
-		p.rect(17, tt + 1, 17, tt + 3, "string")
+		p.rect(12, tt + 6, 19, tt + 8, c.get("pocket", "pocket"))
+		if c.get("hood", true):
+			p.rect(14, tt + 1, 14, tt + 3, "string")
+			p.rect(17, tt + 1, 17, tt + 3, "string")
+		else:
+			p.rect(13, tt, 18, tt, c.get("pocket", "pocket"))  # round neck
 
 	p.ell(16, hcy, 8, 8, "skin")
 	p.rect(7, hcy, 7, hcy + 1, "skin")
@@ -310,17 +327,18 @@ static func _character_image(c: Dictionary, bob: bool) -> Image:
 			p.ell(12, top - 6, 4, 3, "chefHat")
 			p.ell(19, top - 6, 4, 3, "chefHat")
 			p.ell(15.5, top - 8, 4, 3, "chefHat")
-		"curtains":
-			# parted in the middle, hanging down past the ears on both sides
-			p.ell(16, hcy - 5, 10, 6.5, h, hcy - 3)
-			p.rect(9, hcy - 3, 14, hcy - 3, h)
-			p.rect(17, hcy - 3, 22, hcy - 3, h)
-			p.rect(9, hcy - 2, 12, hcy - 2, h)
-			p.rect(19, hcy - 2, 22, hcy - 2, h)
-			p.rect(9, hcy - 1, 9, hcy - 1, h)
-			p.rect(22, hcy - 1, 22, hcy - 1, h)
-			p.rect(6, hcy - 4, 8, hcy + 3, h)
-			p.rect(23, hcy - 4, 25, hcy + 3, h)
+		"normal":
+			# an ordinary short cut: straight fringe, a couple of tufts on top
+			p.rect(10, hcy - 3, 21, hcy - 3, h)
+			p.px(10, hcy - 2, h)
+			p.px(21, hcy - 2, h)
+			p.px(13, top - 2, h)
+			p.px(18, top - 2, h)
+		"crop":
+			# very short, close to the head: a neat hairline, no fringe
+			p.rect(10, hcy - 3, 21, hcy - 3, h)
+			p.px(9, hcy - 2, h)
+			p.px(22, hcy - 2, h)
 		"swoop":
 			# fringe swept to one side with a little flick on top
 			p.rect(10, hcy - 3, 16, hcy - 3, h)
@@ -348,14 +366,16 @@ static func _character_image(c: Dictionary, bob: bool) -> Image:
 			p.px(19, my - 1, "mouth")
 
 	if c.get("glasses", false):
+		var fr: String = c.get("frame", "frame")
+		var fr2: String = c.get("frame2", fr)  # bridge and arms
 		for x0 in [10, 17]:
-			p.rect(x0, hcy - 2, x0 + 4, hcy - 2, "frame")
-			p.rect(x0, hcy + 2, x0 + 4, hcy + 2, "frame")
-			p.rect(x0, hcy - 2, x0, hcy + 2, "frame")
-			p.rect(x0 + 4, hcy - 2, x0 + 4, hcy + 2, "frame")
-		p.rect(15, hcy - 1, 16, hcy - 1, "frame")
-		p.px(9, hcy - 1, "frame")
-		p.px(22, hcy - 1, "frame")
+			p.rect(x0, hcy - 2, x0 + 4, hcy - 2, fr)
+			p.rect(x0, hcy + 2, x0 + 4, hcy + 2, fr)
+			p.rect(x0, hcy - 2, x0, hcy + 2, fr)
+			p.rect(x0 + 4, hcy - 2, x0 + 4, hcy + 2, fr)
+		p.rect(15, hcy - 1, 16, hcy - 1, fr2)
+		p.px(9, hcy - 1, fr2)
+		p.px(22, hcy - 1, fr2)
 
 	if c.get("plane", false):
 		# a folded paper plane, ready to throw
@@ -615,6 +635,19 @@ static func trophy(won: bool) -> Texture2D:
 
 
 ## A health apple lying on a tile (boss fights).
+## Yacob's Cracker Snack: a square cracker with little holes (16x16).
+static func cracker() -> Texture2D:
+	if not _cache.has("cracker"):
+		var p := Painter.new(16, 16)
+		p.rect(2, 3, 13, 12, "cracker")
+		for y in [5, 8, 11]:
+			for x in [4, 8, 12]:
+				if y < 12:
+					p.px(x - (1 if y == 8 else 0), y - 1, "wood")
+		_cache["cracker"] = ImageTexture.create_from_image(p.bake())
+	return _cache["cracker"]
+
+
 ## Halvor's BOMBA: a round cartoon bomb with a lit fuse (16x16).
 static func bomb() -> Texture2D:
 	if not _cache.has("bomb"):

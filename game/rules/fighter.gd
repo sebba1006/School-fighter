@@ -50,6 +50,10 @@ var is_boss := false
 var is_minion := false
 ## The boss below Battle.ANGRY_PCT HP: his attacks hit harder.
 var angry := false
+## Burn (Yacob's Super Heat Ray): own turns left that start with Battle.BURN_DAMAGE,
+## and who burned them (for the damage and KO counts).
+var burn_turns := 0
+var burn_by := -1
 
 
 func _init(p_id: int, p_char_id: String, p_team: int, p_def: Dictionary) -> void:
@@ -78,6 +82,8 @@ func reset_for_round() -> void:
 	no_attack_now = false
 	item = ""
 	guard = {}
+	burn_turns = 0
+	burn_by = -1
 	zone_safe = 0
 	own_turns = 0
 	ready_at = {}

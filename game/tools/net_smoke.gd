@@ -14,7 +14,7 @@ const Client = preload("res://net/client.gd")
 const Battle = preload("res://rules/battle.gd")
 const Characters = preload("res://rules/characters.gd")
 const PORT := 9123
-const CHARS := ["halvor", "sebba", "william", "snorre", "mike"]
+const CHARS := ["yacob", "halvor", "sebba", "william", "snorre", "mike"]
 
 var problems: Array[String] = []
 var bots: Array = []

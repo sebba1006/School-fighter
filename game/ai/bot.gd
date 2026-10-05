@@ -65,6 +65,8 @@ static func plan(b: Battle, noise := 0.0) -> Dictionary:
 			var aims: Array = [null]
 			if atk.type == "bomb":
 				aims = _bomb_aims(b, f, atk, enemies)
+			elif atk.type == "heal":
+				aims = b.aim_tiles(f, atk)
 			for at in aims:
 				for dir in ([Vector2i.RIGHT] if at != null else Battle.DIRS):
 					var dists := [0]
@@ -149,6 +151,8 @@ static func plan(b: Battle, noise := 0.0) -> Dictionary:
 
 ## Expected damage to enemies (plus a bonus for knock-outs) if `atk` were used now.
 static func _score(b: Battle, f, atk: Dictionary, dir: Vector2i, dist: int, at = null) -> float:
+	if atk.type == "heal":
+		return _heal_score(b, f, atk, at)
 	var tiles := b.preview(f.id, _slot_of(f, atk), dir, dist, at)
 	var run := 0
 	for t in tiles:
@@ -182,6 +186,22 @@ static func _score(b: Battle, f, atk: Dictionary, dir: Vector2i, dist: int, at =
 	return total
 
 
+## Cracker Snack: worth the HP it gives back (more for a teammate in danger),
+## nothing if they're nearly full.
+static func _heal_score(b: Battle, f, atk: Dictionary, at) -> float:
+	var t = b._fighter_at(at) if at is Vector2i else null
+	if t == null or t.team != f.team or t.is_boss:
+		return 0.0
+	var missing: int = t.max_hp - t.hp
+	if missing < 8:
+		return 0.0
+	var amount: float = atk.self_heal if t == f else (atk.heal_min + atk.heal_max) / 2.0
+	var sc := minf(amount, missing)
+	if t.hp * 100 < t.max_hp * 40:
+		sc += 6.0  # low: worth more than a poke
+	return sc
+
+
 ## Bomba targets worth trying: every enemy in range, and the tiles next to
 ## them (to catch two at once).
 static func _bomb_aims(b: Battle, f, atk: Dictionary, enemies: Array) -> Array:
@@ -201,6 +221,8 @@ static func _damage(atk: Dictionary, kind: String, run: int) -> float:
 			return float(atk.inner_damage if kind == "hit" else atk.outer_damage)
 		"bomb":
 			return float(atk.center_damage if kind == "hit" else atk.ring_damage)
+		"ray":
+			return float(atk.damage + Battle.BURN_DAMAGE * Battle.BURN_TURNS)
 		"dash":
 			return float(atk.damage + atk.get("damage_per_tile", 0) * run)
 	if atk.has("damage"):

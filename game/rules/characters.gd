@@ -15,6 +15,10 @@ extends RefCounted
 ##   leap        jumps on the closest enemy within `range` tiles and jumps back
 ##   bomb        falls on any tile `min_range`..`max_range` tiles away (the intent's
 ##               "at"), over obstacles: `center_damage` there, `ring_damage` on the 8 around
+##   heal        a cracker for the user (`self_heal`) or a teammate up to `range`
+##               tiles away (`heal_min`..`heal_max`), picked with the intent's "at"
+##   ray         hits every tile in a straight line to the edge of the map,
+##               straight through obstacles and everyone in the way
 ##   self_rage / self_block / self_sugar   buffs on the user
 
 const ALL := {
@@ -103,6 +107,18 @@ const ALL := {
 			{"id": "back_off", "name": "Back Off!", "type": "melee", "damage": 8, "knockback": 2},
 		],
 		"super": {"id": "bomba", "name": "Bomba", "type": "bomb", "min_range": 2, "max_range": 5, "center_damage": 30, "ring_damage": 13},
+	},
+	"yacob": {
+		"name": "Yacob",
+		"hp": 95,
+		"move": 3,
+		"attacks": [
+			{"id": "cracker", "name": "Cracker Snack", "type": "heal", "range": 4, "self_heal": 10, "heal_min": 10, "heal_max": 18, "cooldown": 1},
+			{"id": "hoodie_punch", "name": "Punch", "type": "melee", "damage": 11},
+			{"id": "crumb_spray", "name": "Crumb Spray", "type": "line", "range": 3, "damage": 6, "status": "dizzy"},
+			{"id": "backpack_swing", "name": "Backpack Swing", "type": "around", "damage": 8},
+		],
+		"super": {"id": "heat_ray", "name": "Super Heat Ray", "type": "ray", "damage": 23, "status": "burn"},
 	},
 }
 
