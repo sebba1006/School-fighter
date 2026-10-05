@@ -102,7 +102,7 @@ const ALL := {
 		"move": 3,
 		"attacks": [
 			{"id": "paper_plane", "name": "Paper Plane", "type": "projectile", "range": 6, "damage": 11},
-			{"id": "snowball", "name": "Snowball", "type": "lob", "min_range": 2, "max_range": 5, "damage": 10},
+			{"id": "snowball", "name": "Snowball", "type": "lob", "min_range": 2, "max_range": 4, "damage": 8},
 			{"id": "spitball", "name": "Spitball", "type": "projectile", "range": 4, "damage": 8, "status": "dizzy"},
 			{"id": "back_off", "name": "Back Off!", "type": "melee", "damage": 11, "knockback": 2},
 		],
@@ -113,7 +113,7 @@ const ALL := {
 		"hp": 95,
 		"move": 3,
 		"attacks": [
-			{"id": "cracker", "name": "Cracker Snack", "type": "heal", "range": 4, "self_heal": 10, "heal_min": 10, "heal_max": 18, "cooldown": 1},
+			{"id": "cracker", "name": "Cracker Snack", "type": "heal", "range": 4, "self_heal": 10, "heal_min": 8, "heal_max": 12, "cooldown": 2},
 			{"id": "hoodie_punch", "name": "Punch", "type": "melee", "damage": 11},
 			{"id": "crumb_spray", "name": "Crumb Spray", "type": "line", "range": 3, "damage": 6, "status": "dizzy"},
 			{"id": "backpack_swing", "name": "Backpack Swing", "type": "around", "damage": 8},
