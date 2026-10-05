@@ -423,6 +423,8 @@ func _clean_intent(raw: Variant) -> Dictionary:
 		out.slot = raw.slot
 	if raw.get("dist") is int:
 		out.dist = raw.dist
+	if raw.get("at") is Vector2i:
+		out.at = raw.at
 	return out
 
 

@@ -100,6 +100,9 @@ func _build_sounds() -> void:
 	_sounds.splash = _wav(_mix(_noise(0.3, 0.3, 1.2, 1), _tone(0.2, 900, 300, "sine", 0.2, 1.5)))
 	_sounds.slip = _wav(_tone(0.3, 300, 900, "tri", 0.3, 0.8))
 	_sounds.whistle = _wav(_wobble(0.55, 2600, 180, 30, 0.18))  # the Gym Teacher's whistle (a fast trill)
+	# Halvor's BOMBA: the whistle of it falling, then the boom
+	_sounds.fall = _wav(_tone(0.45, 1500, 500, "sine", 0.22, 0.4))
+	_sounds.boom = _wav(_mix(_noise(0.7, 0.55, 1.6, 4), _tone(0.6, 80, 30, "sine", 0.7, 1.2)))
 	_sounds.win = _wav(_notes([67, 72, 76, 79], 0.1, 0.35, "square", 0.3))
 
 

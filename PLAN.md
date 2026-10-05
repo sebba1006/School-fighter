@@ -171,6 +171,21 @@ A lobby holds max 4 players, so unique picks always work.
 | 4 | Bark | Line of 2 tiles | 5 damage + Dizzy |
 | Super | Mega Woof | 1 adjacent enemy | A big WOOF: **30–40 damage** and **pushed 1 or 2 tiles** (both random) |
 
+### Halvor (7/7): long range bomber
+- **Look**: fluffy light brown hair, blue shirt, light grey pants, white
+  sneakers, a paper plane in his hand.
+- **Stats**: HP 90 (lowest: he fights from far away), move 3.
+
+| Slot | Attack | Shape | Effect |
+|---|---|---|---|
+| 1 | Paper Plane | Projectile, 6 tiles | 13 damage |
+| 2 | Snowball | Lob 2–5 tiles, plus shape, over obstacles | 10 damage |
+| 3 | Spitball | Projectile, 4 tiles | 8 damage + Dizzy |
+| 4 | Back Off! | 1 tile in front | 8 damage, knockback 2 (to get space) |
+| Super | BOMBA | Any tile 2–5 away (tap it), over obstacles | He yells "BOMBA!" and a bomb falls: **30 damage** in the middle, **13** on the 8 tiles around it |
+
+Simulation (4 matches per pair per map): 47% overall win rate.
+
 ### Shared status effects
 | Effect | Meaning |
 |---|---|

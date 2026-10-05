@@ -13,6 +13,8 @@ extends RefCounted
 ##   lob         hits a plus shape `min_range`..`max_range` tiles away, over obstacles
 ##   shockwave   two rings around the tile in front (inner damage, outer damage + status)
 ##   leap        jumps on the closest enemy within `range` tiles and jumps back
+##   bomb        falls on any tile `min_range`..`max_range` tiles away (the intent's
+##               "at"), over obstacles: `center_damage` there, `ring_damage` on the 8 around
 ##   self_rage / self_block / self_sugar   buffs on the user
 
 const ALL := {
@@ -89,6 +91,18 @@ const ALL := {
 			{"id": "bark", "name": "Bark", "type": "line", "range": 2, "damage": 5, "status": "dizzy"},
 		],
 		"super": {"id": "mega_woof", "name": "Mega Woof", "type": "melee", "damage_min": 30, "damage_max": 40, "knockback_min": 1, "knockback_max": 2},
+	},
+	"halvor": {
+		"name": "Halvor",
+		"hp": 90,
+		"move": 3,
+		"attacks": [
+			{"id": "paper_plane", "name": "Paper Plane", "type": "projectile", "range": 6, "damage": 13},
+			{"id": "snowball", "name": "Snowball", "type": "lob", "min_range": 2, "max_range": 5, "damage": 10},
+			{"id": "spitball", "name": "Spitball", "type": "projectile", "range": 4, "damage": 8, "status": "dizzy"},
+			{"id": "back_off", "name": "Back Off!", "type": "melee", "damage": 8, "knockback": 2},
+		],
+		"super": {"id": "bomba", "name": "Bomba", "type": "bomb", "min_range": 2, "max_range": 5, "center_damage": 30, "ring_damage": 13},
 	},
 }
 

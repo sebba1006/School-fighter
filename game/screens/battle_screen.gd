@@ -85,6 +85,7 @@ var mode := "move"  # "move", "aim" or "over"
 var aim_slot := -1
 var aim_dir := Vector2i.RIGHT
 var aim_dist := 2
+var aim_at := Vector2i(-99, -99)  # Bomba: the tile it falls on
 
 var boss_bar: BossBar  # boss fights: the Principal's big HP bar over the top of the board
 var panels: Array = []  # per fighter: {"hp": Bar, "meter": Bar, "hp_text": Label, "status": Label}
@@ -696,6 +697,15 @@ func _on_tile_tapped(t: Vector2i) -> void:
 		if t == f.pos:
 			_confirm()
 		return
+	if atk.type == "bomb":
+		if not battle.bomb_tiles(f, atk).has(t):
+			_error("bad_dist")
+		elif t == aim_at:
+			_confirm()
+		else:
+			aim_at = t
+			_refresh()
+		return
 	var d := t - f.pos
 	if d == Vector2i.ZERO:
 		return
@@ -739,6 +749,16 @@ func _on_dir(dir: Vector2i) -> void:
 		_send({"type": "move", "dir": dir})
 		return
 	var atk := _atk(aim_slot)
+	if atk.type == "bomb":
+		# nudge the bomb one tile (skipping over the tiles too close to you)
+		var tiles := battle.bomb_tiles(battle.current(), atk)
+		var at := aim_at + dir
+		while not tiles.has(at) and battle._in_bounds(at):
+			at += dir
+		if tiles.has(at):
+			aim_at = at
+		_refresh()
+		return
 	if atk.type == "lob" and dir == aim_dir:
 		aim_dist = aim_dist + 1 if aim_dist < atk.max_range else atk.min_range
 	else:
@@ -764,6 +784,8 @@ func _on_attack_pressed(slot: int) -> void:
 	var atk := _atk(slot)
 	if atk.type == "lob":
 		aim_dist = atk.min_range
+	if atk.type == "bomb":
+		aim_at = _bomb_start(battle.current(), atk)
 	if atk.type == "leap":
 		for d in Battle.DIRS:
 			if not battle._leap_target(battle.current(), d, atk["range"]).is_empty():
@@ -775,7 +797,30 @@ func _on_attack_pressed(slot: int) -> void:
 func _confirm() -> void:
 	if busy or mode != "aim":
 		return
-	_send({"type": "attack", "slot": aim_slot, "dir": aim_dir, "dist": aim_dist})
+	var intent := {"type": "attack", "slot": aim_slot, "dir": aim_dir, "dist": aim_dist}
+	if _atk(aim_slot).type == "bomb":
+		intent.at = aim_at
+	_send(intent)
+
+
+## Where the Bomba aim starts: on the nearest enemy in range (the boss's
+## middle tile), else straight ahead.
+func _bomb_start(f, atk: Dictionary) -> Vector2i:
+	var tiles := battle.bomb_tiles(f, atk)
+	var best := Vector2i(-99, -99)
+	var best_d := 999
+	for o in battle.fighters:
+		if o.alive() and o.team != f.team and tiles.has(o.pos):
+			var dd := maxi(absi(o.pos.x - f.pos.x), absi(o.pos.y - f.pos.y))
+			if dd < best_d:
+				best_d = dd
+				best = o.pos
+	if best.x > -99:
+		return best
+	for d in range(atk.min_range, atk.max_range + 1):
+		if tiles.has(f.pos + f.facing * d):
+			return f.pos + f.facing * d
+	return tiles[0] if not tiles.is_empty() else f.pos
 
 
 func _cancel_aim() -> void:
@@ -1484,6 +1529,45 @@ func _super_move(e: Dictionary, f, atk: Dictionary) -> void:
 	var tpx := _tile_center(target)
 	var tv = _view_at(target)
 	match atk.id:
+		"bomba":
+			# "BOMBA!" - a bomb whistles down from the sky and blows up 3x3 tiles
+			var at: Vector2i = e.get("at", target)
+			var mid := _tile_center(at)
+			var up := create_tween()
+			up.tween_property(v, "position", home + Vector2(0, -8), 0.1)
+			up.tween_property(v, "position", home, 0.1)
+			_popup(v, "BOMBA!!", UiTheme.GOLD, -44)
+			var bomb := Sprite2D.new()
+			bomb.texture = PixelArt.bomb()
+			bomb.scale = Vector2(2, 2)
+			bomb.z_index = 3500
+			bomb.position = mid + Vector2(0, -170)
+			board.add_child(bomb)
+			var shadow := Fx.new()
+			shadow.kind = "tiles"
+			var area := []
+			for dy in range(-1, 2):
+				for dx in range(-1, 2):
+					area.append([at + Vector2i(dx, dy), Color("e8575e") if dx == 0 and dy == 0 else Color("f08a4b")])
+			shadow.opts = {"tiles": area}
+			shadow.z_index = 5
+			board.add_child(shadow)
+			Audio.play("fall")
+			var drop := create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+			drop.parallel().tween_property(bomb, "position", mid, 0.45)
+			drop.parallel().tween_property(bomb, "rotation", 1.2, 0.45)
+			await drop.finished
+			bomb.queue_free()
+			Audio.play("boom")
+			_fx("spark", mid, {"scale": 2.4})
+			_fx("ring", mid, {"radius": 52.0})
+			_fx("ring", mid, {"radius": 30.0, "delay": 0.08})
+			for i in 16:
+				_fx("rock", mid + Vector2(randf_range(-14, 14), 6), {"vel": Vector2(randf_range(-140, 140), randf_range(-220, -90))})
+			for dy in range(-1, 2):
+				for dx in range(-1, 2):
+					_fx("dust", mid + Vector2(dx * 32, dy * 32 + 8))
+			await _shake(7)
 		"mega_barrage":
 			# a flurry of quick punches
 			for i in 8:
@@ -2032,7 +2116,7 @@ func _refresh() -> void:
 			if f.pos != battle.turn_start_pos:
 				tiles.append({"pos": battle.turn_start_pos, "kind": "reach"})
 		elif mode == "aim":
-			tiles = battle.preview(f.id, aim_slot, aim_dir, aim_dist)
+			tiles = battle.preview(f.id, aim_slot, aim_dir, aim_dist, aim_at)
 	if battle.phase == Battle.Phase.TURN and not busy:
 		tiles.append({"pos": f.pos, "kind": "current"})
 	highlight.tiles = tiles
@@ -2043,7 +2127,7 @@ func _refresh() -> void:
 	highlight.boss_at = b.pos if b != null and b.alive() else Vector2i(-99, -99)
 	if b != null and b.alive() and mode == "aim":
 		for t in tiles:
-			if t.kind in ["hit", "dizzy"] and absi(t.pos.x - b.pos.x) <= Battle.BOSS_RADIUS and absi(t.pos.y - b.pos.y) <= Battle.BOSS_RADIUS:
+			if t.kind in ["hit", "dizzy", "ring"] and absi(t.pos.x - b.pos.x) <= Battle.BOSS_RADIUS and absi(t.pos.y - b.pos.y) <= Battle.BOSS_RADIUS:
 				boss_hit = true
 	highlight.boss_targeted = boss_hit
 	highlight.queue_redraw()
@@ -2072,6 +2156,8 @@ func _refresh() -> void:
 		var txt := "%s: AIM WITH THE JOYSTICK OR TAP A TILE (TAP AGAIN = USE)" % atk.name.to_upper()
 		if atk.type == "lob":
 			txt = "%s: TAP WHERE TO THROW (DISTANCE %d), THEN USE" % [atk.name.to_upper(), aim_dist]
+		elif atk.type == "bomb":
+			txt = "BOMBA: TAP WHERE IT FALLS (%d-%d TILES AWAY), TAP AGAIN = USE" % [atk.min_range, atk.max_range]
 		elif atk.type.begins_with("self"):
 			txt = "%s: PRESS AGAIN OR USE" % atk.name.to_upper()
 		elif atk.type == "spill":
@@ -2198,6 +2284,7 @@ class HighlightLayer extends Node2D:
 		"path": Color("f2c14e"),
 		"hit": Color("e8575e"),
 		"dizzy": Color("b08cf0"),
+		"ring": Color("f08a4b"),
 		"self": Color("f2c14e"),
 	}
 	var tiles := []

@@ -30,6 +30,9 @@ const PAL := {
 	"shoeBlack": ["1f1f25", "141418", "34343d"],
 	"shoeRed": ["b62c33", "7f1c22", "d64b50"],
 	"shoeBrown": ["5b3a26", "3f2718", "77513a"],
+	"shoeWhite": ["e6e8ec", "b9bdc5", "ffffff"],
+	"teeRoyal": ["3561b8", "244584", "5a86d6"],
+	"bomb": ["34343e", "1f1f26", "5a5a68"],
 	"blade": ["cfd6e0", "98a1b0", "ffffff"],
 	"guard": ["d4a640", "a07722", "f0cd6b"],
 	"grip": ["6b3f22", "4a2a15", "8a5634"],
@@ -95,6 +98,7 @@ const LOOKS := {
 	"william": {"legs": 13, "hair": "hairBlond", "hair_style": "swept", "shirt": "teeBlack", "sleeve": "red", "stripe": "red", "pants": "pantsBlack", "shoes": "shoeRed", "glasses": true, "mouth": "smile", "pupil": 0},
 	"snorre": {"legs": 9, "hair": "hairChestnut", "hair_style": "messy", "shirt": "teeWhite", "sleeve": "teeWhite", "pants": "pantsGray", "shoes": "shoeBrown", "sword": true, "mouth": "smile", "pupil": 0},
 	"leon": {"legs": 11, "hair": "hairLightBrown", "hair_style": "swoop", "shirt": "teeBlue", "sleeve": "teeBlue", "pants": "pantsLightGray", "shoes": "shoeBlack", "mouth": "smile", "pupil": 1},
+	"halvor": {"legs": 11, "hair": "hairLightBrown", "hair_style": "curtains", "shirt": "teeRoyal", "sleeve": "teeRoyal", "pants": "pantsLightGray", "shoes": "shoeWhite", "plane": true, "mouth": "smirk", "pupil": 1},
 	"mike": {"legs": 11, "hair": "hairDark", "hair_style": "short", "shirt": "hoodie", "sleeve": "hoodie", "hoodie": true, "pants": "pantsBlack", "shoes": "shoeBlack", "slingshot": true, "mouth": "smirk", "pupil": 1},
 	# the athletes the Gym Teacher calls: red jersey, white stripe, sweatband
 	"athlete": {"legs": 12, "hair": "hairBlond", "hair_style": "headband", "shirt": "red", "sleeve": "red", "stripe": "teeWhite", "pants": "pantsBlack", "shoes": "shoeRed", "mouth": "smirk", "pupil": 0},
@@ -182,7 +186,8 @@ class Painter:
 ## new outfits and a golden one. Each is a list of material swaps.
 const GOLD := {"teeGray": "guard", "teeBlack": "guard", "teeWhite": "guard", "teeBlue": "guard",
 	"hoodie": "guard", "pocket": "pencil", "red": "pencil", "pantsBlack": "foodYellow", "pantsGray": "foodYellow",
-	"pantsLightGray": "foodYellow", "shoeBlack": "guard", "shoeRed": "guard", "shoeBrown": "guard"}
+	"pantsLightGray": "foodYellow", "shoeBlack": "guard", "shoeRed": "guard", "shoeBrown": "guard",
+	"teeRoyal": "guard", "shoeWhite": "guard"}
 const SKINS := {
 	"sebba": [{}, {"teeGray": "teeBlue", "pantsBlack": "pantsGray"}, {"teeGray": "red", "shoeBlack": "shoeRed"},
 		{"teeGray": "leaf", "pantsBlack": "pantsLightGray", "shoeBlack": "shoeBrown"}, GOLD],
@@ -194,6 +199,8 @@ const SKINS := {
 		{"teeBlue": "slide", "pantsLightGray": "pantsGray", "shoeBlack": "shoeRed"}, GOLD],
 	"mike": [{}, {"hoodie": "red", "pocket": "bikeRed"}, {"hoodie": "teeBlue", "pocket": "ballBlue", "pantsBlack": "pantsGray"},
 		{"hoodie": "leaf", "pocket": "foodGreen", "shoeBlack": "shoeRed"}, GOLD],
+	"halvor": [{}, {"teeRoyal": "teeBlack", "pantsLightGray": "pantsGray"}, {"teeRoyal": "leaf", "shoeWhite": "shoeBrown"},
+		{"teeRoyal": "red", "pantsLightGray": "pantsBlack", "shoeWhite": "shoeRed"}, GOLD],
 	"dogs": [{}, {"beagleTan": "hairDark", "beagleEar": "beagleBlack"}, {"beagleTan": "teeWhite", "beagleEar": "beagleBlack"},
 		{"beagleTan": "red", "beagleEar": "bikeRed"},
 		{"beagleTan": "guard", "beagleBlack": "foodYellow", "beagleEar": "pencil", "oldMuzzle": "slide"}],
@@ -303,6 +310,17 @@ static func _character_image(c: Dictionary, bob: bool) -> Image:
 			p.ell(12, top - 6, 4, 3, "chefHat")
 			p.ell(19, top - 6, 4, 3, "chefHat")
 			p.ell(15.5, top - 8, 4, 3, "chefHat")
+		"curtains":
+			# parted in the middle, hanging down past the ears on both sides
+			p.ell(16, hcy - 5, 10, 6.5, h, hcy - 3)
+			p.rect(9, hcy - 3, 14, hcy - 3, h)
+			p.rect(17, hcy - 3, 22, hcy - 3, h)
+			p.rect(9, hcy - 2, 12, hcy - 2, h)
+			p.rect(19, hcy - 2, 22, hcy - 2, h)
+			p.rect(9, hcy - 1, 9, hcy - 1, h)
+			p.rect(22, hcy - 1, 22, hcy - 1, h)
+			p.rect(6, hcy - 4, 8, hcy + 3, h)
+			p.rect(23, hcy - 4, 25, hcy + 3, h)
 		"swoop":
 			# fringe swept to one side with a little flick on top
 			p.rect(10, hcy - 3, 16, hcy - 3, h)
@@ -339,6 +357,14 @@ static func _character_image(c: Dictionary, bob: bool) -> Image:
 		p.px(9, hcy - 1, "frame")
 		p.px(22, hcy - 1, "frame")
 
+	if c.get("plane", false):
+		# a folded paper plane, ready to throw
+		var hy := tt + T
+		p.rect(25, hy, 26, hy, "skin")
+		p.rect(24, hy - 4, 31, hy - 4, "tableTop")
+		p.rect(25, hy - 3, 30, hy - 3, "tableTop")
+		p.rect(26, hy - 2, 29, hy - 2, "tableEdge")
+		p.rect(27, hy - 1, 28, hy - 1, "tableEdge")
 	if c.get("slingshot", false):
 		var hy := tt + T
 		p.px(25, hy, "skin")
@@ -589,6 +615,21 @@ static func trophy(won: bool) -> Texture2D:
 
 
 ## A health apple lying on a tile (boss fights).
+## Halvor's BOMBA: a round cartoon bomb with a lit fuse (16x16).
+static func bomb() -> Texture2D:
+	if not _cache.has("bomb"):
+		var p := Painter.new(16, 16)
+		p.ell(7.5, 9.5, 5.5, 5.5, "bomb")
+		p.rect(6, 3, 9, 4, "steelDark")
+		p.px(10, 2, "wood")
+		p.px(11, 1, "wood")
+		p.px(12, 0, "pencil")
+		p.px(13, 1, "ballOrange")
+		p.rect(5, 7, 5, 8, "steel")  # shine
+		_cache["bomb"] = ImageTexture.create_from_image(p.bake())
+	return _cache["bomb"]
+
+
 static func apple() -> Texture2D:
 	if not _cache.has("apple"):
 		var p := Painter.new(TILE, TILE)

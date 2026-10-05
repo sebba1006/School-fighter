@@ -14,7 +14,7 @@ const Client = preload("res://net/client.gd")
 const Battle = preload("res://rules/battle.gd")
 const Characters = preload("res://rules/characters.gd")
 const PORT := 9123
-const CHARS := ["sebba", "william", "snorre", "mike"]
+const CHARS := ["halvor", "sebba", "william", "snorre", "mike"]
 
 var problems: Array[String] = []
 var bots: Array = []
@@ -176,7 +176,8 @@ func _bot_turn() -> void:
 		var roll := rng.randi_range(0, 9)
 		var intent := {"type": "move", "dir": dir}
 		if roll >= 5 and roll < 9:
-			intent = {"type": "attack", "slot": rng.randi_range(0, 4), "dir": dir, "dist": rng.randi_range(2, 4)}
+			intent = {"type": "attack", "slot": rng.randi_range(0, 4), "dir": dir, "dist": rng.randi_range(2, 4),
+				"at": me.pos + toward * rng.randi_range(2, 4)}  # "at": where a Bomba falls
 		elif roll == 9:
 			intent = {"type": "end_turn"}
 		bot.waiting = true

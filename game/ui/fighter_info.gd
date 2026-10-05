@@ -19,6 +19,8 @@ static func attack_info(atk: Dictionary) -> String:
 			return "NO DETENTION DMG %d TURNS" % atk.turns
 		"shockwave":
 			parts.append("%d / %d DMG" % [atk.inner_damage, atk.outer_damage])
+		"bomb":
+			parts.append("%d/%d DMG 3X3" % [atk.center_damage, atk.ring_damage])
 		"dash":
 			var most: int = atk.damage + atk.get("damage_per_tile", 0) * atk["range"]
 			parts.append(("%d-%d DMG" % [atk.damage, most]) if most != atk.damage else ("%d DMG" % atk.damage))
