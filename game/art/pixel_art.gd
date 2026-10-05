@@ -37,6 +37,10 @@ const PAL := {
 	"skinDark": ["7a4a2e", "5a341f", "96613f"],
 	"hoodieGray": ["5d606b", "454751", "777a86"],
 	"pocketGray": ["4e505a", "3c3e46", "5d606b"],
+	"beanie": ["c8323a", "912029", "e3585d"],
+	"beanieFold": ["a3262e", "751b21", "c8323a"],
+	"cap": ["e8893a", "b9651f", "f5ab69"],
+	"phones": ["2c2c34", "1d1d23", "3d3d47"],
 	"frameGreen": "3fa34d",
 	"frameBlue": "3f78c9",
 	"cracker": ["e3b35e", "b98838", "f3d18c"],
@@ -107,7 +111,7 @@ const LOOKS := {
 	"snorre": {"legs": 9, "hair": "hairChestnut", "hair_style": "messy", "shirt": "teeWhite", "sleeve": "teeWhite", "pants": "pantsGray", "shoes": "shoeBrown", "sword": true, "mouth": "smile", "pupil": 0},
 	"leon": {"legs": 11, "hair": "hairLightBrown", "hair_style": "swoop", "shirt": "teeBlue", "sleeve": "teeBlue", "pants": "pantsLightGray", "shoes": "shoeBlack", "mouth": "smile", "pupil": 1},
 	"yacob": {"legs": 11, "hair": "hairBlack", "hair_style": "crop", "skin_tone": "skinDark", "shirt": "hoodieGray", "sleeve": "hoodieGray", "hoodie": true, "hood": false, "pocket": "pocketGray", "pants": "pantsBlack", "shoes": "shoeBlack", "glasses": true, "frame": "frameGreen", "frame2": "frameBlue", "mouth": "smile", "pupil": 0},
-	"halvor": {"legs": 11, "hair": "hairLightBrown", "hair_style": "normal", "shirt": "teeTeal", "sleeve": "teeTeal", "pants": "pantsLightGray", "shoes": "shoeWhite", "plane": true, "mouth": "smirk", "pupil": 1},
+	"halvor": {"legs": 11, "hair": "hairLightBrown", "hair_style": "normal", "shirt": "teeTeal", "sleeve": "teeTeal", "pants": "pantsLightGray", "shoes": "shoeWhite", "plane": true, "print": "plane", "mouth": "smirk", "pupil": 1},
 	"mike": {"legs": 11, "hair": "hairDark", "hair_style": "short", "shirt": "hoodie", "sleeve": "hoodie", "hoodie": true, "pants": "pantsBlack", "shoes": "shoeBlack", "slingshot": true, "mouth": "smirk", "pupil": 1},
 	# the athletes the Gym Teacher calls: red jersey, white stripe, sweatband
 	"athlete": {"legs": 12, "hair": "hairBlond", "hair_style": "headband", "shirt": "red", "sleeve": "red", "stripe": "teeWhite", "pants": "pantsBlack", "shoes": "shoeRed", "mouth": "smirk", "pupil": 0},
@@ -209,12 +213,19 @@ const SKINS := {
 	"mike": [{}, {"hoodie": "red", "pocket": "bikeRed"}, {"hoodie": "teeBlue", "pocket": "ballBlue", "pantsBlack": "pantsGray"},
 		{"hoodie": "leaf", "pocket": "foodGreen", "shoeBlack": "shoeRed"}, GOLD],
 	"halvor": [{}, {"teeTeal": "teeBlack", "pantsLightGray": "pantsGray"}, {"teeTeal": "teeRoyal", "shoeWhite": "shoeBrown"},
-		{"teeTeal": "red", "pantsLightGray": "pantsBlack", "shoeWhite": "shoeRed"}, GOLD],
+		{"teeTeal": "red", "pantsLightGray": "pantsBlack", "shoeWhite": "shoeRed"}, GOLD],  # + hats, see SKIN_LOOKS
 	"yacob": [{}, {"hoodieGray": "leaf", "pocketGray": "foodGreen"}, {"hoodieGray": "red", "pocketGray": "bikeRed", "pantsBlack": "pantsGray"},
 		{"hoodieGray": "teeWhite", "pocketGray": "tableEdge", "shoeBlack": "shoeRed"}, GOLD],
 	"dogs": [{}, {"beagleTan": "hairDark", "beagleEar": "beagleBlack"}, {"beagleTan": "teeWhite", "beagleEar": "beagleBlack"},
 		{"beagleTan": "red", "beagleEar": "bikeRed"},
 		{"beagleTan": "guard", "beagleBlack": "foodYellow", "beagleEar": "pencil", "oldMuzzle": "slide"}],
+}
+
+
+## Skins that change more than colours: extra look keys per skin (a hat,
+## headphones...), on top of the material swaps in SKINS.
+const SKIN_LOOKS := {
+	"halvor": [{}, {"hat": "beanie"}, {"hat": "cap"}, {"hat": "phones"}, {"hat": "crown"}],
 }
 
 
@@ -227,7 +238,11 @@ static func character(char_id: String, bob := false, skin := 0) -> Texture2D:
 		if LOOKS.get(char_id, {}).has("skin_tone"):
 			remap["skin"] = LOOKS[char_id].skin_tone
 		Painter.remap = remap
-		var img := _dogs_image(bob) if char_id == "dogs" else _character_image(LOOKS[char_id], bob)
+		var look: Dictionary = LOOKS.get(char_id, {})
+		var extra: Array = SKIN_LOOKS.get(char_id, [])
+		if skin > 0 and skin < extra.size():
+			look = look.merged(extra[skin], true)
+		var img := _dogs_image(bob) if char_id == "dogs" else _character_image(look, bob)
 		Painter.remap = {}
 		_cache[key] = ImageTexture.create_from_image(img)
 	return _cache[key]
@@ -277,6 +292,12 @@ static func _character_image(c: Dictionary, bob: bool) -> Image:
 		p.rect(15, tt + 1, 16, tt + 1, "skin")
 	if c.has("stripe"):
 		p.rect(10, tt + 3, 21, tt + 4, c.stripe)
+	if c.get("print", "") == "plane":
+		# a little white paper plane printed on the chest
+		p.rect(12, tt + 3, 18, tt + 3, "teeWhite")
+		p.rect(13, tt + 4, 17, tt + 4, "teeWhite")
+		p.rect(15, tt + 5, 16, tt + 5, "teeWhite")
+		p.px(19, tt + 2, "teeWhite")
 	if c.has("tie"):
 		p.rect(15, tt + 1, 16, tt + 6, c.tie)
 		p.px(15, tt + 7, c.tie)
@@ -365,6 +386,33 @@ static func _character_image(c: Dictionary, bob: bool) -> Image:
 			p.rect(15, my, 18, my, "mouth")
 			p.px(19, my - 1, "mouth")
 
+	match c.get("hat", ""):
+		"beanie":  # red knitted beanie with a folded edge and a pom-pom
+			p.ell(16, hcy - 5, 9.5, 6.5, "beanie", hcy - 4)
+			p.rect(8, hcy - 4, 23, hcy - 3, "beanieFold")
+			for x in [10, 13, 16, 19, 22]:
+				p.px(x, hcy - 4, "beanie")
+			p.ell(16, top - 4, 2.5, 2.5, "teeWhite")
+		"cap":  # orange cap, peak sticking out to the side
+			p.ell(16, hcy - 5, 9, 5.5, "cap", hcy - 4)
+			p.rect(8, hcy - 4, 23, hcy - 4, "cap")
+			p.rect(22, hcy - 4, 28, hcy - 3, "cap")
+			p.rect(23, hcy - 3, 28, hcy - 3, "pantsBlack")
+			p.px(16, top - 2, "teeWhite")
+		"phones":  # big headphones over the hair
+			p.rect(9, top - 1, 22, top - 1, "phones")
+			p.px(8, top, "phones")
+			p.px(23, top, "phones")
+			p.rect(6, hcy - 3, 8, hcy + 1, "phones")
+			p.rect(23, hcy - 3, 25, hcy + 1, "phones")
+			p.rect(6, hcy - 2, 6, hcy, "red")
+			p.rect(25, hcy - 2, 25, hcy, "red")
+		"crown":  # a little golden crown for the golden skin
+			p.rect(11, top - 3, 20, top - 1, "guard")
+			for x in [11, 15, 16, 20]:
+				p.px(x, top - 4, "guard")
+			p.px(13, top - 2, "red")
+			p.px(18, top - 2, "teeBlue")
 	if c.get("glasses", false):
 		var fr: String = c.get("frame", "frame")
 		var fr2: String = c.get("frame2", fr)  # bridge and arms
