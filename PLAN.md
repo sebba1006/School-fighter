@@ -174,17 +174,17 @@ A lobby holds max 4 players, so unique picks always work.
 ### Halvor (7/8): long range bomber
 - **Look**: short light brown hair, teal (blue-green) shirt, light grey
   pants, white sneakers, a paper plane in his hand.
-- **Stats**: HP 90 (lowest: he fights from far away), move 3.
+- **Stats**: HP 95, move 3.
 
 | Slot | Attack | Shape | Effect |
 |---|---|---|---|
-| 1 | Paper Plane | Projectile, 6 tiles | 13 damage |
+| 1 | Paper Plane | Projectile, 6 tiles | 11 damage (was 13: too strong for players keeping their distance) |
 | 2 | Snowball | Lob 2–5 tiles, plus shape, over obstacles | 10 damage |
 | 3 | Spitball | Projectile, 4 tiles | 8 damage + Dizzy |
-| 4 | Back Off! | 1 tile in front | 8 damage, knockback 2 (to get space) |
+| 4 | Back Off! | 1 tile in front | 11 damage, knockback 2 (to get space) |
 | Super | BOMBA | Any tile 2–5 away (tap it), over obstacles | He yells "BOMBA!" and a bomb falls: **30 damage** in the middle, **13** on the 8 tiles around it |
 
-Simulation (4 matches per pair per map): 47% overall win rate.
+Simulation (4 matches per pair per map): 38% overall win rate (the computer doesn't keep its distance the way players do).
 
 ### Yacob (8/8): the support
 - **Look**: dark skin, short black hair, green-and-blue glasses, dark grey
