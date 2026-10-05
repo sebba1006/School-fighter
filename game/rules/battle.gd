@@ -52,6 +52,9 @@ const PUDDLE_DAMAGE := 5
 const SHRINK_START := 6
 const SHRINK_EVERY := 4
 const ZONE_DAMAGE := 10
+## Burn (Super Heat Ray): HP lost at the start of each of the next BURN_TURNS own turns.
+const BURN_DAMAGE := 5
+const BURN_TURNS := 3
 ## Boss fight: three players (team 0) against the Principal (team 1).
 const BOSS_TEAM := 1
 const BOSS_PLAYER_HP := 250  # every player gets this much extra HP
@@ -113,7 +116,9 @@ const AROUND: Array[Vector2i] = [
 ]
 const SELF_TYPES := ["self_rage", "self_block", "self_sugar", "self_guard", "self_pass"]
 ## Attacks that can't reach someone hiding in a sandbox.
-const RANGED_TYPES := ["projectile", "line", "lob"]
+const RANGED_TYPES := ["projectile", "line", "lob", "bomb", "ray"]
+## Aimed at a tile (the intent's "at") instead of a direction.
+const TILE_TYPES := ["bomb", "heal"]
 
 enum Phase { WAITING, TURN, ROUND_OVER, MATCH_OVER }
 
@@ -279,7 +284,7 @@ func apply(fighter_id: int, intent: Dictionary) -> Dictionary:
 		"undo":
 			return _undo(f)
 		"attack":
-			return _attack(f, int(intent.get("slot", -1)), intent.get("dir"), int(intent.get("dist", 0)))
+			return _attack(f, int(intent.get("slot", -1)), intent.get("dir"), int(intent.get("dist", 0)), intent.get("at"))
 		"end_turn":
 			return _ok(_end_turn())
 	return _fail("unknown_intent")
@@ -359,13 +364,19 @@ func slot_attack(f: Fighter, slot: int) -> Dictionary:
 	return {}
 
 
-func _attack(f: Fighter, slot: int, dir, dist: int) -> Dictionary:
+func _attack(f: Fighter, slot: int, dir, dist: int, at = null) -> Dictionary:
 	if slot < 0 or slot > ITEM_SLOT:
 		return _fail("bad_slot")
 	var is_super := slot == SUPER_SLOT
 	if slot == ITEM_SLOT and f.item == "":
 		return _fail("no_item")
 	var atk: Dictionary = slot_attack(f, slot)
+	if TILE_TYPES.has(atk.type):
+		# aimed at a tile, not a direction: face roughly towards it
+		if not at is Vector2i:
+			return _fail("bad_dist")
+		dir = dir_towards(f.pos, at) if at != f.pos else f.facing
+		dist = maxi(absi(at.x - f.pos.x), absi(at.y - f.pos.y))
 	var is_self: bool = SELF_TYPES.has(atk.type)
 	if not is_self and not _valid_dir(dir):
 		return _fail("bad_dir")
@@ -375,7 +386,7 @@ func _attack(f: Fighter, slot: int, dir, dist: int) -> Dictionary:
 		return _fail("cooldown")
 	if is_super and f.meter < METER_MAX:
 		return _fail("super_not_ready")
-	var err := _validate(f, atk, dir, dist)
+	var err := _validate(f, atk, dir, dist, at)
 	if err != "":
 		return _fail(err)
 
@@ -389,7 +400,11 @@ func _attack(f: Fighter, slot: int, dir, dist: int) -> Dictionary:
 		# e.g. Block with cooldown 2: not on the next 2 own turns
 		f.ready_at[slot] = f.own_turns + atk.cooldown + 1
 	var ctx := {"attacker": f, "dir": dir, "super": is_super, "ranged": RANGED_TYPES.has(atk.type), "events": []}
-	ctx.events.append({"type": "attack", "fighter": f.id, "attack": atk.id, "super": is_super, "item": slot == ITEM_SLOT, "dir": dir, "dist": dist})
+	ctx.at = at
+	var ev := {"type": "attack", "fighter": f.id, "attack": atk.id, "super": is_super, "item": slot == ITEM_SLOT, "dir": dir, "dist": dist}
+	if at is Vector2i and TILE_TYPES.has(atk.type):
+		ev.at = at
+	ctx.events.append(ev)
 	_resolve(ctx, atk, dist)
 	_check_round_end(ctx.events)
 	if phase == Phase.TURN and not atk.get("free", false):
@@ -397,8 +412,17 @@ func _attack(f: Fighter, slot: int, dir, dist: int) -> Dictionary:
 	return _ok(ctx.events)
 
 
-func _validate(f: Fighter, atk: Dictionary, dir, dist: int) -> String:
+func _validate(f: Fighter, atk: Dictionary, dir, dist: int, at = null) -> String:
 	match atk.type:
+		"bomb":
+			if dist < atk.min_range or dist > atk.max_range or not _in_bounds(at):
+				return "bad_dist"
+		"heal":
+			var t := _fighter_at(at)
+			if t == null or t.team != f.team or t.is_boss or dist > atk["range"]:
+				return "not_a_teammate"
+			if t.hp >= t.max_hp:
+				return "full_hp"
 		"lob":
 			if dist < atk.min_range or dist > atk.max_range:
 				return "bad_dist"
@@ -465,6 +489,27 @@ func _resolve(ctx: Dictionary, atk: Dictionary, dist: int) -> void:
 			for d in [Vector2i.ZERO, Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
 				if _in_bounds(center + d):
 					_hit_tile(ctx, center + d, atk.damage, atk)
+		"ray":
+			# the whole row (or column) to the edge of the map, through everything
+			var t: Vector2i = f.pos + dir
+			while _in_bounds(t):
+				_hit_tile(ctx, t, atk.damage, atk)
+				t += dir
+		"heal":
+			# a cracker: eaten by Yacob himself, or thrown to a teammate
+			var t := _fighter_at(ctx.at)
+			var amount: int = atk.self_heal if t == f else _roll(atk.heal_min, atk.heal_max)
+			var healed := mini(amount, t.max_hp - t.hp)
+			t.hp += healed
+			ctx.events.append({"type": "heal", "fighter": t.id, "amount": healed, "hp": t.hp, "by": f.id, "cracker": true})
+			_gain_meter(ctx, f, healed * METER_PER_HP_DEALT)
+		"bomb":
+			# the middle first: if it lands on the boss, he takes the big hit
+			var center: Vector2i = ctx.at
+			_hit_tile(ctx, center, atk.center_damage, atk)
+			for d in AROUND:
+				if _in_bounds(center + d):
+					_hit_tile(ctx, center + d, atk.ring_damage, atk)
 		"shockwave":
 			var impact: Vector2i = f.pos + dir
 			for dy in range(-2, 3):
@@ -615,6 +660,10 @@ func _apply_status(ctx: Dictionary, f: Fighter, status: String) -> void:
 	if status == "dizzy":
 		f.dizzy_next = true
 		ctx.events.append({"type": "status", "fighter": f.id, "status": "dizzy"})
+	elif status == "burn":
+		f.burn_turns = BURN_TURNS
+		f.burn_by = ctx.attacker.id
+		ctx.events.append({"type": "status", "fighter": f.id, "status": "burn", "turns": BURN_TURNS})
 
 
 func _knockback(ctx: Dictionary, t: Fighter, dir: Vector2i, tiles: int) -> void:
@@ -688,6 +737,25 @@ func _begin_turn() -> Array:
 		var ctx := {"attacker": f, "dir": Vector2i.ZERO, "super": false, "events": events}
 		_gain_meter(ctx, f, lost * METER_PER_HP_TAKEN)
 		if not f.alive():
+			events.append({"type": "ko", "fighter": f.id})
+			_check_round_end(events)
+			if phase == Phase.TURN:
+				events.append_array(_end_turn())
+			return events
+	if f.burn_turns > 0 and f.alive():
+		f.burn_turns -= 1
+		var burn := BURN_DAMAGE * (BOSS_HIT_MULTIPLIER if f.is_boss else 1)
+		var lost := mini(burn, f.hp)
+		f.hp -= lost
+		var src := fighters[f.burn_by] if f.burn_by >= 0 else f
+		if src != f:
+			src.match_damage += lost
+		events.append({"type": "damage", "fighter": f.id, "amount": lost, "absorbed": 0, "guarded": 0, "hp": f.hp, "burn": true})
+		if f.burn_turns == 0:
+			events.append({"type": "status_end", "fighter": f.id, "status": "burn"})
+		if not f.alive():
+			if src != f and src.team != f.team:
+				src.match_kos += 1
 			events.append({"type": "ko", "fighter": f.id})
 			_check_round_end(events)
 			if phase == Phase.TURN:
@@ -1309,7 +1377,7 @@ func state_hash() -> int:
 	var parts := [phase, round_number, turn_index, move_budget, path.size(), _rng.state, _last_team, _team_last, box, _turn_count, zone_rings, _apples_dropped, space, _boss_last]
 	for f in fighters:
 		parts.append_array([f.hp, f.pos.x, f.pos.y, f.meter, f.shield.get("kind", ""), f.shield.get("amount", 0),
-			f.dizzy_next, f.rage_turns, f.sugar_active, f.no_attack_next, f.no_attack_now, f.forfeited, f.item, f.guard, f.own_turns, f.ready_at, f.angry, f.zone_safe, f.no_move_next])
+			f.dizzy_next, f.rage_turns, f.sugar_active, f.no_attack_next, f.no_attack_now, f.forfeited, f.item, f.guard, f.own_turns, f.ready_at, f.angry, f.zone_safe, f.no_move_next, f.burn_turns, f.burn_by])
 	var tiles := obstacles.keys()
 	tiles.sort()
 	for t in tiles:
@@ -1434,7 +1502,7 @@ func path_to(t: Vector2i, avoid := {}) -> Array[Vector2i]:
 
 ## What an attack would do, without doing it.
 ## Returns [{"pos": Vector2i, "kind": "hit" | "dizzy" | "path" | "self"}, ...]
-func preview(fighter_id: int, slot: int, dir, dist := 0) -> Array:
+func preview(fighter_id: int, slot: int, dir, dist := 0, at = null) -> Array:
 	var f := fighters[fighter_id]
 	var atk := slot_attack(f, slot)
 	if atk.is_empty():
@@ -1446,6 +1514,17 @@ func preview(fighter_id: int, slot: int, dir, dist := 0) -> Array:
 	if SELF_TYPES.has(atk.type):
 		add.call(f.pos, "self")
 		return out
+	if atk.type == "bomb":
+		if not at is Vector2i:
+			return []
+		add.call(at, "hit")
+		for d in AROUND:
+			add.call(at + d, "ring")
+		return out
+	if atk.type == "heal":
+		if at is Vector2i:
+			add.call(at, "heal")
+		return out
 	if not _valid_dir(dir):
 		return []
 	var hit_kind := "dizzy" if atk.get("status", "") == "dizzy" else "hit"
@@ -1456,13 +1535,13 @@ func preview(fighter_id: int, slot: int, dir, dist := 0) -> Array:
 			for d in AROUND:
 				add.call(f.pos + d, hit_kind)
 		"dash":
-			var at := f.pos
+			var stop := f.pos
 			var run := 0
-			while run < atk["range"] and _walkable(at + dir):
-				at += dir
+			while run < atk["range"] and _walkable(stop + dir):
+				stop += dir
 				run += 1
-				add.call(at, "path")
-			add.call(at + dir, hit_kind)
+				add.call(stop, "path")
+			add.call(stop + dir, hit_kind)
 		"projectile":
 			for d in range(1, atk["range"] + 1):
 				var t: Vector2i = f.pos + dir * d
@@ -1481,6 +1560,11 @@ func preview(fighter_id: int, slot: int, dir, dist := 0) -> Array:
 				add.call(t, hit_kind)
 				if obstacles.has(t):
 					break
+		"ray":
+			var t: Vector2i = f.pos + dir
+			while _in_bounds(t):
+				add.call(t, "burn")
+				t += dir
 		"spill":
 			add.call(f.pos + dir, "dizzy")
 		"lob":
@@ -1534,6 +1618,39 @@ func _roll(lo: int, hi: int) -> int:
 	if not forced_rolls.is_empty():
 		return forced_rolls.pop_front()
 	return _rng.randi_range(lo, hi)
+
+
+## The straight direction (up/down/left/right) that points most towards `to`.
+static func dir_towards(from: Vector2i, to: Vector2i) -> Vector2i:
+	var d := to - from
+	if d == Vector2i.ZERO:
+		return Vector2i.RIGHT
+	return Vector2i(signi(d.x), 0) if absi(d.x) >= absi(d.y) else Vector2i(0, signi(d.y))
+
+
+## Tiles a tile-aimed attack can pick: a bomb's landing spots, or the
+## teammates (and yourself) a cracker can reach.
+func aim_tiles(f: Fighter, atk: Dictionary) -> Array[Vector2i]:
+	if atk.type == "bomb":
+		return bomb_tiles(f, atk)
+	var out: Array[Vector2i] = []
+	for o in fighters:
+		if o.alive() and o.team == f.team and not o.is_boss \
+				and maxi(absi(o.pos.x - f.pos.x), absi(o.pos.y - f.pos.y)) <= atk["range"]:
+			out.append(o.pos)
+	return out
+
+
+## Tiles a bomb could be aimed at (in range, on the board).
+func bomb_tiles(f: Fighter, atk: Dictionary) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	var r: int = atk.max_range
+	for y in range(f.pos.y - r, f.pos.y + r + 1):
+		for x in range(f.pos.x - r, f.pos.x + r + 1):
+			var t := Vector2i(x, y)
+			if _in_bounds(t) and maxi(absi(x - f.pos.x), absi(y - f.pos.y)) >= atk.min_range:
+				out.append(t)
+	return out
 
 
 func _valid_dir(dir) -> bool:

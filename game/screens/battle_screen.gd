@@ -43,6 +43,8 @@ const ERRORS := {
 	"cannot_attack": "SUGAR CRASH - NO ATTACK THIS TURN",
 	"super_not_ready": "SUPER NOT READY - FILL THE METER",
 	"no_target": "NO ENEMY IN REACH",
+	"not_a_teammate": "TAP YOURSELF OR A TEAMMATE IN REACH",
+	"full_hp": "ALREADY AT FULL HP",
 	"bad_dist": "OUT OF RANGE",
 	"bad_dir": "PICK A DIRECTION",
 	"already_active": "ALREADY ON A SUGAR RUSH",
@@ -65,6 +67,7 @@ const STATUS_TEXT := {
 	"hall_pass": ["HALL PASS! 2 TURNS SAFE", UiTheme.GOLD],
 	"mystery_meat": ["YUCK! NO ATTACK NEXT TURN", UiTheme.DIZZY],
 	"push_ups": ["DROP AND GIVE ME 20! NO MOVING NEXT TURN", UiTheme.DIZZY],
+	"burn": ["BURNING! -5 HP FOR 3 TURNS", Color("f08a4b")],
 }
 
 var config: Dictionary
@@ -85,6 +88,7 @@ var mode := "move"  # "move", "aim" or "over"
 var aim_slot := -1
 var aim_dir := Vector2i.RIGHT
 var aim_dist := 2
+var aim_at := Vector2i(-99, -99)  # Bomba: the tile it falls on
 
 var boss_bar: BossBar  # boss fights: the Principal's big HP bar over the top of the board
 var panels: Array = []  # per fighter: {"hp": Bar, "meter": Bar, "hp_text": Label, "status": Label}
@@ -696,6 +700,15 @@ func _on_tile_tapped(t: Vector2i) -> void:
 		if t == f.pos:
 			_confirm()
 		return
+	if Battle.TILE_TYPES.has(atk.type):
+		if not battle.aim_tiles(f, atk).has(t):
+			_error("bad_dist" if atk.type == "bomb" else "not_a_teammate")
+		elif t == aim_at:
+			_confirm()
+		else:
+			aim_at = t
+			_refresh()
+		return
 	var d := t - f.pos
 	if d == Vector2i.ZERO:
 		return
@@ -739,6 +752,29 @@ func _on_dir(dir: Vector2i) -> void:
 		_send({"type": "move", "dir": dir})
 		return
 	var atk := _atk(aim_slot)
+	if atk.type == "heal":
+		# the closest teammate (or yourself) that way
+		var best := aim_at
+		var best_d := 999
+		for t in battle.aim_tiles(battle.current(), atk):
+			var d := t - aim_at
+			var along := d.x * dir.x + d.y * dir.y
+			if along > 0 and along * 4 + absi(d.x * dir.y + d.y * dir.x) < best_d:
+				best_d = along * 4 + absi(d.x * dir.y + d.y * dir.x)
+				best = t
+		aim_at = best
+		_refresh()
+		return
+	if atk.type == "bomb":
+		# nudge the bomb one tile (skipping over the tiles too close to you)
+		var tiles := battle.bomb_tiles(battle.current(), atk)
+		var at := aim_at + dir
+		while not tiles.has(at) and battle._in_bounds(at):
+			at += dir
+		if tiles.has(at):
+			aim_at = at
+		_refresh()
+		return
 	if atk.type == "lob" and dir == aim_dir:
 		aim_dist = aim_dist + 1 if aim_dist < atk.max_range else atk.min_range
 	else:
@@ -764,6 +800,10 @@ func _on_attack_pressed(slot: int) -> void:
 	var atk := _atk(slot)
 	if atk.type == "lob":
 		aim_dist = atk.min_range
+	if atk.type == "bomb":
+		aim_at = _bomb_start(battle.current(), atk)
+	if atk.type == "heal":
+		aim_at = _heal_start(battle.current(), atk)
 	if atk.type == "leap":
 		for d in Battle.DIRS:
 			if not battle._leap_target(battle.current(), d, atk["range"]).is_empty():
@@ -775,7 +815,42 @@ func _on_attack_pressed(slot: int) -> void:
 func _confirm() -> void:
 	if busy or mode != "aim":
 		return
-	_send({"type": "attack", "slot": aim_slot, "dir": aim_dir, "dist": aim_dist})
+	var intent := {"type": "attack", "slot": aim_slot, "dir": aim_dir, "dist": aim_dist}
+	if Battle.TILE_TYPES.has(_atk(aim_slot).type):
+		intent.at = aim_at
+	_send(intent)
+
+
+## Where the Bomba aim starts: on the nearest enemy in range (the boss's
+## middle tile), else straight ahead.
+func _bomb_start(f, atk: Dictionary) -> Vector2i:
+	var tiles := battle.bomb_tiles(f, atk)
+	var best := Vector2i(-99, -99)
+	var best_d := 999
+	for o in battle.fighters:
+		if o.alive() and o.team != f.team and tiles.has(o.pos):
+			var dd := maxi(absi(o.pos.x - f.pos.x), absi(o.pos.y - f.pos.y))
+			if dd < best_d:
+				best_d = dd
+				best = o.pos
+	if best.x > -99:
+		return best
+	for d in range(atk.min_range, atk.max_range + 1):
+		if tiles.has(f.pos + f.facing * d):
+			return f.pos + f.facing * d
+	return tiles[0] if not tiles.is_empty() else f.pos
+
+
+## Where the cracker aim starts: the teammate (or you) missing the most HP.
+func _heal_start(f, atk: Dictionary) -> Vector2i:
+	var best: Vector2i = f.pos
+	var most := -1
+	for t in battle.aim_tiles(f, atk):
+		var o = battle._fighter_at(t)
+		if o.max_hp - o.hp > most:
+			most = o.max_hp - o.hp
+			best = t
+	return best
 
 
 func _cancel_aim() -> void:
@@ -897,6 +972,8 @@ func _play(events: Array) -> void:
 					await _super_move(e, f, atk)
 				else:
 					_popup(fighter_views[e.fighter], atk.name.to_upper() + "!", UiTheme.CHALK, -30)
+					if atk.type == "heal":
+						continue  # the "heal" event shows the cracker
 					Audio.play("bark" if atk.id == "bark" else "whoosh")
 					if e.dir is Vector2i and atk.type != "leap" and atk.type != "dash":
 						await fighter_views[e.fighter].lunge(e.dir).finished
@@ -918,6 +995,9 @@ func _play(events: Array) -> void:
 				var text := "-%d" % (e.amount - e.absorbed)
 				if e.get("zone", false):
 					text += " DETENTION"
+				if e.get("burn", false):
+					text += " BURN"
+					_fx("flame", _px_center(v.position))
 				if e.absorbed > 0:
 					text += " (SHIELD %d)" % e.absorbed
 				if e.get("guarded", 0) > 0:
@@ -977,8 +1057,10 @@ func _play(events: Array) -> void:
 				_add_apple(e.at, true)
 				_popup_at(_tile_center(e.at) + Vector2(0, -16), "APPLE!", UiTheme.HEAL)
 			"heal":
+				if e.get("cracker", false):
+					await _cracker_anim(e)
 				Audio.play("pickup")
-				var an: Sprite2D = apple_nodes.get(e.at)
+				var an: Sprite2D = apple_nodes.get(e.get("at", Vector2i(-99, -99)))
 				if an != null:
 					apple_nodes.erase(e.at)
 					an.queue_free()
@@ -1484,6 +1566,62 @@ func _super_move(e: Dictionary, f, atk: Dictionary) -> void:
 	var tpx := _tile_center(target)
 	var tv = _view_at(target)
 	match atk.id:
+		"heat_ray":
+			# glasses glow, then a beam to the edge of the map
+			v.flash(Color(2.0, 1.4, 0.6))
+			await get_tree().create_timer(0.25).timeout
+			var start := _px_center(home) + Vector2(Vector2(dir) * 10) + Vector2(0, -10)
+			var end_tile: Vector2i = f.pos
+			while battle._in_bounds(end_tile + dir):
+				end_tile += dir
+			var end := _tile_center(end_tile) + Vector2(Vector2(dir) * 16) + Vector2(0, -6)
+			Audio.play("ray")
+			_fx("beam", Vector2.ZERO, {"from": start, "to": end})
+			var t: Vector2i = f.pos + dir
+			while battle._in_bounds(t):
+				_fx("flame", _tile_center(t) + Vector2(0, -4))
+				t += dir
+			await _shake(4)
+			await get_tree().create_timer(0.35).timeout
+		"bomba":
+			# "BOMBA!" - a bomb whistles down from the sky and blows up 3x3 tiles
+			var at: Vector2i = e.get("at", target)
+			var mid := _tile_center(at)
+			var up := create_tween()
+			up.tween_property(v, "position", home + Vector2(0, -8), 0.1)
+			up.tween_property(v, "position", home, 0.1)
+			_popup(v, "BOMBA!!", UiTheme.GOLD, -44)
+			var bomb := Sprite2D.new()
+			bomb.texture = PixelArt.bomb()
+			bomb.scale = Vector2(2, 2)
+			bomb.z_index = 3500
+			bomb.position = mid + Vector2(0, -170)
+			board.add_child(bomb)
+			var shadow := Fx.new()
+			shadow.kind = "tiles"
+			var area := []
+			for dy in range(-1, 2):
+				for dx in range(-1, 2):
+					area.append([at + Vector2i(dx, dy), Color("e8575e") if dx == 0 and dy == 0 else Color("f08a4b")])
+			shadow.opts = {"tiles": area}
+			shadow.z_index = 5
+			board.add_child(shadow)
+			Audio.play("fall")
+			var drop := create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+			drop.parallel().tween_property(bomb, "position", mid, 0.45)
+			drop.parallel().tween_property(bomb, "rotation", 1.2, 0.45)
+			await drop.finished
+			bomb.queue_free()
+			Audio.play("boom")
+			_fx("spark", mid, {"scale": 2.4})
+			_fx("ring", mid, {"radius": 52.0})
+			_fx("ring", mid, {"radius": 30.0, "delay": 0.08})
+			for i in 16:
+				_fx("rock", mid + Vector2(randf_range(-14, 14), 6), {"vel": Vector2(randf_range(-140, 140), randf_range(-220, -90))})
+			for dy in range(-1, 2):
+				for dx in range(-1, 2):
+					_fx("dust", mid + Vector2(dx * 32, dy * 32 + 8))
+			await _shake(7)
 		"mega_barrage":
 			# a flurry of quick punches
 			for i in 8:
@@ -1567,6 +1705,42 @@ func _super_move(e: Dictionary, f, atk: Dictionary) -> void:
 		_:
 			if e.dir is Vector2i and atk.type != "leap":
 				await v.lunge(dir).finished
+
+
+## Cracker Snack: Yacob eats a cracker himself, or throws one to a teammate
+## who eats it.
+func _cracker_anim(e: Dictionary) -> void:
+	var eater = fighter_views[e.fighter]
+	var mouth: Vector2 = _px_center(eater.position) + Vector2(0, -22)
+	var c := Sprite2D.new()
+	c.texture = PixelArt.cracker()
+	c.z_index = 3500
+	board.add_child(c)
+	if e.by != e.fighter:
+		# thrown in an arc from Yacob to the teammate
+		var from: Vector2 = _px_center(fighter_views[e.by].position) + Vector2(0, -16)
+		c.position = from
+		Audio.play("whoosh")
+		var arc := create_tween()
+		arc.tween_method(func(k: float) -> void:
+			c.position = from.lerp(mouth, k) + Vector2(0, -30 * sin(k * PI))
+			c.rotation = k * TAU, 0.0, 1.0, 0.4)
+		await arc.finished
+	else:
+		c.position = mouth + Vector2(10, 6)
+		c.scale = Vector2(0.2, 0.2)
+		var pop := create_tween()
+		pop.tween_property(c, "scale", Vector2.ONE, 0.15)
+		pop.tween_property(c, "position", mouth, 0.2)
+		await pop.finished
+	# munch munch: the cracker shrinks in bites
+	for i in 3:
+		Audio.play("crunch")
+		c.scale = Vector2.ONE * (1.0 - (i + 1) * 0.3)
+		_fx("crumbs", mouth + Vector2(randf_range(-4, 4), 4))
+		await get_tree().create_timer(0.14).timeout
+	c.queue_free()
+	_popup(eater, "CRUNCH!", UiTheme.GOLD, -56)
 
 
 func _tile_center(t: Vector2i) -> Vector2:
@@ -1751,6 +1925,9 @@ func _tag_text(id: int) -> String:
 func _award_xp(winner_team: int) -> void:
 	if not _xp_lines.is_empty():
 		return
+	if not online() and not vs_cpu():
+		_xp_lines.append("LOCAL BATTLES DON'T GIVE XP - PLAY VS CPU OR ONLINE TO LEVEL UP")
+		return
 	for id in _my_fighters():
 		var f = battle.fighters[id]
 		var won: bool = f.team == winner_team
@@ -1767,6 +1944,8 @@ func _award_xp(winner_team: int) -> void:
 					_xp_lines.append("NEW %s" % u)
 		for ach in Achievements.unlock_mastery(f.char_id, r.to):
 			_toasts.append(ach)
+	if not _toasts.is_empty() and not _toast_busy:
+		_show_toasts()  # mastery achievements (nothing else would start the toasts now)
 
 
 ## "MVP (MOST DAMAGE): SEBBA - 87" and "MOST KOS: MIKE - 3" for the match.
@@ -2027,7 +2206,7 @@ func _refresh() -> void:
 			if f.pos != battle.turn_start_pos:
 				tiles.append({"pos": battle.turn_start_pos, "kind": "reach"})
 		elif mode == "aim":
-			tiles = battle.preview(f.id, aim_slot, aim_dir, aim_dist)
+			tiles = battle.preview(f.id, aim_slot, aim_dir, aim_dist, aim_at)
 	if battle.phase == Battle.Phase.TURN and not busy:
 		tiles.append({"pos": f.pos, "kind": "current"})
 	highlight.tiles = tiles
@@ -2038,7 +2217,7 @@ func _refresh() -> void:
 	highlight.boss_at = b.pos if b != null and b.alive() else Vector2i(-99, -99)
 	if b != null and b.alive() and mode == "aim":
 		for t in tiles:
-			if t.kind in ["hit", "dizzy"] and absi(t.pos.x - b.pos.x) <= Battle.BOSS_RADIUS and absi(t.pos.y - b.pos.y) <= Battle.BOSS_RADIUS:
+			if t.kind in ["hit", "dizzy", "ring", "burn"] and absi(t.pos.x - b.pos.x) <= Battle.BOSS_RADIUS and absi(t.pos.y - b.pos.y) <= Battle.BOSS_RADIUS:
 				boss_hit = true
 	highlight.boss_targeted = boss_hit
 	highlight.queue_redraw()
@@ -2067,6 +2246,10 @@ func _refresh() -> void:
 		var txt := "%s: AIM WITH THE JOYSTICK OR TAP A TILE (TAP AGAIN = USE)" % atk.name.to_upper()
 		if atk.type == "lob":
 			txt = "%s: TAP WHERE TO THROW (DISTANCE %d), THEN USE" % [atk.name.to_upper(), aim_dist]
+		elif atk.type == "heal":
+			txt = "CRACKER: TAP YOU (+%d) OR A TEAMMATE (+%d-%d), AGAIN = USE" % [atk.self_heal, atk.heal_min, atk.heal_max]
+		elif atk.type == "bomb":
+			txt = "BOMBA: TAP WHERE IT FALLS (%d-%d TILES AWAY), TAP AGAIN = USE" % [atk.min_range, atk.max_range]
 		elif atk.type.begins_with("self"):
 			txt = "%s: PRESS AGAIN OR USE" % atk.name.to_upper()
 		elif atk.type == "spill":
@@ -2119,6 +2302,8 @@ func _refresh_panels() -> void:
 			st.append("%s GUARD" % ("MELEE" if f.guard.kind == "melee" else "RANGED"))
 		if f.zone_safe > 0:
 			st.append("PASS")
+		if f.burn_turns > 0:
+			st.append("BURN %d" % f.burn_turns)
 		if f.no_move_next:
 			st.append("PUSH-UPS")
 		if f.item != "":
@@ -2193,6 +2378,9 @@ class HighlightLayer extends Node2D:
 		"path": Color("f2c14e"),
 		"hit": Color("e8575e"),
 		"dizzy": Color("b08cf0"),
+		"ring": Color("f08a4b"),
+		"burn": Color("f0663a"),
+		"heal": Color("7fd08a"),
 		"self": Color("f2c14e"),
 	}
 	var tiles := []
@@ -2247,6 +2435,10 @@ class Fx extends Node2D:
 				return 0.55
 			"dust":
 				return 0.4
+			"beam":
+				return 0.7
+			"flame":
+				return 0.6
 		return 0.25
 
 	func _process(delta: float) -> void:
@@ -2287,6 +2479,25 @@ class Fx extends Node2D:
 				var kk := clampf((t - delay) / 0.45, 0.0, 1.0)
 				var r: float = lerpf(6.0, opts.get("radius", 60.0), kk)
 				draw_arc(Vector2.ZERO, r, 0, TAU, 40, Color(1, 0.85, 0.4, 1.0 - kk), 3.0)
+			"beam":
+				var a: Vector2 = opts.from
+				var b: Vector2 = opts.to
+				var fade := 1.0 - k * k
+				var wob := 1.0 + 0.25 * sin(t * 60.0)
+				draw_line(a, b, Color(0.95, 0.25, 0.1, 0.55 * fade), 14.0 * wob)
+				draw_line(a, b, Color(1.0, 0.6, 0.15, 0.85 * fade), 8.0 * wob)
+				draw_line(a, b, Color(1.0, 0.95, 0.7, fade), 3.0)
+				draw_circle(a, 7.0 * wob * fade, Color(1.0, 0.9, 0.5, fade))
+			"crumbs":
+				for i in 5:
+					var off := Vector2(-6 + i * 3, k * 14.0 + (i % 2) * 3)
+					draw_rect(Rect2(off, Vector2(2, 2)), Color(0.89, 0.7, 0.37, 1.0 - k))
+			"flame":
+				for i in 3:
+					var x := -6.0 + i * 6.0
+					var h := (10.0 + 4.0 * sin(t * 25.0 + i)) * (1.0 - k)
+					draw_circle(Vector2(x, -h * 0.5 - k * 8.0), 4.0 * (1.0 - k) + 1.0, Color(1.0, 0.5, 0.1, 0.8 * (1.0 - k)))
+					draw_circle(Vector2(x, -h - k * 8.0), 2.5 * (1.0 - k) + 0.5, Color(1.0, 0.85, 0.3, 0.9 * (1.0 - k)))
 			"tiles":
 				for item in opts.get("tiles", []):
 					var tile: Vector2i = item[0]

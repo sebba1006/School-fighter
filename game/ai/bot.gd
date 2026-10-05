@@ -61,23 +61,30 @@ static func plan(b: Battle, noise := 0.0) -> Dictionary:
 			var atk := b.slot_attack(f, slot)
 			if SELF_TYPES.has(atk.type) or atk.type == "spill":
 				continue
-			for dir in Battle.DIRS:
-				var dists := [0]
-				if atk.type == "lob":
-					dists = range(atk.min_range, atk.max_range + 1)
-				for dist in dists:
-					var sc := _score(b, f, atk, dir, dist)
-					if sc > 0.0 and noise > 0.0:
-						sc += randf() * noise
-					if slot == Battle.SUPER_SLOT:
-						sc += 5.0
-					if slot == Battle.ITEM_SLOT and sc > 0.0:
-						sc += ITEM_BONUS
-					if sc > 0.0 and b.in_zone(p, 1):
-						sc -= Battle.ZONE_DAMAGE  # would start next turn in detention
-					best_any_attack = maxf(best_any_attack, sc)
-					if sc > best.score:
-						best = {"score": sc, "pos": p, "intents": [{"type": "attack", "slot": slot, "dir": dir, "dist": dist}]}
+			# Bomba: try dropping it on each enemy in range (and next to them)
+			var aims: Array = [null]
+			if atk.type == "bomb":
+				aims = _bomb_aims(b, f, atk, enemies)
+			elif atk.type == "heal":
+				aims = b.aim_tiles(f, atk)
+			for at in aims:
+				for dir in ([Vector2i.RIGHT] if at != null else Battle.DIRS):
+					var dists := [0]
+					if atk.type == "lob":
+						dists = range(atk.min_range, atk.max_range + 1)
+					for dist in dists:
+						var sc := _score(b, f, atk, dir, dist, at)
+						if sc > 0.0 and noise > 0.0:
+							sc += randf() * noise
+						if slot == Battle.SUPER_SLOT:
+							sc += 5.0
+						if slot == Battle.ITEM_SLOT and sc > 0.0:
+							sc += ITEM_BONUS
+						if sc > 0.0 and b.in_zone(p, 1):
+							sc -= Battle.ZONE_DAMAGE  # would start next turn in detention
+						best_any_attack = maxf(best_any_attack, sc)
+						if sc > best.score:
+							best = {"score": sc, "pos": p, "intents": [{"type": "attack", "slot": slot, "dir": dir, "dist": dist, "at": at}]}
 	f.pos = home
 
 	# buffs
@@ -143,8 +150,10 @@ static func plan(b: Battle, noise := 0.0) -> Dictionary:
 
 
 ## Expected damage to enemies (plus a bonus for knock-outs) if `atk` were used now.
-static func _score(b: Battle, f, atk: Dictionary, dir: Vector2i, dist: int) -> float:
-	var tiles := b.preview(f.id, _slot_of(f, atk), dir, dist)
+static func _score(b: Battle, f, atk: Dictionary, dir: Vector2i, dist: int, at = null) -> float:
+	if atk.type == "heal":
+		return _heal_score(b, f, atk, at)
+	var tiles := b.preview(f.id, _slot_of(f, atk), dir, dist, at)
 	var run := 0
 	for t in tiles:
 		if t.kind == "path":
@@ -177,10 +186,43 @@ static func _score(b: Battle, f, atk: Dictionary, dir: Vector2i, dist: int) -> f
 	return total
 
 
+## Cracker Snack: worth the HP it gives back (more for a teammate in danger),
+## nothing if they're nearly full.
+static func _heal_score(b: Battle, f, atk: Dictionary, at) -> float:
+	var t = b._fighter_at(at) if at is Vector2i else null
+	if t == null or t.team != f.team or t.is_boss:
+		return 0.0
+	var missing: int = t.max_hp - t.hp
+	if missing < 8:
+		return 0.0
+	var amount: float = atk.self_heal if t == f else (atk.heal_min + atk.heal_max) / 2.0
+	var sc := minf(amount, missing)
+	if t.hp * 100 < t.max_hp * 40:
+		sc += 6.0  # low: worth more than a poke
+	return sc
+
+
+## Bomba targets worth trying: every enemy in range, and the tiles next to
+## them (to catch two at once).
+static func _bomb_aims(b: Battle, f, atk: Dictionary, enemies: Array) -> Array:
+	var tiles := b.bomb_tiles(f, atk)
+	var out := []
+	for e in enemies:
+		for d in [Vector2i.ZERO] + Array(Battle.AROUND):
+			var t: Vector2i = e.pos + d
+			if tiles.has(t) and not out.has(t):
+				out.append(t)
+	return out
+
+
 static func _damage(atk: Dictionary, kind: String, run: int) -> float:
 	match atk.type:
 		"shockwave":
 			return float(atk.inner_damage if kind == "hit" else atk.outer_damage)
+		"bomb":
+			return float(atk.center_damage if kind == "hit" else atk.ring_damage)
+		"ray":
+			return float(atk.damage + Battle.BURN_DAMAGE * Battle.BURN_TURNS)
 		"dash":
 			return float(atk.damage + atk.get("damage_per_tile", 0) * run)
 	if atk.has("damage"):

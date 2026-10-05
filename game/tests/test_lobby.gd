@@ -352,3 +352,25 @@ func test_skins_and_name_tags_reach_the_match() -> void:
 	eq(players[1].skin, 4, "skin clamped")
 	eq(players[1].tag, "white", "unknown tag ignored")
 	done()
+
+
+func test_bomba_target_travels_online() -> void:
+	var lobby := _lobby(["halvor", "mike"])
+	lobby.handle("a", {"t": "start"}, 0)
+	var client := Battle.new(_take(lobby, "a")[0].config)
+	client.start_round()
+	lobby.outbox.clear()
+	if lobby.battle.current().id != 0:
+		lobby.handle("b", {"t": "intent", "intent": {"type": "end_turn"}}, 0)
+		client.apply(1, {"type": "end_turn"})
+	lobby.battle.fighters[0].meter = Battle.METER_MAX
+	client.fighters[0].meter = Battle.METER_MAX
+	var at: Vector2i = lobby.battle.fighters[0].pos + Vector2i(3, 0)
+	lobby.outbox.clear()
+	var msg: Dictionary = Wire.decode(Wire.encode({"t": "intent", "intent": {"type": "attack", "slot": Battle.SUPER_SLOT, "dir": R, "at": at}}))
+	lobby.handle("a", msg, 0)
+	var op := _last(_take(lobby, "b"), "op")
+	eq(op.get("intent", {}).get("at"), at, "the target tile reaches the other player")
+	check(client.apply(op.fighter, op.intent).ok, "their game drops the same bomb")
+	eq(client.state_hash(), op.hash, "and ends up identical")
+	done()
