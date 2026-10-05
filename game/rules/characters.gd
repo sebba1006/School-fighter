@@ -98,13 +98,13 @@ const ALL := {
 	},
 	"halvor": {
 		"name": "Halvor",
-		"hp": 90,
+		"hp": 95,
 		"move": 3,
 		"attacks": [
-			{"id": "paper_plane", "name": "Paper Plane", "type": "projectile", "range": 6, "damage": 13},
-			{"id": "snowball", "name": "Snowball", "type": "lob", "min_range": 2, "max_range": 5, "damage": 10},
+			{"id": "paper_plane", "name": "Paper Plane", "type": "projectile", "range": 6, "damage": 11},
+			{"id": "snowball", "name": "Snowball", "type": "lob", "min_range": 2, "max_range": 4, "damage": 8},
 			{"id": "spitball", "name": "Spitball", "type": "projectile", "range": 4, "damage": 8, "status": "dizzy"},
-			{"id": "back_off", "name": "Back Off!", "type": "melee", "damage": 8, "knockback": 2},
+			{"id": "back_off", "name": "Back Off!", "type": "melee", "damage": 11, "knockback": 2},
 		],
 		"super": {"id": "bomba", "name": "Bomba", "type": "bomb", "min_range": 2, "max_range": 5, "center_damage": 30, "ring_damage": 13},
 	},
@@ -113,7 +113,7 @@ const ALL := {
 		"hp": 95,
 		"move": 3,
 		"attacks": [
-			{"id": "cracker", "name": "Cracker Snack", "type": "heal", "range": 4, "self_heal": 10, "heal_min": 10, "heal_max": 18, "cooldown": 1},
+			{"id": "cracker", "name": "Cracker Snack", "type": "heal", "range": 4, "self_heal": 10, "heal_min": 8, "heal_max": 12, "cooldown": 2},
 			{"id": "hoodie_punch", "name": "Punch", "type": "melee", "damage": 11},
 			{"id": "crumb_spray", "name": "Crumb Spray", "type": "line", "range": 3, "damage": 6, "status": "dizzy"},
 			{"id": "backpack_swing", "name": "Backpack Swing", "type": "around", "damage": 8},
