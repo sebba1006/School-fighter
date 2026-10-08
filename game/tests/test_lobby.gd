@@ -374,3 +374,18 @@ func test_bomba_target_travels_online() -> void:
 	check(client.apply(op.fighter, op.intent).ok, "their game drops the same bomb")
 	eq(client.state_hash(), op.hash, "and ends up identical")
 	done()
+
+
+func test_master_title_reaches_the_match() -> void:
+	var lobby := Lobby.new("TEST1")
+	lobby.add_member("a", "Pa", 0)
+	lobby.add_member("b", "Pb", 0)
+	lobby.handle("a", {"t": "pick", "char": "sebba", "title": true}, 0)
+	lobby.handle("b", {"t": "pick", "char": "mike", "title": "yes please"}, 0)
+	for tok in ["a", "b"]:
+		lobby.handle(tok, {"t": "ready", "ready": true}, 0)
+	lobby.handle("a", {"t": "start"}, 0)
+	var players: Array = lobby.config.players
+	eq(players[0].title, true, "title on")
+	eq(players[1].title, false, "only a real true counts")
+	done()

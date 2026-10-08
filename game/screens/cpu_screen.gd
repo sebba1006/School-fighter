@@ -288,6 +288,7 @@ func _start() -> void:
 		else:  # you: your skin and name tag for this fighter
 			p["skin"] = Progress.chosen_skin(c)
 			p["tag"] = Progress.chosen_tag(c)
+			p["title"] = Progress.title_on(c)
 		players.append(p)
 	if mode == "boss":
 		start_requested.emit({"boss": boss_id, "items": items, "players": players, "seed": randi()})

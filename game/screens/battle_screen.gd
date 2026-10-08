@@ -287,6 +287,8 @@ func _build_board() -> void:
 			v.setup(f.char_id, UiTheme.TEAM[battle.teams.find(f.team)], int(p.get("skin", 0)))
 			if p.has("tag") and not p.has("cpu"):
 				v.set_tag(_tag_text(f.id), str(p.tag))
+				if p.get("title", false) is bool and p.title:
+					v.set_title(Progress.TITLE)
 			board.add_child(v)
 			fighter_views.append(v)
 	for f in battle.fighters:
