@@ -1566,6 +1566,37 @@ func _super_move(e: Dictionary, f, atk: Dictionary) -> void:
 	var tpx := _tile_center(target)
 	var tv = _view_at(target)
 	match atk.id:
+		"mega_slingshot":
+			# pull the band way back... and let a big rock fly
+			var back := create_tween()
+			back.tween_property(v, "position", home - Vector2(dir) * 7, 0.25)
+			await back.finished
+			Audio.play("whoosh")
+			create_tween().tween_property(v, "position", home, 0.08)
+			var reach := 1
+			while reach < atk["range"]:
+				var t: Vector2i = f.pos + dir * reach
+				var o = battle._fighter_at(t)
+				if not battle._in_bounds(t + dir) or battle.obstacles.has(t) or (o != null and o.team != f.team):
+					break
+				reach += 1
+			var from := _px_center(home) + Vector2(0, -12)
+			var to := _tile_center(f.pos + dir * reach) + Vector2(0, -8)
+			var rock := Fx.new()
+			rock.kind = "rock"
+			rock.opts = {"vel": Vector2.ZERO}
+			rock.scale = Vector2(2.2, 2.2)
+			rock.z_index = 3500
+			rock.position = from
+			board.add_child(rock)
+			var fly := create_tween()
+			fly.tween_property(rock, "position", to, 0.06 * reach + 0.05)
+			await fly.finished
+			rock.queue_free()
+			Audio.play("slam")
+			_fx("spark", to, {"scale": 1.8})
+			_fx("dust", to + Vector2(0, 10))
+			await _shake(4)
 		"heat_ray":
 			# glasses glow, then a beam to the edge of the map
 			v.flash(Color(2.0, 1.4, 0.6))

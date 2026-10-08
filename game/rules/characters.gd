@@ -8,7 +8,8 @@ extends RefCounted
 ##               random with `knockback_min` / `knockback_max`)
 ##   around      hits all 8 tiles around the user
 ##   dash        runs up to `range` tiles, then hits whatever is directly ahead
-##   projectile  hits the first enemy or obstacle within `range` tiles
+##   projectile  hits the first enemy or obstacle within `range` tiles (with
+##               `damage_near` / `damage_far` instead of `damage`: the closer, the harder)
 ##   line        hits every enemy within `range` tiles, stopped by obstacles
 ##   lob         hits a plus shape `min_range`..`max_range` tiles away, over obstacles
 ##   shockwave   two rings around the tile in front (inner damage, outer damage + status)
@@ -107,6 +108,18 @@ const ALL := {
 			{"id": "back_off", "name": "Back Off!", "type": "melee", "damage": 11, "knockback": 2},
 		],
 		"super": {"id": "bomba", "name": "Bomba", "type": "bomb", "min_range": 2, "max_range": 5, "center_damage": 30, "ring_damage": 13},
+	},
+	"seif": {
+		"name": "Seif",
+		"hp": 95,
+		"move": 3,
+		"attacks": [
+			{"id": "pebble_shot", "name": "Pebble Shot", "type": "projectile", "range": 5, "damage": 12},
+			{"id": "rubber_band", "name": "Rubber Band", "type": "projectile", "range": 3, "damage": 7, "status": "dizzy"},
+			{"id": "pea_shooter", "name": "Pea Shooter", "type": "projectile", "range": 4, "damage": 4, "hits": 3},
+			{"id": "ankle_kick", "name": "Ankle Kick", "type": "melee", "damage": 12, "knockback": 1},
+		],
+		"super": {"id": "mega_slingshot", "name": "Mega Slingshot", "type": "projectile", "range": 6, "damage_near": 30, "damage_far": 12},
 	},
 	"yacob": {
 		"name": "Yacob",

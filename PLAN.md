@@ -171,7 +171,7 @@ A lobby holds max 4 players, so unique picks always work.
 | 4 | Bark | Line of 2 tiles | 5 damage + Dizzy |
 | Super | Mega Woof | 1 adjacent enemy | A big WOOF: **30–40 damage** and **pushed 1 or 2 tiles** (both random) |
 
-### Halvor (7/8): long range bomber
+### Halvor (7/9): long range bomber
 - **Look**: short light brown hair, teal (blue-green) shirt, light grey
   pants, white sneakers, a paper plane in his hand.
 - **Stats**: HP 95, move 3.
@@ -186,7 +186,7 @@ A lobby holds max 4 players, so unique picks always work.
 
 Simulation (4 matches per pair per map): 38% overall win rate (the computer doesn't keep its distance the way players do).
 
-### Yacob (8/8): the support
+### Yacob (8/9): the support
 - **Look**: dark skin, short black hair, green-and-blue glasses, dark grey
   hoodie (no hood), black pants.
 - **Stats**: HP 95, move 3.
@@ -203,6 +203,21 @@ Simulation (4 matches per pair per map): 38% overall win rate (the computer does
 3 turns (it can KO; the damage and KO count for whoever burned them).
 
 Simulation: 37% in 1v1, 51% for his teams in 2v2 (after the cracker nerf: playtesters couldn't hurt a team he kept healing).
+
+### Seif (9/9): small sharpshooter
+- **Look**: the shortest fighter, spiky light brown hair, white shirt, dark
+  grey pants, a big wooden slingshot with a red band.
+- **Stats**: HP 95, move 3.
+
+| Slot | Attack | Shape | Effect |
+|---|---|---|---|
+| 1 | Pebble Shot | Projectile, 5 tiles | 12 damage |
+| 2 | Rubber Band | Projectile, 3 tiles | 7 damage + Dizzy |
+| 3 | Pea Shooter | Projectile, 4 tiles | 3 × 4 damage |
+| 4 | Ankle Kick | 1 tile in front | 12 damage, knockback 1 |
+| Super | MEGA SLINGSHOT | Projectile, 6 tiles (stopped by desks) | The closer, the harder: **30** next to you, 26, 23, 19, 16, **12** at 6 tiles |
+
+Simulation: 46% in 1v1, 35% for his teams in 2v2, 24% in a 4-player free-for-all.
 
 ### Shared status effects
 | Effect | Meaning |

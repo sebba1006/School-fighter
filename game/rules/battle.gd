@@ -470,7 +470,7 @@ func _resolve(ctx: Dictionary, atk: Dictionary, dist: int) -> void:
 				if obstacles.has(t) or (o != null and o.team != f.team and not sand.has(t)):
 					for h in atk.get("hits", 1):
 						ctx.boss_hit = false
-						_hit_tile(ctx, t, atk.damage, atk)
+						_hit_tile(ctx, t, projectile_damage(atk, d), atk)
 					break
 		"spill":
 			var t: Vector2i = f.pos + dir
@@ -1618,6 +1618,15 @@ func _roll(lo: int, hi: int) -> int:
 	if not forced_rolls.is_empty():
 		return forced_rolls.pop_front()
 	return _rng.randi_range(lo, hi)
+
+
+## A projectile's damage when it hits `d` tiles away: its `damage`, or for the
+## Mega Slingshot, `damage_near` next to you down to `damage_far` at full range.
+static func projectile_damage(atk: Dictionary, d: int) -> int:
+	if atk.has("damage"):
+		return atk.damage
+	var k := clampf(float(d - 1) / maxf(1.0, atk["range"] - 1), 0.0, 1.0)
+	return int(round(lerpf(atk.damage_near, atk.damage_far, k)))
 
 
 ## The straight direction (up/down/left/right) that points most towards `to`.
