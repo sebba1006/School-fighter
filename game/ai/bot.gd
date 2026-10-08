@@ -197,8 +197,11 @@ static func _heal_score(b: Battle, f, atk: Dictionary, at) -> float:
 		return 0.0
 	var amount: float = atk.self_heal if t == f else (atk.heal_min + atk.heal_max) / 2.0
 	var sc := minf(amount, missing)
-	if t.hp * 100 < t.max_hp * 40:
-		sc += 6.0  # low: worth more than a poke
+	# the lower they are, the more a cracker is worth (more than a poke when low)
+	if t.hp * 100 < t.max_hp * 30:
+		sc += 12.0
+	elif t.hp * 100 < t.max_hp * 55:
+		sc += 6.0
 	return sc
 
 
