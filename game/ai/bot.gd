@@ -228,6 +228,9 @@ static func _damage(atk: Dictionary, kind: String, run: int) -> float:
 			return float(atk.damage + Battle.BURN_DAMAGE * Battle.BURN_TURNS)
 		"dash":
 			return float(atk.damage + atk.get("damage_per_tile", 0) * run)
+		"projectile":
+			if atk.has("damage_near"):
+				return float(Battle.projectile_damage(atk, run + 1))
 	if atk.has("damage"):
 		return float(atk.damage * atk.get("hits", 1))
 	return (atk.damage_min + atk.damage_max) / 2.0

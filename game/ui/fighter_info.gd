@@ -19,6 +19,8 @@ static func attack_info(atk: Dictionary) -> String:
 			return "NO DETENTION DMG %d TURNS" % atk.turns
 		"shockwave":
 			parts.append("%d / %d DMG" % [atk.inner_damage, atk.outer_damage])
+		"projectile" when atk.has("damage_near"):
+			return "%d CLOSE - %d FAR" % [atk.damage_near, atk.damage_far]
 		"heal":
 			return "+%d SELF, +%d-%d ALLY" % [atk.self_heal, atk.heal_min, atk.heal_max]
 		"ray":

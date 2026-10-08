@@ -33,6 +33,8 @@ const PAL := {
 	"shoeWhite": ["e6e8ec", "b9bdc5", "ffffff"],
 	"teeRoyal": ["3561b8", "244584", "5a86d6"],
 	"teeTeal": ["2f9488", "216d64", "4fb8aa"],
+	"pantsDarkGray": ["494a53", "36373e", "5c5d67"],
+	"rubber": ["c8323a", "912029", "e3585d"],
 	"hairBlack": ["2a2730", "1c1a20", "433f4a"],
 	"skinDark": ["7a4a2e", "5a341f", "96613f"],
 	"hoodieGray": ["5d606b", "454751", "777a86"],
@@ -111,6 +113,8 @@ const LOOKS := {
 	"snorre": {"legs": 9, "hair": "hairChestnut", "hair_style": "messy", "shirt": "teeWhite", "sleeve": "teeWhite", "pants": "pantsGray", "shoes": "shoeBrown", "sword": true, "mouth": "smile", "pupil": 0},
 	"leon": {"legs": 11, "hair": "hairLightBrown", "hair_style": "swoop", "shirt": "teeBlue", "sleeve": "teeBlue", "pants": "pantsLightGray", "shoes": "shoeBlack", "mouth": "smile", "pupil": 1},
 	"yacob": {"legs": 11, "hair": "hairBlack", "hair_style": "crop", "skin_tone": "skinDark", "shirt": "hoodieGray", "sleeve": "hoodieGray", "hoodie": true, "hood": false, "pocket": "pocketGray", "pants": "pantsBlack", "shoes": "shoeBlack", "glasses": true, "frame": "frameGreen", "frame2": "frameBlue", "mouth": "smile", "pupil": 0},
+	# Seif is the smallest: short legs, spiky hair and a big slingshot
+	"seif": {"legs": 7, "hair": "hairLightBrown", "hair_style": "spiky", "shirt": "teeWhite", "sleeve": "teeWhite", "pants": "pantsDarkGray", "shoes": "shoeBlack", "big_slingshot": true, "mouth": "smile", "pupil": 1},
 	"halvor": {"legs": 11, "hair": "hairLightBrown", "hair_style": "normal", "shirt": "teeTeal", "sleeve": "teeTeal", "pants": "pantsLightGray", "shoes": "shoeWhite", "plane": true, "print": "plane", "mouth": "smirk", "pupil": 1},
 	"mike": {"legs": 11, "hair": "hairDark", "hair_style": "short", "shirt": "hoodie", "sleeve": "hoodie", "hoodie": true, "pants": "pantsBlack", "shoes": "shoeBlack", "slingshot": true, "mouth": "smirk", "pupil": 1},
 	# the athletes the Gym Teacher calls: red jersey, white stripe, sweatband
@@ -200,7 +204,7 @@ class Painter:
 const GOLD := {"teeGray": "guard", "teeBlack": "guard", "teeWhite": "guard", "teeBlue": "guard",
 	"hoodie": "guard", "pocket": "pencil", "red": "pencil", "pantsBlack": "foodYellow", "pantsGray": "foodYellow",
 	"pantsLightGray": "foodYellow", "shoeBlack": "guard", "shoeRed": "guard", "shoeBrown": "guard",
-	"teeRoyal": "guard", "shoeWhite": "guard", "teeTeal": "guard", "hoodieGray": "guard", "pocketGray": "pencil"}
+	"teeRoyal": "guard", "shoeWhite": "guard", "pantsDarkGray": "foodYellow", "teeTeal": "guard", "hoodieGray": "guard", "pocketGray": "pencil"}
 const SKINS := {
 	"sebba": [{}, {"teeGray": "teeBlue", "pantsBlack": "pantsGray"}, {"teeGray": "red", "shoeBlack": "shoeRed"},
 		{"teeGray": "leaf", "pantsBlack": "pantsLightGray", "shoeBlack": "shoeBrown"}, GOLD],
@@ -214,6 +218,8 @@ const SKINS := {
 		{"hoodie": "leaf", "pocket": "foodGreen", "shoeBlack": "shoeRed"}, GOLD],
 	"halvor": [{}, {"teeTeal": "teeBlack", "pantsLightGray": "pantsGray"}, {"teeTeal": "teeRoyal", "shoeWhite": "shoeBrown"},
 		{"teeTeal": "red", "pantsLightGray": "pantsBlack", "shoeWhite": "shoeRed"}, GOLD],  # + hats, see SKIN_LOOKS
+	"seif": [{}, {"teeWhite": "teeBlue", "pantsDarkGray": "pantsLightGray"}, {"teeWhite": "leaf", "shoeBlack": "shoeWhite"},
+		{"teeWhite": "teeBlack", "pantsDarkGray": "pantsBlack", "shoeBlack": "shoeRed"}, GOLD],
 	"yacob": [{}, {"hoodieGray": "leaf", "pocketGray": "foodGreen"}, {"hoodieGray": "red", "pocketGray": "bikeRed", "pantsBlack": "pantsGray"},
 		{"hoodieGray": "teeWhite", "pocketGray": "tableEdge", "shoeBlack": "shoeRed"}, GOLD],
 	"dogs": [{}, {"beagleTan": "hairDark", "beagleEar": "beagleBlack"}, {"beagleTan": "teeWhite", "beagleEar": "beagleBlack"},
@@ -226,6 +232,7 @@ const SKINS := {
 ## headphones...), on top of the material swaps in SKINS.
 const SKIN_LOOKS := {
 	"halvor": [{}, {"hat": "beanie"}, {"hat": "cap"}, {"hat": "phones"}, {}],
+	"seif": [{}, {"hat": "cap"}, {}, {"hat": "beanie"}, {}],
 }
 
 
@@ -355,6 +362,15 @@ static func _character_image(c: Dictionary, bob: bool) -> Image:
 			p.px(21, hcy - 2, h)
 			p.px(13, top - 2, h)
 			p.px(18, top - 2, h)
+		"spiky":
+			# short spikes standing up all over
+			for x in [9, 13, 17, 21]:
+				p.rect(x, top - 1, x + 2, top - 1, h)
+				p.rect(x + 1, top - 3, x + 1, top - 2, h)
+			p.rect(10, hcy - 3, 21, hcy - 3, h)
+			p.px(11, hcy - 2, h)
+			p.px(15, hcy - 2, h)
+			p.px(19, hcy - 2, h)
 		"crop":
 			# very short, close to the head: a neat hairline, no fringe
 			p.rect(10, hcy - 3, 21, hcy - 3, h)
@@ -392,7 +408,7 @@ static func _character_image(c: Dictionary, bob: bool) -> Image:
 			p.rect(8, hcy - 4, 23, hcy - 3, "beanieFold")
 			for x in [10, 13, 16, 19, 22]:
 				p.px(x, hcy - 4, "beanie")
-			p.ell(16, top - 4, 2.5, 2.5, "teeWhite")
+			p.ell(16, top - 4, 2.5, 2.5, "chefHat")
 		"cap":  # orange cap, peak sticking out to the side
 			p.ell(16, hcy - 5, 9, 5.5, "cap", hcy - 4)
 			p.rect(8, hcy - 4, 23, hcy - 4, "cap")
@@ -427,6 +443,16 @@ static func _character_image(c: Dictionary, bob: bool) -> Image:
 		p.rect(25, hy - 3, 30, hy - 3, "tableTop")
 		p.rect(26, hy - 2, 29, hy - 2, "tableEdge")
 		p.rect(27, hy - 1, 28, hy - 1, "tableEdge")
+	if c.get("big_slingshot", false):
+		# a big wooden Y with a red band, held up in his right hand
+		var hy := tt + T
+		p.px(25, hy, "skin")
+		p.rect(26, hy - 4, 27, hy + 1, "wood")
+		p.rect(25, hy - 8, 25, hy - 4, "wood")
+		p.rect(28, hy - 8, 28, hy - 4, "wood")
+		p.px(24, hy - 9, "wood")
+		p.px(29, hy - 9, "wood")
+		p.rect(25, hy - 7, 28, hy - 7, "rubber")
 	if c.get("slingshot", false):
 		var hy := tt + T
 		p.px(25, hy, "skin")

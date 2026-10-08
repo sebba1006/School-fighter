@@ -5,7 +5,7 @@ const Maps = preload("res://rules/maps.gd")
 
 
 func test_bot_finishes_matches_with_every_fighter() -> void:
-	var chars := ["sebba", "william", "snorre", "mike", "leon", "halvor", "yacob"]
+	var chars := ["sebba", "william", "snorre", "mike", "leon", "halvor", "yacob", "seif"]
 	for i in chars.size():
 		var b := Battle.new({"map": Maps.ALL.keys()[i % Maps.ALL.size()], "rounds": 1, "seed": i,
 			"players": [{"char": chars[i], "team": 0}, {"char": chars[(i + 1) % chars.size()], "team": 1}]})

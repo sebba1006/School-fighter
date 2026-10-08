@@ -89,6 +89,18 @@ const ALL := {
 		],
 		"super": {"id": "bomba", "name": "Bomba", "type": "bomb", "min_range": 2, "max_range": 5, "center_damage": 30, "ring_damage": 13},
 	},
+	"seif": {
+		"name": "Seif",
+		"hp": 90,
+		"move": 3,
+		"attacks": [
+			{"id": "pebble_shot", "name": "Pebble Shot", "type": "projectile", "range": 5, "damage": 10},
+			{"id": "rubber_band", "name": "Rubber Band", "type": "projectile", "range": 3, "damage": 6, "status": "dizzy"},
+			{"id": "pea_shooter", "name": "Pea Shooter", "type": "projectile", "range": 4, "damage": 3, "hits": 3},
+			{"id": "ankle_kick", "name": "Ankle Kick", "type": "melee", "damage": 9, "knockback": 1},
+		],
+		"super": {"id": "mega_slingshot", "name": "Mega Slingshot", "type": "projectile", "range": 6, "damage_near": 30, "damage_far": 12},
+	},
 	"yacob": {
 		"name": "Yacob",
 		"hp": 100,
