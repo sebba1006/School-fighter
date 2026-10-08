@@ -130,6 +130,30 @@ func _fill() -> void:
 		if t.id == "rainbow" and open:
 			_rainbow.append(b)
 
+	# the level 100 title: switch it on or off
+	var xrow := HBoxContainer.new()
+	xrow.alignment = BoxContainer.ALIGNMENT_CENTER
+	xrow.add_theme_constant_override("separation", 6)
+	_detail.add_child(xrow)
+	xrow.add_child(_fixed(UiTheme.label("TITLE", 8, UiTheme.CHALK_DIM), 64))
+	var tb := Button.new()
+	tb.custom_minimum_size = Vector2(150, 22)
+	var unlocked := Progress.title_unlocked(fighter)
+	var on := Progress.title_on(fighter)
+	tb.toggle_mode = true
+	tb.disabled = not unlocked
+	tb.set_pressed_no_signal(on)
+	tb.text = ("%s: %s" % [Progress.TITLE, "ON" if on else "OFF"]) if unlocked else "%s - LV 100" % Progress.TITLE
+	tb.add_theme_color_override("font_color", UiTheme.GOLD if unlocked else UiTheme.CHALK_DIM)
+	tb.add_theme_color_override("font_pressed_color", UiTheme.GOLD)
+	tb.add_theme_color_override("font_hover_color", UiTheme.GOLD)
+	tb.pressed.connect(func():
+		Audio.play("click")
+		Progress.set_title(fighter, not on)
+		_fill())
+	xrow.add_child(tb)
+	xrow.add_child(UiTheme.label("SHOWN IN GOLD OVER YOUR NAME IN BATTLE", 8, UiTheme.CHALK_DIM))
+
 
 ## The rainbow tag cycles through every color, like it does in battle.
 func _process(_d: float) -> void:

@@ -231,6 +231,13 @@ const SKINS := {
 ## Skins that change more than colours: extra look keys per skin (a hat,
 ## headphones...), on top of the material swaps in SKINS.
 const SKIN_LOOKS := {
+	"sebba": [{}, {"hat": "cap"}, {"hat": "phones"}, {"hat": "beanie"}, {}],
+	"william": [{}, {"hat": "headband", "hat_mat": "teeBlue"}, {"bowtie": true}, {"hat": "cap", "hat_mat": "beanie"}, {}],
+	"snorre": [{}, {"hat": "bandana"}, {"hat": "phones"}, {"hat": "beanie", "hat_mat": "teeBlack"}, {}],
+	"mike": [{}, {"shades": true}, {"hat": "cap"}, {"hat": "phones"}, {}],
+	"leon": [{}, {"hat": "headband"}, {"shades": true}, {"hat": "cap", "hat_mat": "ballBlue"}, {}],
+	"yacob": [{}, {"hat": "cap", "hat_mat": "teeWhite"}, {"hat": "beanie", "hat_mat": "ballBlue"}, {"hat": "phones"}, {}],
+	"dogs": [{}, {"bandana": "beanie"}, {"bandana": "teeBlue"}, {"bandana": "slide"}, {}],
 	"halvor": [{}, {"hat": "beanie"}, {"hat": "cap"}, {"hat": "phones"}, {}],
 	"seif": [{}, {"hat": "cap"}, {}, {"hat": "beanie"}, {}],
 }
@@ -249,7 +256,7 @@ static func character(char_id: String, bob := false, skin := 0) -> Texture2D:
 		var extra: Array = SKIN_LOOKS.get(char_id, [])
 		if skin > 0 and skin < extra.size():
 			look = look.merged(extra[skin], true)
-		var img := _dogs_image(bob) if char_id == "dogs" else _character_image(look, bob)
+		var img := _dogs_image(bob, look) if char_id == "dogs" else _character_image(look, bob)
 		Painter.remap = {}
 		_cache[key] = ImageTexture.create_from_image(img)
 	return _cache[key]
@@ -402,17 +409,20 @@ static func _character_image(c: Dictionary, bob: bool) -> Image:
 			p.rect(15, my, 18, my, "mouth")
 			p.px(19, my - 1, "mouth")
 
+	var hm: String = c.get("hat_mat", "")  # the hat's colour (each hat has its own default)
 	match c.get("hat", ""):
-		"beanie":  # red knitted beanie with a folded edge and a pom-pom
-			p.ell(16, hcy - 5, 9.5, 6.5, "beanie", hcy - 4)
-			p.rect(8, hcy - 4, 23, hcy - 3, "beanieFold")
-			for x in [10, 13, 16, 19, 22]:
-				p.px(x, hcy - 4, "beanie")
+		"beanie":  # knitted beanie with a folded edge and a pom-pom
+			var bm := hm if hm != "" else "beanie"
+			p.ell(16, hcy - 5, 9.5, 6.5, bm, hcy - 4)
+			p.rect(8, hcy - 4, 23, hcy - 3, bm)
+			for x in [9, 12, 15, 18, 21]:
+				p.px(x, hcy - 3, "beanieFold" if bm == "beanie" else "pocket")
 			p.ell(16, top - 4, 2.5, 2.5, "chefHat")
-		"cap":  # orange cap, peak sticking out to the side
-			p.ell(16, hcy - 5, 9, 5.5, "cap", hcy - 4)
-			p.rect(8, hcy - 4, 23, hcy - 4, "cap")
-			p.rect(22, hcy - 4, 28, hcy - 3, "cap")
+		"cap":  # a cap, peak sticking out to the side
+			var cm := hm if hm != "" else "cap"
+			p.ell(16, hcy - 5, 9, 5.5, cm, hcy - 4)
+			p.rect(8, hcy - 4, 23, hcy - 4, cm)
+			p.rect(22, hcy - 4, 28, hcy - 3, cm)
 			p.rect(23, hcy - 3, 28, hcy - 3, "pantsBlack")
 			p.px(16, top - 2, "teeWhite")
 		"phones":  # big headphones over the hair
@@ -423,6 +433,28 @@ static func _character_image(c: Dictionary, bob: bool) -> Image:
 			p.rect(23, hcy - 3, 25, hcy + 1, "phones")
 			p.rect(6, hcy - 2, 6, hcy, "red")
 			p.rect(25, hcy - 2, 25, hcy, "red")
+		"headband":  # a sweatband across the forehead
+			p.rect(8, hcy - 4, 23, hcy - 3, hm if hm != "" else "teeWhite")
+		"bandana":  # pirate bandana tied at the back
+			var dm := hm if hm != "" else "beanie"
+			p.ell(16, hcy - 5, 9.5, 6.5, dm, hcy - 3)
+			p.rect(8, hcy - 4, 23, hcy - 3, dm)
+			for o in [[13, top], [18, top + 1], [10, hcy - 6], [21, hcy - 6]]:
+				p.px(o[0], o[1], "teeWhite")  # white dots
+			p.rect(5, hcy - 4, 7, hcy - 3, dm)
+			p.rect(4, hcy - 2, 5, hcy, dm)
+	if c.get("shades", false):  # black sunglasses
+		p.rect(10, hcy - 1, 14, hcy + 1, "pantsBlack")
+		p.rect(17, hcy - 1, 21, hcy + 1, "pantsBlack")
+		p.rect(15, hcy - 1, 16, hcy - 1, "pantsBlack")
+		p.px(9, hcy - 1, "pantsBlack")
+		p.px(22, hcy - 1, "pantsBlack")
+		p.px(11, hcy - 1, "steel")
+		p.px(18, hcy - 1, "steel")
+	if c.get("bowtie", false):  # a red bow tie at the collar
+		p.rect(13, tt + 1, 14, tt + 3, "beanie")
+		p.rect(17, tt + 1, 18, tt + 3, "beanie")
+		p.rect(15, tt + 2, 16, tt + 2, "beanieFold")
 	if c.get("glasses", false):
 		var fr: String = c.get("frame", "frame")
 		var fr2: String = c.get("frame2", fr)  # bridge and arms
@@ -464,7 +496,7 @@ static func _character_image(c: Dictionary, bob: bool) -> Image:
 
 
 ## Lucy (the puppy) lying on the back of Charlie (the older beagle), side view.
-static func _dogs_image(bob: bool) -> Image:
+static func _dogs_image(bob: bool, look := {}) -> Image:
 	var p := Painter.new(CHAR_W, CHAR_H)
 	# Charlie: the big one, standing, facing right
 	p.rect(2, 27, 3, 34, "beagleTan")  # tail up
@@ -495,6 +527,12 @@ static func _dogs_image(bob: bool) -> Image:
 	p.rect(15, 18 + o, 15, 21 + o, "beagleWhite")
 	p.rect(12, 21 + o, 13, 26 + o, "beagleEar")
 	p.rect(15, 29 + o, 18, 30, "beagleWhite")  # front paws
+	if look.has("bandana"):
+		# a bandana around Charlie's neck, the corner hanging down
+		var m: String = look.bandana
+		p.rect(21, 33, 24, 34, m)
+		p.rect(22, 35, 23, 36, m)
+		p.px(22, 37, m)
 	return p.bake()
 
 

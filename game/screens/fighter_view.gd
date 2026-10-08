@@ -32,6 +32,7 @@ var hp_frac := 1.0:
 
 var _sprite := Sprite2D.new()
 var _tag: Label = null  # name tag over the head (players only)
+var _title: Label = null
 var _tag_id := "white"
 var _frames: Array[Texture2D] = []
 var _t := 0.0
@@ -67,6 +68,20 @@ func set_tag(text: String, tag_id: String) -> void:
 		add_child(_tag)
 	_tag.text = text.to_upper()
 	_tag.add_theme_color_override("font_color", Progress.tag_by_id(tag_id).color)
+
+
+## The level 100 title, in gold just above the name tag.
+func set_title(text: String) -> void:
+	if _title == null:
+		_title = UiTheme.label("", 8, UiTheme.GOLD)
+		_title.add_theme_constant_override("outline_size", 3)
+		_title.add_theme_color_override("font_outline_color", Color("17121c"))
+		_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_title.size = Vector2(96, 10)
+		_title.position = Vector2(-32, -44)
+		_title.z_index = 50
+		add_child(_title)
+	_title.text = text.to_upper()
 
 
 ## Back to standing normally (a new round after a knock-out).

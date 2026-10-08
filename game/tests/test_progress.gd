@@ -26,7 +26,7 @@ func test_match_xp() -> void:
 
 func test_unlocks() -> void:
 	eq(Progress.unlocks_at(25), ["SKIN: STYLE 2"], "first skin at 25")
-	eq(Progress.unlocks_at(100), ["SKIN: GOLDEN", "NAME TAG: RAINBOW"], "level 100: gold skin and rainbow tag")
+	eq(Progress.unlocks_at(100), ["SKIN: GOLDEN", "NAME TAG: RAINBOW", "TITLE: MASTER"], "level 100: gold skin and rainbow tag")
 	eq(Progress.unlocks_at(5), ["NAME TAG: BLUE"], "first tag color at 5")
 	done()
 
@@ -35,4 +35,10 @@ func test_every_skin_draws() -> void:
 	for c in preload("res://rules/characters.gd").ALL:
 		for s in 5:
 			check(PixelArt.character(c, false, s) != null, "%s skin %d" % [c, s])
+	done()
+
+
+func test_master_title_unlocks_at_100() -> void:
+	eq(Progress.unlocks_at(100).has("TITLE: " + Progress.TITLE), true, "level 100 lists the title")
+	eq(Progress.unlocks_at(99).has("TITLE: " + Progress.TITLE), false, "not before")
 	done()

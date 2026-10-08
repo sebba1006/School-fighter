@@ -31,6 +31,10 @@ const TAGS := [
 	{"id": "rainbow", "name": "RAINBOW", "level": 100, "color": Color("ffffff")},
 ]
 
+## Reaching level 100 also unlocks a title shown over your name in battle
+## (it can be turned off in FIGHTERS).
+const TITLE := "MASTER"
+
 ## Set to false by tests and tools so they don't touch the real file.
 static var enabled := true
 
@@ -124,6 +128,23 @@ static func chosen_tag(char_id: String) -> String:
 	return t if tag_unlocked(char_id, t) else "white"
 
 
+static func title_unlocked(char_id: String) -> bool:
+	return level(char_id) >= MAX_LEVEL
+
+
+## True if the MASTER title is unlocked and switched on (on by default).
+static func title_on(char_id: String) -> bool:
+	return title_unlocked(char_id) and bool(_load().get_value("title", char_id, true))
+
+
+static func set_title(char_id: String, on: bool) -> void:
+	if not enabled or not title_unlocked(char_id):
+		return
+	var cfg := _load()
+	cfg.set_value("title", char_id, on)
+	cfg.save(PATH)
+
+
 static func choose_skin(char_id: String, skin: int) -> void:
 	if not enabled or not skin_unlocked(char_id, skin):
 		return
@@ -149,6 +170,8 @@ static func unlocks_at(level: int) -> Array:
 	for t in TAGS:
 		if t.level == level and t.level > 1:
 			out.append("NAME TAG: " + t.name)
+	if level == MAX_LEVEL:
+		out.append("TITLE: " + TITLE)
 	return out
 
 
