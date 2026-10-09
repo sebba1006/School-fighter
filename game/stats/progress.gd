@@ -145,6 +145,19 @@ static func set_title(char_id: String, on: bool) -> void:
 	cfg.save(PATH)
 
 
+## Wear the skin's accessory (hat, shades...)? On unless switched off in FIGHTERS.
+static func accessories_on(char_id: String) -> bool:
+	return bool(_load().get_value("accessories", char_id, true))
+
+
+static func set_accessories(char_id: String, on: bool) -> void:
+	if not enabled:
+		return
+	var cfg := _load()
+	cfg.set_value("accessories", char_id, on)
+	cfg.save(PATH)
+
+
 static func choose_skin(char_id: String, skin: int) -> void:
 	if not enabled or not skin_unlocked(char_id, skin):
 		return

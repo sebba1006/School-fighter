@@ -60,6 +60,7 @@ func _fill() -> void:
 	_rainbow.clear()
 	var info := Progress.level_info(Progress.xp(fighter))
 	var skin := Progress.chosen_skin(fighter)
+	var acc := Progress.accessories_on(fighter)
 	var tag := Progress.chosen_tag(fighter)
 
 	# level, XP bar and what's next
@@ -91,7 +92,7 @@ func _fill() -> void:
 	for s in Progress.SKIN_NAMES.size():
 		var b := Button.new()
 		b.toggle_mode = true
-		b.icon = PixelArt.character(fighter, false, s)
+		b.icon = PixelArt.character(fighter, false, s, acc)
 		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
 		b.custom_minimum_size = Vector2(76, 72)
@@ -129,6 +130,24 @@ func _fill() -> void:
 		trow.add_child(b)
 		if t.id == "rainbow" and open:
 			_rainbow.append(b)
+
+	# accessories (the hats, shades... that come with skins): on or off
+	var arow := HBoxContainer.new()
+	arow.alignment = BoxContainer.ALIGNMENT_CENTER
+	arow.add_theme_constant_override("separation", 6)
+	_detail.add_child(arow)
+	arow.add_child(_fixed(UiTheme.label("ACCESSORIES", 8, UiTheme.CHALK_DIM), 64))
+	var ab := Button.new()
+	ab.custom_minimum_size = Vector2(150, 22)
+	ab.toggle_mode = true
+	ab.set_pressed_no_signal(acc)
+	ab.text = "ACCESSORIES: %s" % ("ON" if acc else "OFF")
+	ab.pressed.connect(func():
+		Audio.play("click")
+		Progress.set_accessories(fighter, not acc)
+		_fill())
+	arow.add_child(ab)
+	arow.add_child(UiTheme.label("THE HAT, SHADES... THAT COME WITH A SKIN", 8, UiTheme.CHALK_DIM))
 
 	# the level 100 title: switch it on or off
 	var xrow := HBoxContainer.new()

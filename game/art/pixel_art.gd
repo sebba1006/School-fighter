@@ -243,9 +243,10 @@ const SKIN_LOOKS := {
 }
 
 
-## `bob` is the second idle frame (upper body 1px lower); `skin` is 0-4 (see SKINS).
-static func character(char_id: String, bob := false, skin := 0) -> Texture2D:
-	var key := "char_%s_%s_%d" % [char_id, bob, skin]
+## `bob` is the second idle frame (upper body 1px lower); `skin` is 0-4 (see SKINS);
+## `accessories` false leaves off the skin's hat, shades etc. (SKIN_LOOKS).
+static func character(char_id: String, bob := false, skin := 0, accessories := true) -> Texture2D:
+	var key := "char_%s_%s_%d_%s" % [char_id, bob, skin, accessories]
 	if not _cache.has(key):
 		var swaps: Array = SKINS.get(char_id, [{}])
 		var remap: Dictionary = swaps[clampi(skin, 0, swaps.size() - 1)].duplicate()
@@ -254,7 +255,7 @@ static func character(char_id: String, bob := false, skin := 0) -> Texture2D:
 		Painter.remap = remap
 		var look: Dictionary = LOOKS.get(char_id, {})
 		var extra: Array = SKIN_LOOKS.get(char_id, [])
-		if skin > 0 and skin < extra.size():
+		if accessories and skin > 0 and skin < extra.size():
 			look = look.merged(extra[skin], true)
 		var img := _dogs_image(bob, look) if char_id == "dogs" else _character_image(look, bob)
 		Painter.remap = {}

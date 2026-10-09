@@ -284,10 +284,11 @@ func _build_board() -> void:
 		for f in battle.fighters:
 			var v := FighterView.new()
 			var p: Dictionary = config.players[f.id] if f.id < config.players.size() else {}
-			v.setup(f.char_id, UiTheme.TEAM[battle.teams.find(f.team)], int(p.get("skin", 0)))
+			v.setup(f.char_id, UiTheme.TEAM[battle.teams.find(f.team)], int(p.get("skin", 0)), not (p.get("acc", true) is bool and not p.get("acc", true)))
 			if p.has("tag") and not p.has("cpu"):
 				v.set_tag(_tag_text(f.id), str(p.tag))
-				if p.get("title", false) is bool and p.title:
+				var title = p.get("title", false)
+				if title is bool and title:
 					v.set_title(Progress.TITLE)
 			board.add_child(v)
 			fighter_views.append(v)
