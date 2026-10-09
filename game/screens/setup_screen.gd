@@ -189,7 +189,7 @@ func _start() -> void:
 		"rounds": rounds,
 		"items": items, "bonus_hp": bonus_hp, "shrink": shrink,
 		"players": [
-			{"char": picks[0], "team": 0, "skin": Progress.chosen_skin(picks[0]), "tag": Progress.chosen_tag(picks[0]), "title": Progress.title_on(picks[0])},
-			{"char": picks[1], "team": 1, "skin": Progress.chosen_skin(picks[1]), "tag": Progress.chosen_tag(picks[1]), "title": Progress.title_on(picks[1])}],
+			{"char": picks[0], "team": 0, "skin": Progress.chosen_skin(picks[0]), "tag": Progress.chosen_tag(picks[0]), "title": Progress.title_on(picks[0]), "acc": Progress.accessories_on(picks[0])},
+			{"char": picks[1], "team": 1, "skin": Progress.chosen_skin(picks[1]), "tag": Progress.chosen_tag(picks[1]), "title": Progress.title_on(picks[1]), "acc": Progress.accessories_on(picks[1])}],
 		"seed": randi(),
 	})

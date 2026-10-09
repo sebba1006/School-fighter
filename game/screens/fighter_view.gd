@@ -39,7 +39,7 @@ var _t := 0.0
 var _frame := 0
 
 
-func setup(p_char_id: String, p_team_color: Color, skin := 0) -> void:
+func setup(p_char_id: String, p_team_color: Color, skin := 0, accessories := true) -> void:
 	char_id = p_char_id
 	team_color = p_team_color
 	big = Characters.BOSSES.has(char_id)
@@ -47,7 +47,7 @@ func setup(p_char_id: String, p_team_color: Color, skin := 0) -> void:
 	if big:
 		_frames = [PixelArt.boss_sprite(char_id, false), PixelArt.boss_sprite(char_id, true)]
 	else:
-		_frames = [PixelArt.character(char_id, false, skin), PixelArt.character(char_id, true, skin)]
+		_frames = [PixelArt.character(char_id, false, skin, accessories), PixelArt.character(char_id, true, skin, accessories)]
 	_sprite.texture = _frames[0]
 	_sprite.centered = false
 	_sprite.position = Vector2(-32, -64) if big else Vector2(0, -16)

@@ -389,3 +389,17 @@ func test_master_title_reaches_the_match() -> void:
 	eq(players[0].title, true, "title on")
 	eq(players[1].title, false, "only a real true counts")
 	done()
+
+
+func test_accessories_setting_reaches_the_match() -> void:
+	var lobby := Lobby.new("TEST1")
+	lobby.add_member("a", "Pa", 0)
+	lobby.add_member("b", "Pb", 0)
+	lobby.handle("a", {"t": "pick", "char": "sebba", "acc": false}, 0)
+	lobby.handle("b", {"t": "pick", "char": "mike", "acc": "nope"}, 0)
+	for tok in ["a", "b"]:
+		lobby.handle(tok, {"t": "ready", "ready": true}, 0)
+	lobby.handle("a", {"t": "start"}, 0)
+	eq(lobby.config.players[0].acc, false, "switched off")
+	eq(lobby.config.players[1].acc, true, "anything but false keeps them on")
+	done()

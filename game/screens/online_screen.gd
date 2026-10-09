@@ -271,7 +271,7 @@ func _show_lobby() -> void:
 		if m.char != "" and m.pid != lobby.you_pid:
 			taken.append(m.char)
 	picker.show_state(me.get("char", ""), taken)
-	picker.picked.connect(func(id): net.send({"t": "pick", "char": id, "skin": Progress.chosen_skin(id), "tag": Progress.chosen_tag(id), "title": Progress.title_on(id)}))
+	picker.picked.connect(func(id): net.send({"t": "pick", "char": id, "skin": Progress.chosen_skin(id), "tag": Progress.chosen_tag(id), "title": Progress.title_on(id), "acc": Progress.accessories_on(id)}))
 	_lobby_view.add_child(picker)
 
 	var settings: Dictionary = lobby.settings

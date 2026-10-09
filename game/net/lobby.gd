@@ -177,6 +177,8 @@ func handle(token: String, msg: Dictionary, now: int) -> void:
 			m.tag = tag if tag is String and tag in TAG_IDS else "white"
 			var title = msg.get("title", false)
 			m.title = title is bool and title  # the level 100 title
+			var acc = msg.get("acc", true)
+			m.acc = not (acc is bool and not acc)  # wearing the skin's accessory
 			_broadcast_state()
 		"ready":
 			if in_match():
@@ -314,7 +316,7 @@ func _start_match() -> String:
 		var m: Dictionary = members[i]
 		var team: int = i if ffa else m.team
 		players.append({"char": m.char, "team": 0 if settings.boss else team, "name": m.name, "pid": m.pid,
-			"skin": m.get("skin", 0), "tag": m.get("tag", "white"), "title": m.get("title", false)})
+			"skin": m.get("skin", 0), "tag": m.get("tag", "white"), "title": m.get("title", false), "acc": m.get("acc", true)})
 		fighter_of[m.token] = i
 	if settings.boss:
 		# fill the team up to 3 with CPU teammates on fighters nobody picked
